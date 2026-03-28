@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.shade() — shadow → shade → shader</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;700;900&display=swap');
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    #gpuCanvas { width: 100%; height: 100%; display: block; background: #000; }
+    .glass-panel { background: rgba(255,255,255,0.03); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+    .editor-container { font-family: 'Fira Code', monospace; background: #111; box-shadow: inset 0 2px 10px rgba(0,0,0,0.5); }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-SHADE/coffee-shade.js"></script>
+  <script src="../COFFEE-SHADOW/coffee-shadow.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const PRESET_BASE = '../COFFEE-SHADOW/presets/';
+    let shade = null;
+
+    // Nav
+    const nav = document.createElement('nav');
+    nav.style.cssText = 'height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid rgba(255,255,255,0.08);background:#000;z-index:20';
+    nav.innerHTML = `
+      <div style="display:flex;align-items:center;gap:16px">
+        <h1 style="font-size:18px;font-weight:900;font-style:italic;letter-spacing:-0.02em;margin:0">
+          coffee<span style="color:#3b82f6">.shade()</span>
+        </h1>
+        <div style="width:1px;height:16px;background:rgba(255,255,255,0.1)"></div>
+        <span style="font-size:10px;font-family:monospace;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.15em">shadow → shade → shader</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="status-pulse" style="width:8px;height:8px;border-radius:50%;background:#3b82f6;animation:pulse 1.5s infinite"></div>
+          <span id="status-text" style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.6);text-transform:uppercase">Initializing</span>
+        </div>
+        <button id="brew-btn" style="background:#3b82f6;color:#fff;font-size:12px;font-weight:700;padding:8px 20px;border-radius:999px;border:none;cursor:pointer;box-shadow:0 0 20px rgba(59,130,246,0.2)">Brew Shader</button>
+      </div>
+    `;
+
+    // Main
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:row;min-height:0;background:#0a0a0a';
+
+    const viewport = document.createElement('div');
+    viewport.style.cssText = 'flex:1;position:relative';
+    const canvas = document.createElement('canvas');
+    canvas.id = 'gpuCanvas';
+    viewport.appendChild(canvas);
+
+    const livePanel = document.createElement('div');
+    livePanel.className = 'glass-panel';
+    livePanel.style.cssText = 'position:absolute;bottom:24px;left:24px;padding:12px 16px;border-radius:8px';
+    livePanel.innerHTML = `
+      <p style="font-size:10px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;margin:0 0 8px 0">Current State</p>
+      <div id="live-vals" style="font-size:12px;font-family:monospace;color:#93c5fd"></div>
+    `;
+    viewport.appendChild(livePanel);
+
+    // Sidebar
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:420px;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;background:#0a0a0a';
+
+    const sidebarHeader = document.createElement('div');
+    sidebarHeader.style.cssText = 'padding:20px;border-bottom:1px solid rgba(255,255,255,0.08)';
+    sidebarHeader.innerHTML = `
+      <h3 style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.4);text-transform:uppercase;margin:0 0 8px 0">Presets</h3>
+      <p style="font-size:11px;color:rgba(255,255,255,0.6);line-height:1.5;margin:0">
+        Load from shadow or edit JSON below. <span style="color:#3b82f6">Time</span> is automatic.
+      </p>
+    `;
+    sidebar.appendChild(sidebarHeader);
+
+    const presetBtns = document.createElement('div');
+    presetBtns.style.cssText = 'padding:12px 20px;display:flex;flex-direction:column;gap:12px';
+    const layeredRow = document.createElement('div');
+    layeredRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    layeredRow.innerHTML = '<span style="font-size:10px;color:rgba(255,255,255,0.4);width:100%;margin-bottom:4px">Layered</span>';
+    [['layered','default'], ['layered','sunset'], ['layered','ocean'], ['layered','matrix']].forEach(([shader, preset]) => {
+      const btn = document.createElement('button');
+      btn.textContent = preset.charAt(0).toUpperCase() + preset.slice(1);
+      btn.style.cssText = 'padding:6px 14px;font-size:11px;font-weight:600;background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;cursor:pointer';
+      btn.onmouseover = () => { btn.style.background = '#374151'; };
+      btn.onmouseout = () => { btn.style.background = '#1f2937'; };
+      btn.onclick = () => loadPreset(shader, preset);
+      layeredRow.appendChild(btn);
+    });
+    const liquidRow = document.createElement('div');
+    liquidRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+    liquidRow.innerHTML = '<span style="font-size:10px;color:rgba(255,255,255,0.4);width:100%;margin-bottom:4px">Liquid (legacy)</span>';
+    [['liquid','default'], ['liquid','ocean'], ['liquid','plasma'], ['liquid','intense']].forEach(([shader, preset]) => {
+      const btn = document.createElement('button');
+      btn.textContent = preset.charAt(0).toUpperCase() + preset.slice(1);
+      btn.style.cssText = 'padding:6px 14px;font-size:11px;font-weight:600;background:#1f2937;color:#e5e7eb;border:1px solid #374151;border-radius:6px;cursor:pointer';
+      btn.onmouseover = () => { btn.style.background = '#374151'; };
+      btn.onmouseout = () => { btn.style.background = '#1f2937'; };
+      btn.onclick = () => loadPreset(shader, preset);
+      liquidRow.appendChild(btn);
+    });
+    presetBtns.appendChild(layeredRow);
+    presetBtns.appendChild(liquidRow);
+    sidebar.appendChild(presetBtns);
+
+    const editorWrap = document.createElement('div');
+    editorWrap.className = 'editor-container';
+    editorWrap.style.cssText = 'flex:1;padding:20px;min-height:0;overflow:auto';
+    const editor = document.createElement('textarea');
+    editor.id = 'jsonEditor';
+    editor.style.cssText = 'width:100%;height:100%;min-height:180px;background:transparent;color:#93c5fd;font-size:13px;resize:none;outline:none;border:none;font-family:inherit';
+    editor.spellcheck = false;
+    editor.value = JSON.stringify({
+      layers: [
+        { mode: 'background', opacity: 1, blend: 'normal', params: { color: [0.05, 0.05, 0.1] } },
+        { mode: 'liquid', opacity: 1, blend: 'normal', params: { density: 5, color_shift: 1, zoom: 1, speed: 1, brightness: 1, complexity: 4 } }
+      ]
+    }, null, 2);
+    editorWrap.appendChild(editor);
+    sidebar.appendChild(editorWrap);
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding:12px 20px;background:rgba(0,0,0,0.4);font-size:10px;font-family:monospace;color:rgba(255,255,255,0.2);text-align:center;text-transform:uppercase;letter-spacing:0.1em';
+    footer.textContent = 'Coffee Engine • WebGPU • shadow → shade → shader';
+    sidebar.appendChild(footer);
+
+    main.appendChild(viewport);
+    main.appendChild(sidebar);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;flex-direction:column;width:100%;height:100vh';
+    layout.appendChild(nav);
+    layout.appendChild(main);
+
+    document.getElementById('app').appendChild(layout);
+
+    function updateStatus(msg, ok = true) {
+      const text = document.getElementById('status-text');
+      const pulse = document.getElementById('status-pulse');
+      text.textContent = msg;
+      pulse.style.background = ok ? '#3b82f6' : '#ef4444';
+    }
+
+    function updateLiveVals(config) {
+      const el = document.getElementById('live-vals');
+      if (config.layers) {
+        const summary = config.layers.map((l, i) => `${i + 1}. ${l.mode} (${l.opacity})`).join('<br>');
+        el.innerHTML = `<div style="margin-bottom:4px">${config.layers.length} layers</div>${summary}`;
+      } else {
+        el.innerHTML = Object.entries(config)
+          .map(([k, v]) => `<div>${k}: <span style="color:#fff">${v}</span></div>`)
+          .join('');
+      }
+    }
+
+    function brew() {
+      if (!shade) return;
+      try {
+        const config = JSON.parse(editor.value);
+        shade.update(config);
+        updateLiveVals(config);
+        updateStatus('Brewed', true);
+        if (coffee.toast) coffee.toast('Brewed', 'info', 800);
+      } catch (e) {
+        updateStatus('JSON Error', false);
+        if (coffee.toast) coffee.toast('Invalid JSON', 'error', 2000);
+      }
+    }
+
+    async function loadPreset(shader, preset) {
+      try {
+        const config = await coffee.shadow.load(shader, preset, { baseUrl: PRESET_BASE });
+        shade.update(config);
+        editor.value = JSON.stringify(config, null, 2);
+        updateLiveVals(config);
+        updateStatus('Loaded ' + preset, true);
+        if (coffee.toast) coffee.toast('Loaded ' + preset, 'info', 1200);
+      } catch (e) {
+        updateStatus('Load failed', false);
+        if (coffee.toast) coffee.toast('Preset load failed', 'error', 2000);
+      }
+    }
+
+    document.getElementById('brew-btn').onclick = brew;
+
+    async function init() {
+      try {
+        shade = await coffee.shadow.run({
+          canvas: '#gpuCanvas',
+          shader: 'layered',
+          preset: 'default',
+          baseUrl: PRESET_BASE
+        });
+        const config = shade.config;
+        editor.value = JSON.stringify(config, null, 2);
+        updateLiveVals(config);
+        updateStatus('Ready', true);
+      } catch (e) {
+        updateStatus('WebGPU Unsupported', false);
+        if (coffee.toast) coffee.toast('WebGPU not available', 'error', 3000);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

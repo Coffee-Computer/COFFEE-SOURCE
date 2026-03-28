@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.plex demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-plex.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: #18181b; color: #fafafa; }
+    canvas { display: block; background: #fff; border-radius: 8px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1 style="font-size:18px;">coffee.plex</h1>
+  <p style="color:#a1a1aa;font-size:13px;">Headless stroke styles — same presets as Kite.</p>
+  <div id="btns"></div>
+  <canvas id="c" width="400" height="200"></canvas>
+  <script>
+    coffee.injectTheme('dark');
+    var canvas = document.getElementById('c');
+    var ctx = canvas.getContext('2d');
+    function strokeDemo(mode) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      coffee.plex.apply(ctx, { mode: mode, color: '#2563eb', size: 14, opacity: 0.9 });
+      ctx.beginPath();
+      ctx.moveTo(40, 100);
+      ctx.lineTo(360, 100);
+      ctx.stroke();
+      coffee.plex.reset(ctx);
+    }
+    coffee.plex.modes().forEach(function (m) {
+      var b = coffee.button(m.label, function () { strokeDemo(m.id); }, { style: { marginRight: '8px', marginBottom: '8px' } });
+      document.getElementById('btns').appendChild(b);
+    });
+    strokeDemo('pen');
+  </script>
+</body>
+</html>

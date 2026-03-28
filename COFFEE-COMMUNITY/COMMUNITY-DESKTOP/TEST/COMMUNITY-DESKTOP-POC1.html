@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MS-DOS Navigator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        :root {
+            --dos-blue: #0000AA;
+            --dos-cyan: #00AAAA;
+            --dos-grey: #AAAAAA;
+            --dos-white: #FFFFFF;
+            --dos-shadow: #555555;
+            --dos-high-blue: #5555FF;
+        }
+
+        body {
+            background-color: #000;
+            color: var(--dos-white);
+            font-family: 'VT323', monospace;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+            image-rendering: pixelated;
+        }
+
+        .desktop {
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--dos-blue);
+            position: relative;
+            background-image: radial-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 0);
+            background-size: 4px 4px;
+        }
+
+        /* Top Menu Bar */
+        .top-bar {
+            height: 24px;
+            background-color: var(--dos-grey);
+            color: #000;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 18px;
+            border-bottom: 2px solid #000;
+            z-index: 1000;
+        }
+
+        .menu-container {
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-item {
+            padding: 0 10px;
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .menu-item:hover, .menu-item.active {
+            background-color: #000;
+            color: var(--dos-white);
+        }
+
+        /* Dropdown Menu */
+        .dropdown {
+            display: none;
+            position: absolute;
+            top: 24px;
+            left: 0;
+            background-color: var(--dos-grey);
+            border: 2px solid #000;
+            box-shadow: 5px 5px 0px rgba(0,0,0,0.5);
+            min-width: 150px;
+            z-index: 1100;
+        }
+
+        .dropdown-item {
+            padding: 5px 15px;
+            color: #000;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .dropdown-item:hover {
+            background-color: #000;
+            color: var(--dos-white);
+        }
+
+        .dropdown-item.checked::after {
+            content: '√';
+        }
+
+        /* Desktop Icons */
+        .icon-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 100px);
+            grid-gap: 20px;
+            padding: 40px;
+        }
+
+        .desktop-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        .icon-box {
+            width: 48px;
+            height: 48px;
+            background-color: var(--dos-grey);
+            border: 3px outset var(--dos-white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 5px;
+            font-size: 24px;
+        }
+
+        .desktop-icon:active .icon-box {
+            border-style: inset;
+        }
+
+        /* Window Styling */
+        .dos-window {
+            position: absolute;
+            background-color: var(--dos-blue);
+            border: 2px solid var(--dos-white);
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+            min-height: 150px;
+            z-index: 10;
+        }
+
+        .window-header {
+            background-color: var(--dos-cyan);
+            height: 28px;
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            border-bottom: 2px solid var(--dos-white);
+            cursor: move;
+        }
+
+        .window-title {
+            flex-grow: 1;
+            text-align: center;
+            font-weight: bold;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+
+        .window-btn {
+            width: 20px;
+            height: 20px;
+            background-color: var(--dos-grey);
+            border: 2px outset var(--dos-white);
+            color: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .window-btn:active {
+            border-style: inset;
+        }
+
+        .window-content {
+            flex-grow: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #fff;
+        }
+
+        /* Resize Handle */
+        .resizer {
+            width: 15px;
+            height: 15px;
+            background: var(--dos-grey);
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: nwse-resize;
+            border-left: 2px solid var(--dos-white);
+            border-top: 2px solid var(--dos-white);
+        }
+
+        .active-window {
+            z-index: 100;
+            border-color: #FFFF55;
+        }
+        
+        .active-window .window-header {
+            background-color: var(--dos-high-blue);
+        }
+
+        /* Bottom Status Bar */
+        .status-bar {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 24px;
+            background-color: var(--dos-cyan);
+            color: #000;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 16px;
+            border-top: 2px solid var(--dos-white);
+        }
+
+        /* CRT Overlay effect */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 9999;
+            display: block; /* Control via JS */
+        }
+        
+        .crt-off .crt-overlay {
+            display: none;
+        }
+    </style>
+</head>
+<body class="crt-on">
+
+    <div class="crt-overlay"></div>
+
+    <div class="top-bar">
+        <div class="menu-container">
+            <div class="menu-item">File</div>
+        </div>
+        <div class="menu-container">
+            <div class="menu-item">Search</div>
+        </div>
+        <div class="menu-container">
+            <div class="menu-item">Options</div>
+        </div>
+        <div class="menu-container" id="window-menu-trigger">
+            <div class="menu-item" onclick="toggleDropdown(event, 'window-dropdown')">Window</div>
+            <div class="dropdown" id="window-dropdown">
+                <div class="dropdown-item checked" id="crt-toggle" onclick="toggleCRT()">CRT Effect</div>
+                <div class="dropdown-item" onclick="closeAllWindows()">Close All</div>
+            </div>
+        </div>
+        <div class="menu-container">
+            <div class="menu-item">Help</div>
+        </div>
+        <div class="ml-auto px-4" id="clock">12:00 PM</div>
+    </div>
+
+    <div class="desktop" id="desktop">
+        <div class="icon-grid">
+            <div class="desktop-icon" onclick="openWindow('Commander', 'https://www.google.com/search?igu=1')">
+                <div class="icon-box">📁</div>
+                <span>COMMAND.COM</span>
+            </div>
+            <div class="desktop-icon" onclick="openWindow('Editor', 'https://edit.org')">
+                <div class="icon-box">📝</div>
+                <span>EDIT.EXE</span>
+            </div>
+            <div class="desktop-icon" onclick="openWindow('Web Crawler', 'https://frogfind.com')">
+                <div class="icon-box">🌐</div>
+                <span>WWW.EXE</span>
+            </div>
+            <div class="desktop-icon" onclick="openWindow('Retro Games', 'https://poki.com')">
+                <div class="icon-box">🕹️</div>
+                <span>GAMES.BAT</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="status-bar">
+        <span>F1=Help  F3=Exit  F5=Refresh  F10=Menu</span>
+        <span class="ml-auto">C:\DOS\SYSTEM> _</span>
+    </div>
+
+    <script>
+        let zIndexCounter = 100;
+        let crtEnabled = true;
+
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('clock').innerText = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Menu Dropdown Logic
+        function toggleDropdown(e, id) {
+            e.stopPropagation();
+            const dropdown = document.getElementById(id);
+            const isVisible = dropdown.style.display === 'block';
+            
+            // Close all other dropdowns
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+            
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+
+        // Close dropdowns when clicking outside
+        window.onclick = function() {
+            document.querySelectorAll('.dropdown').forEach(d => d.style.display = 'none');
+        };
+
+        function toggleCRT() {
+            crtEnabled = !crtEnabled;
+            const body = document.body;
+            const toggleItem = document.getElementById('crt-toggle');
+            
+            if (crtEnabled) {
+                body.classList.remove('crt-off');
+                toggleItem.classList.add('checked');
+            } else {
+                body.classList.add('crt-off');
+                toggleItem.classList.remove('checked');
+            }
+        }
+
+        function closeAllWindows() {
+            document.querySelectorAll('.dos-window').forEach(win => win.remove());
+        }
+
+        function openWindow(title, url) {
+            const id = 'win-' + Math.random().toString(36).substr(2, 9);
+            const win = document.createElement('div');
+            win.className = 'dos-window active-window';
+            win.id = id;
+            win.style.left = (50 + (zIndexCounter - 100) * 10) + 'px';
+            win.style.top = (50 + (zIndexCounter - 100) * 10) + 'px';
+            win.style.width = '600px';
+            win.style.height = '400px';
+            win.style.zIndex = ++zIndexCounter;
+
+            win.innerHTML = `
+                <div class="window-header">
+                    <div class="window-btn" onclick="closeWindow('${id}')">■</div>
+                    <div class="window-title">${title}</div>
+                    <div class="window-btn">▲</div>
+                </div>
+                <div class="window-content">
+                    <div style="position:absolute; top:0; left:0; width:100%; height:100%; background:transparent; pointer-events:none;" class="iframe-shield"></div>
+                    <iframe src="${url}"></iframe>
+                </div>
+                <div class="resizer"></div>
+            `;
+
+            document.getElementById('desktop').appendChild(win);
+            makeDraggable(win);
+            makeResizable(win);
+            
+            win.addEventListener('mousedown', () => focusWindow(win));
+        }
+
+        function closeWindow(id) {
+            const win = document.getElementById(id);
+            if (win) win.remove();
+        }
+
+        function focusWindow(win) {
+            document.querySelectorAll('.dos-window').forEach(w => w.classList.remove('active-window'));
+            win.classList.add('active-window');
+            win.style.zIndex = ++zIndexCounter;
+        }
+
+        function makeDraggable(elmnt) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            const header = elmnt.querySelector('.window-header');
+            const shield = elmnt.querySelector('.iframe-shield');
+
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e = e || window.event;
+                e.preventDefault();
+                focusWindow(elmnt);
+                shield.style.pointerEvents = 'all';
+                
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e = e || window.event;
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                elmnt.style.top = (elmnt.offsetTop - pos2) + "px";
+                elmnt.style.left = (elmnt.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                shield.style.pointerEvents = 'none';
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        function makeResizable(elmnt) {
+            const resizer = elmnt.querySelector('.resizer');
+            const shield = elmnt.querySelector('.iframe-shield');
+
+            resizer.addEventListener('mousedown', initResize, false);
+
+            function initResize(e) {
+                e.preventDefault();
+                focusWindow(elmnt);
+                shield.style.pointerEvents = 'all';
+                window.addEventListener('mousemove', Resize, false);
+                window.addEventListener('mouseup', stopResize, false);
+            }
+
+            function Resize(e) {
+                elmnt.style.width = (e.clientX - elmnt.offsetLeft) + 'px';
+                elmnt.style.height = (e.clientY - elmnt.offsetTop) + 'px';
+            }
+
+            function stopResize(e) {
+                shield.style.pointerEvents = 'none';
+                window.removeEventListener('mousemove', Resize, false);
+                window.removeEventListener('mouseup', stopResize, false);
+            }
+        }
+    </script>
+</body>
+</html>

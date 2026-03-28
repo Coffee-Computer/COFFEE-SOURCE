@@ -1,0 +1,6 @@
+{
+  "flow": ["default", "warm", "cool"],
+  "fractal": ["default"],
+  "orbit": ["default"],
+  "glitch": ["default"]
+}

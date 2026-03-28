@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Installed app</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+</head>
+<body style="margin:0;background:var(--coffee-bg-surface,#111);color:var(--coffee-text-primary,#eee);font-family:system-ui,sans-serif">
+  <div id="boot" style="padding:24px;font-size:14px">Loading…</div>
+  <script>
+    (async function () {
+      var el = document.getElementById('boot');
+      var params = new URLSearchParams(location.search);
+      var id = params.get('id');
+      if (!id) {
+        el.textContent = 'Missing app id.';
+        return;
+      }
+      if (!window.coffee || !coffee.drive) {
+        el.textContent = 'Drive not available.';
+        return;
+      }
+      var drive = coffee.drive('community-install');
+      var item = await drive.load(id);
+      if (!item || item.kind !== 'installed-html' || typeof item.html !== 'string') {
+        el.textContent = 'App not found or invalid.';
+        return;
+      }
+      el.remove();
+      document.open();
+      document.write(item.html);
+      document.close();
+    })();
+  </script>
+</body>
+</html>

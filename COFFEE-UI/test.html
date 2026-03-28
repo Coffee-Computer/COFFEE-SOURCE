@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee UI — POC</title>
+  <style>
+    body { font-family: system-ui; background: #1a1a1a; color: #eee; padding: 20px; max-width: 720px; margin: 0 auto; }
+    h1 { color: #c6712b; margin-bottom: 4px; }
+    .subtitle { color: #9ca3af; font-size: 14px; margin-bottom: 20px; }
+    .triggers { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+    .triggers .group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .triggers .group-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; width: 100%; margin-bottom: 4px; }
+    .triggers .group-wrap { display: flex; flex-direction: column; margin-right: 20px; margin-bottom: 8px; }
+    .triggers button { padding: 8px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 13px; font-weight: 500; }
+    .triggers .btn-prim { background: #4c9aff; color: #fff; }
+    .triggers .btn-sec { background: #374151; color: #e5e7eb; }
+    .triggers .btn-acc { background: #059669; color: #fff; }
+    .triggers .btn-warn { background: #d97706; color: #fff; }
+    .triggers .btn-mute { background: #4b5563; color: #9ca3af; }
+    #demo { margin: 0 0 20px 0; padding: 20px; background: #1e1e1e; border-radius: 12px; min-height: 120px; border: 1px solid #333; }
+    #log { font-family: monospace; font-size: 12px; color: #7fff00; background: #0d1117; padding: 12px; border-radius: 8px; max-height: 140px; overflow-y: auto; }
+    .design-summary { background: #252525; border: 1px solid #333; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: #9ca3af; }
+    .design-summary strong { color: #e5e7eb; }
+    .design-summary h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>Coffee UI</h1>
+  <p class="subtitle">High-value primitives + layout helpers. No Tailwind, no externals.</p>
+
+  <section class="design-summary">
+    <h3>Design principles (summary)</h3>
+    <strong>Fixed shell, flexible content</strong> — Header and footer fixed; main area flex-grows. Max-width 600px for comfortable reading on desktop.<br>
+    <strong>Touch-first</strong> — Min 44×44px tap targets for buttons and interactive elements.<br>
+    <strong>No alert()</strong> — Use <code>coffee.msg()</code> for success, warning, error feedback.<br>
+    <strong>Loading states</strong> — Show <code>coffee.spinner()</code> before fetch; never leave users guessing.<br>
+    <strong>Visual consistency</strong> — One or two main colors, clean typography (Inter/system-ui), shadows and rounded corners.
+  </section>
+
+  <div class="triggers">
+    <div class="group-wrap">
+      <span class="group-label">Components</span>
+      <div class="group">
+        <button class="btn-prim" onclick="demoButtons()">Buttons</button>
+        <button class="btn-prim" onclick="demoForm()">Form</button>
+        <button class="btn-prim" onclick="demoCard()">Card</button>
+        <button class="btn-prim" onclick="demoFeedback()">Text / Spinner / Msg</button>
+        <button class="btn-prim" onclick="demoFormExtras()">Textarea / Select</button>
+      </div>
+    </div>
+    <div class="group-wrap">
+      <span class="group-label">Layout</span>
+      <div class="group">
+        <button class="btn-sec" onclick="demoLayout()">Row / Col / Stack</button>
+        <button class="btn-sec" onclick="demoComposed()">Composed</button>
+        <button class="btn-sec" onclick="demoAppShell()">App Shell</button>
+      </div>
+    </div>
+    <div class="group-wrap">
+      <span class="group-label">Theme</span>
+      <div class="group">
+        <button class="btn-acc" onclick="demoLight()">Light</button>
+        <button class="btn-warn" onclick="demoDark()">Dark</button>
+        <button class="btn-mute" onclick="clearDemo()">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="demo"></div>
+  <pre id="log"></pre>
+
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="coffee-ui.js"></script>
+  <script>
+    const demo = document.getElementById('demo');
+    const log = document.getElementById('log');
+
+    function appendLog(msg) {
+      log.textContent += msg + '\n';
+    }
+
+    function demoButtons() {
+      demo.innerHTML = '';
+      demo.appendChild(coffee.col([
+        coffee.row([
+          coffee.button('Primary', () => appendLog("coffee.button('Primary', fn)")),
+          coffee.button('Sky', () => appendLog("coffee.button('Sky', fn, { backgroundColor: '#87CEEB', color: '#333' })"), { backgroundColor: '#87CEEB', color: '#333' }),
+          coffee.button('Speak', () => { appendLog("coffee.button('Speak', () => coffee.speak('Hello'))"); typeof coffee.speak === 'function' && coffee.speak('Hello'); })
+        ]),
+        coffee.row([
+          coffee.button('Emerald', () => appendLog("coffee.button('Emerald', fn, { backgroundColor: '#059669', color: '#fff' })"), { backgroundColor: '#059669', color: '#fff' }),
+          coffee.button('Amber', () => appendLog("coffee.button('Amber', fn, { backgroundColor: '#d97706', color: '#fff' })"), { backgroundColor: '#d97706', color: '#fff' }),
+          coffee.button('Muted', () => appendLog("coffee.button('Muted', fn, { backgroundColor: '#4b5563', color: '#9ca3af' })"), { backgroundColor: '#4b5563', color: '#9ca3af' })
+        ])
+      ]));
+      appendLog('coffee.row / coffee.col — button variants');
+    }
+
+    function demoFeedback() {
+      demo.innerHTML = '';
+      demo.appendChild(coffee.col([
+        coffee.stack([
+          coffee.heading('Text & feedback', 3),
+          coffee.para('Use coffee.text() for inline text and coffee.para() for body copy.'),
+          coffee.row([coffee.text('Inline: ', { color: 'var(--coffee-text-muted)' }), coffee.text('coffee.text("inline")')]),
+          coffee.row([coffee.spinner(), coffee.text(' Loading...')], { alignItems: 'center' }),
+          coffee.msg('Success! Operation complete.', 'success'),
+          coffee.msg('Warning: check your input.', 'warning'),
+          coffee.msg('Error: something went wrong.', 'error')
+        ], { gap: 'var(--coffee-space-sm)' })
+      ]));
+      appendLog('coffee.text, coffee.para, coffee.spinner, coffee.msg');
+    }
+
+    function demoFormExtras() {
+      demo.innerHTML = '';
+      const ta = coffee.textarea({ placeholder: 'Enter description...', id: 'demo-desc', rows: 3 });
+      const sel = coffee.select({
+        options: [{ value: '', label: 'Choose...' }, { value: 'a', label: 'Option A' }, { value: 'b', label: 'Option B' }],
+        id: 'demo-sel'
+      });
+      demo.appendChild(coffee.stack([
+        coffee.heading('Form extras', 3),
+        coffee.label('Description', ta),
+        ta,
+        coffee.label('Category', sel),
+        sel,
+        coffee.button('Submit', () => appendLog('Textarea: ' + ta.value + ' | Select: ' + sel.value))
+      ]));
+      appendLog('coffee.textarea, coffee.select');
+    }
+
+    function demoForm() {
+      demo.innerHTML = '';
+      const inp = coffee.input({ placeholder: 'Enter name', id: 'demo-name' });
+      demo.appendChild(coffee.stack([
+        coffee.label('Name', inp),
+        inp,
+        coffee.button('Submit', () => appendLog("coffee.input({ placeholder: 'Enter name', id: 'demo-name' })\ncoffee.label('Name', inp)\ncoffee.button('Submit', fn)"))
+      ]));
+      appendLog('coffee.input, coffee.label, coffee.stack');
+    }
+
+    function demoCard() {
+      demo.innerHTML = '';
+      demo.appendChild(coffee.row([
+        coffee.card([
+          coffee.heading('Card A', 3),
+          coffee.link('Link', '#'),
+          coffee.button('Action', () => appendLog("coffee.card([ heading, link, button ], { backgroundColor: '#1e3a5f', borderColor: '#2563eb' })"))
+        ], { backgroundColor: '#1e3a5f', borderColor: '#2563eb' }),
+        coffee.card([
+          coffee.heading('Card B', 3),
+          coffee.link('Link', '#'),
+          coffee.button('Action', () => appendLog("coffee.card([ heading, link, button ], { backgroundColor: '#1a2e1a', borderColor: '#059669' })"))
+        ], { backgroundColor: '#1a2e1a', borderColor: '#059669' }),
+        coffee.card([
+          coffee.heading('Card C', 3),
+          coffee.link('Link', '#'),
+          coffee.button('Action', () => appendLog("coffee.card([ heading, link, button ], { backgroundColor: '#2e1a1a', borderColor: '#dc2626' })"))
+        ], { backgroundColor: '#2e1a1a', borderColor: '#dc2626' })
+      ], { flexWrap: 'wrap' }));
+      appendLog('coffee.card — multiple cards, different colors');
+    }
+
+    function demoLayout() {
+      demo.innerHTML = '';
+      const btnA = coffee.button('A', () => appendLog("coffee.button('A', fn)"));
+      const btnB = coffee.button('B', () => appendLog("coffee.button('B', fn)"));
+      const btnC = coffee.button('C', () => appendLog("coffee.button('C', fn)"));
+      const btnOk = coffee.button('OK', () => appendLog("coffee.button('OK', fn)"));
+      const btnCancel = coffee.button('Cancel', () => appendLog("coffee.button('Cancel', null, { backgroundColor: '#4b5563' })"), { backgroundColor: '#4b5563' });
+      demo.appendChild(coffee.col([
+        coffee.row([btnA, btnB, btnC]),
+        coffee.row([coffee.input({ placeholder: 'Input 1' }), coffee.input({ placeholder: 'Input 2' })]),
+        coffee.stack([
+          coffee.heading('Stack section', 3),
+          coffee.input({ placeholder: 'In stack' }),
+          coffee.row([btnOk, btnCancel])
+        ], { gap: 'var(--coffee-space-sm)' })
+      ]));
+      appendLog('coffee.row, coffee.col, coffee.stack — nested layout');
+    }
+
+    function demoComposed() {
+      demo.innerHTML = '';
+      demo.appendChild(coffee.card([
+        coffee.heading('Login', 2),
+        coffee.stack([
+          coffee.label('Email', 'email'),
+          coffee.input({ type: 'email', placeholder: 'you@example.com', id: 'email' }),
+          coffee.label('Password', 'pass'),
+          coffee.input({ type: 'password', placeholder: '••••••', id: 'pass' }),
+          coffee.row([
+            coffee.button('Cancel', () => appendLog("coffee.button('Cancel', fn)")),
+            coffee.button('Sign in', () => appendLog("coffee.button('Sign in', fn)"))
+          ])
+        ])
+      ]));
+      appendLog('Composed: card > stack > label, input, row');
+    }
+
+    function demoAppShell() {
+      demo.innerHTML = '';
+      const { el, header, main, footer } = coffee.appShell();
+      header.appendChild(coffee.heading('App Shell', 3));
+      header.appendChild(coffee.button('⋮', () => appendLog("coffee.button('⋮', fn)")));
+      main.appendChild(coffee.card([
+        coffee.heading('Fixed shell, flexible content', 4),
+        coffee.stack([
+          coffee.link('Design principles', '#'),
+          coffee.button('Primary CTA', () => appendLog("coffee.appShell() → { el, header, main, footer }"))
+        ])
+      ]));
+      footer.appendChild(document.createTextNode('Footer — status or controls'));
+      el.style.minHeight = '280px';
+      demo.appendChild(el);
+      appendLog('coffee.appShell() — design_principals layout');
+    }
+
+    function demoLight() {
+      coffee.injectTheme('light');
+      document.body.style.background = 'var(--coffee-bg-surface)';
+      document.body.style.color = 'var(--coffee-text-primary)';
+      appendLog('coffee.injectTheme("light")');
+    }
+
+    function demoDark() {
+      coffee.injectTheme('dark');
+      document.body.style.background = '#1a1a1a';
+      document.body.style.color = '#eee';
+      appendLog('coffee.injectTheme("dark")');
+    }
+
+    function clearDemo() {
+      demo.innerHTML = '';
+      appendLog('Cleared');
+    }
+  </script>
+</body>
+</html>

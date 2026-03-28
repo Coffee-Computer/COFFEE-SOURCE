@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Coffee Community — Homescreen</title>
+  <style>
+    :root {
+      --shell-bg: linear-gradient(135deg, #FF6F00 0%, #FFB300 30%, #E91E63 70%, #9C27B0 100%);
+      --shell-accent: #4c9aff;
+      /* Chrome heights — app iframes must not sit under status / nav (was 100% tall → clipped input) */
+      --community-status-h: 32px;
+      --community-nav-h: 56px;
+    }
+    body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; user-select: none; -webkit-tap-highlight-color: transparent; }
+    #os-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: var(--shell-bg);
+      display: flex;
+      flex-direction: column;
+    }
+    #status-bar {
+      height: var(--community-status-h);
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: white;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+    #home-screen {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-auto-rows: min-content;
+      gap: 20px;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .app-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      min-height: 88px;
+    }
+    .app-icon:active .icon-wrapper { transform: scale(0.92); }
+    .icon-wrapper {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+    .app-label {
+      color: rgba(255,255,255,0.95);
+      font-size: 12px;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+    }
+    #app-layer {
+      position: absolute;
+      top: var(--community-status-h);
+      left: 0;
+      right: 0;
+      bottom: var(--community-nav-h);
+      width: 100%;
+      height: auto;
+      pointer-events: none;
+      z-index: 50;
+    }
+    .window {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: var(--coffee-bg-surface, #fff);
+      display: flex;
+      flex-direction: column;
+      pointer-events: auto;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+      z-index: 60;
+    }
+    .window.open { transform: translateY(0); }
+    .window-header {
+      height: 52px;
+      background: var(--coffee-bg-elev, #f8fafc);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--coffee-panel, #e2e8f0);
+      flex-shrink: 0;
+    }
+    .window-body { flex: 1; position: relative; min-height: 0; }
+    .window-body iframe { width: 100%; height: 100%; border: none; display: block; }
+    #nav-bar {
+      height: var(--community-nav-h);
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(12px);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      color: white;
+      z-index: 100;
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      min-width: 48px;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: background 0.15s;
+    }
+    .nav-btn:active { background: rgba(255,255,255,0.15); }
+    #shade {
+      position: absolute;
+      top: -100%;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(20px);
+      z-index: 200;
+      transition: top 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+      padding: 48px 24px;
+      color: white;
+      box-sizing: border-box;
+    }
+    #shade.visible { top: 0; }
+    .shade-toggles {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .shade-toggle {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.08);
+      cursor: pointer;
+    }
+    .shade-toggle-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .shade-toggle span { font-size: 11px; opacity: 0.9; }
+    .shade-handle {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 4px;
+      background: rgba(255,255,255,0.3);
+      border-radius: 2px;
+    }
+    /* Desktop-only app blocked (small screen / Twin) */
+    #desktop-block-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    #desktop-block-modal.visible {
+      display: flex;
+    }
+    #desktop-block-modal .desktop-block-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(8px);
+    }
+    #desktop-block-modal .desktop-block-panel {
+      position: relative;
+      max-width: 360px;
+      width: 100%;
+      padding: 24px;
+      border-radius: 16px;
+      background: var(--coffee-bg-elev, #252525);
+      border: 1px solid var(--coffee-panel, #3f3f46);
+      color: var(--coffee-text-primary, #eee);
+      font-family: system-ui, sans-serif;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    #desktop-block-modal .desktop-block-panel p {
+      margin: 0 0 20px 0;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    #desktop-block-modal .desktop-block-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+  </style>
+</head>
+<body>
+
+<div id="os-container">
+  <div id="status-bar">
+    <span id="status-time">☕️ Devsumer · 12:00</span>
+    <span id="status-icons">📶 🔋</span>
+  </div>
+
+  <div id="home-screen"></div>
+
+  <div id="shade">
+    <div class="shade-toggles">
+      <div class="shade-toggle"><div class="shade-toggle-icon" style="background:#059669">📶</div><span>Wi‑Fi</span></div>
+      <div class="shade-toggle"><div class="shade-toggle-icon" style="background:#4b5563">📡</div><span>Bluetooth</span></div>
+      <div class="shade-toggle"><div class="shade-toggle-icon" style="background:#4b5563">🌙</div><span>DND</span></div>
+      <div class="shade-toggle"><div class="shade-toggle-icon" style="background:#059669">🔄</div><span>Rotate</span></div>
+    </div>
+    <div style="padding:16px;background:rgba(255,255,255,0.06);border-radius:12px;font-size:14px;opacity:0.8">Curated grid · <code>devsumer-apps.json</code></div>
+    <div class="shade-handle"></div>
+  </div>
+
+  <div id="app-layer"></div>
+
+  <div id="desktop-block-modal" aria-hidden="true">
+    <div class="desktop-block-backdrop" id="desktop-block-backdrop"></div>
+    <div class="desktop-block-panel" role="dialog" aria-labelledby="desktop-block-message" aria-modal="true">
+      <p id="desktop-block-message"></p>
+      <div class="desktop-block-actions" id="desktop-block-actions"></div>
+    </div>
+  </div>
+
+  <div id="nav-bar">
+    <div class="nav-btn" onclick="goBack()">◀</div>
+    <div class="nav-btn" onclick="goHome()">●</div>
+    <div class="nav-btn" onclick="showRecents()">▢</div>
+  </div>
+</div>
+
+<script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+<script src="../../COFFEE-SCREEN/coffee-screen.js"></script>
+<script src="../../COFFEE-UI/coffee-ui.js"></script>
+<script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+<script src="../../COFFEE-INSTALL/coffee-install.js"></script>
+<script>
+  coffee.injectTheme('dark');
+
+  /** Persisted by coffee.screen on load + resize; other shells can read the same key. */
+  const COMMUNITY_SCREEN_STORAGE_KEY = 'coffee_community_screen_profile';
+
+  /** Curated devsumer grid; full demo list: ../coffee-community-shell.html + ../shell-apps.json */
+  const SHELL_APPS_URL = './devsumer-apps.json';
+  const FALLBACK_APPS = [
+    { id: 'coffee-hub', name: 'Hub', icon: '🏠', color: '#eab308', url: '../COMMUNITY-HUB/COMMUNITY-HUB.html' },
+    { id: 'scribe', name: 'Scribe', icon: '📝', color: '#d4a373', url: '../FLAGSHIP/SCRIBE/SCRIBE-ALPHA.html', desktop: true },
+    { id: 'terminal', name: 'Coffee.Terminal', icon: '⌘', color: '#eab308', url: '../../COFFEE-TERMINAL/COFFEE-TERMINAL-ALPHA.html', desktop: true },
+    { id: 'anti-social', name: 'Anti-Social + DnD', icon: '😈', color: '#7c3aed', url: '../FLAGSHIP/ANTI-SOCIAL/ANTI-SOCIAL-SWITCHER.html' },
+    { id: 'duck-ide', name: 'DUCK IDE', icon: '🦆', color: '#f59e0b', url: '../FLAGSHIP/DUCK-IDE/DUCK-IDE-ALPHA.html', desktop: true },
+    { id: 'friendz', name: 'Friendz', icon: '🤝', color: '#d4a373', url: '../FLAGSHIP/FRIENDZ/FRIENDZ-ALPHA.html' },
+    { id: 'speak', name: 'Speak', icon: '🎙️', color: '#4f46e5', url: '../FLAGSHIP/SPEAK/SPEAK-ALPHA.html' },
+    { id: 'frugal', name: 'Frugal', icon: '🧡', color: '#ff4500', url: '../FLAGSHIP/FRUGAL/FRUGAL-ALPHA.html' },
+    { id: 'bright-house', name: 'Bright House', icon: '🖼️', color: '#3b82f6', url: '../FLAGSHIP/BRIGHT-HOUSE/BRIGHT-HOUSE-ALPHA.html', desktop: true },
+    { id: 'snap-shot', name: 'Snap Shot', icon: '📸', color: '#008080', url: '../FLAGSHIP/SNAP-SHOT/SNAP-SHOT-ALPHA.html' },
+    { id: 'snow-shoes', name: 'Snow Shoes', icon: '🎛️', color: '#38bdf8', url: '../FLAGSHIP/SNOW-SHOES/SNOW-SHOES-ALPHA.html', desktop: true },
+    { id: 'vector', name: 'Vector', icon: '◈', color: '#10b981', url: '../FLAGSHIP/VECTOR/VECTOR-ALPHA.html', desktop: true },
+    { id: 'kite', name: 'Kite', icon: '🪁', color: '#00aaff', url: '../FLAGSHIP/KITE/KITE-ALPHA.html', desktop: true },
+    { id: 'hyper-web', name: 'Hyper-Web', icon: '◇', color: '#a855f7', url: '../FLAGSHIP/HYPER-WEB/HYPER-WEB-ALPHA.html', desktop: true }
+  ];
+
+  const INSTALL_LOADER = '../apps/installed-app-loader.html';
+
+  async function mergeAndInitHome(curatedList) {
+    const base = Array.isArray(curatedList) ? curatedList : FALLBACK_APPS;
+    if (window.coffee && coffee.install && typeof coffee.install.mergeGridApps === 'function') {
+      try {
+        const merged = await coffee.install.mergeGridApps(base, INSTALL_LOADER);
+        initHome(merged);
+        return;
+      } catch (err) {
+        console.warn('mergeGridApps', err);
+      }
+    }
+    initHome(base);
+  }
+
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'openCommunityApp') openApp(e.data.app);
+    if (e.data?.type === 'communityInstallChanged') {
+      fetch(SHELL_APPS_URL)
+        .then(r => (r.ok ? r.json() : null))
+        .then(apps => mergeAndInitHome(Array.isArray(apps) ? apps : null))
+        .catch(() => mergeAndInitHome(null));
+    }
+  });
+
+  function persistCommunityScreenProfile() {
+    try {
+      if (!window.coffee || !coffee.screen) return;
+      const s = coffee.screen.snapshot();
+      const payload = {
+        hubProfile: s.hubProfile,
+        profile: s.profile,
+        isSmall: s.isSmall,
+        innerWidth: s.innerWidth,
+        innerHeight: s.innerHeight,
+        breakpoint: s.breakpoint,
+        standalone: s.standalone,
+        updatedAt: Date.now()
+      };
+      localStorage.setItem(COMMUNITY_SCREEN_STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn('[Devsumer] persistCommunityScreenProfile', err);
+    }
+  }
+
+  function hideDesktopBlockModal() {
+    const el = document.getElementById('desktop-block-modal');
+    if (el) {
+      el.classList.remove('visible');
+      el.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  function showDesktopBlockedModal(appName) {
+    const modal = document.getElementById('desktop-block-modal');
+    const msg = document.getElementById('desktop-block-message');
+    const actions = document.getElementById('desktop-block-actions');
+    if (!modal || !msg || !actions) return;
+    const name = appName || 'This app';
+    msg.textContent =
+      name +
+      " can't be opened on a small screen. Please use a workstation (wider display, e.g. ≥ " +
+      (coffee.screen ? coffee.screen.DEFAULT_BREAKPOINT : 1024) +
+      'px wide).';
+    actions.innerHTML = '';
+    const ok = coffee.button('OK', hideDesktopBlockModal, {
+      minWidth: '100px',
+      minHeight: '44px'
+    });
+    actions.appendChild(ok);
+    modal.classList.add('visible');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  document.getElementById('desktop-block-backdrop')?.addEventListener('click', hideDesktopBlockModal);
+
+  function isDesktopAppBlockedNow(app) {
+    if (!app || !app.desktop) return false;
+    if (!window.coffee || !coffee.screen) return false;
+    return coffee.screen.isSmall();
+  }
+
+  persistCommunityScreenProfile();
+  if (window.coffee && coffee.screen) {
+    coffee.screen.onChange(
+      function () {
+        persistCommunityScreenProfile();
+      },
+      { immediate: false, debounceMs: 120 }
+    );
+  }
+
+  let activeAppId = null;
+  const homeScreen = document.getElementById('home-screen');
+  const appLayer = document.getElementById('app-layer');
+  const statusTime = document.getElementById('status-time');
+
+  function initHome(apps) {
+    homeScreen.innerHTML = '';
+    (apps || FALLBACK_APPS).forEach(app => {
+      const div = document.createElement('div');
+      div.className = 'app-icon';
+      div.onclick = () => openApp(app);
+      div.innerHTML = `
+        <div class="icon-wrapper" style="background:${app.color}">${app.icon}</div>
+        <div class="app-label">${app.name}</div>
+      `;
+      homeScreen.appendChild(div);
+    });
+  }
+
+  function openApp(app) {
+    if (isDesktopAppBlockedNow(app)) {
+      showDesktopBlockedModal(app.name);
+      return;
+    }
+    let existing = document.getElementById(`window-${app.id}`);
+    if (existing) {
+      existing.classList.add('open');
+      activeAppId = app.id;
+      return;
+    }
+
+    const win = document.createElement('div');
+    win.id = `window-${app.id}`;
+    win.className = 'window';
+
+    const closeBtn = coffee.button('✕', () => closeApp(app.id), {
+      minWidth: '44px',
+      minHeight: '44px',
+      padding: '0',
+      backgroundColor: 'transparent',
+      color: 'var(--coffee-text-muted)',
+      boxShadow: 'none'
+    });
+
+    const header = document.createElement('div');
+    header.className = 'window-header';
+    const title = document.createElement('div');
+    title.textContent = app.name;
+    title.style.cssText = 'flex:1;font-weight:600;font-size:16px;color:var(--coffee-text-primary)';
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'window-body';
+    const iframe = document.createElement('iframe');
+    iframe.src = app.url;
+    body.appendChild(iframe);
+
+    win.appendChild(header);
+    win.appendChild(body);
+    appLayer.appendChild(win);
+
+    setTimeout(() => {
+      win.classList.add('open');
+      activeAppId = app.id;
+    }, 10);
+  }
+
+  function closeApp(id) {
+    const win = document.getElementById(`window-${id}`);
+    if (win) {
+      win.classList.remove('open');
+      setTimeout(() => win.remove(), 400);
+      activeAppId = null;
+    }
+  }
+
+  function goHome() {
+    if (activeAppId) {
+      const win = document.getElementById(`window-${activeAppId}`);
+      if (win) win.classList.remove('open');
+      activeAppId = null;
+    }
+    toggleShade(false);
+  }
+
+  function goBack() { goHome(); }
+
+  function showRecents() {
+    const btns = document.querySelectorAll('.nav-btn');
+    if (btns[2]) {
+      btns[2].style.background = 'rgba(76, 154, 255, 0.4)';
+      setTimeout(() => { if (btns[2]) btns[2].style.background = ''; }, 200);
+    }
+  }
+
+  function toggleShade(force) {
+    const shade = document.getElementById('shade');
+    if (typeof force === 'boolean') {
+      force ? shade.classList.add('visible') : shade.classList.remove('visible');
+    } else {
+      shade.classList.toggle('visible');
+    }
+  }
+
+  document.getElementById('status-bar').addEventListener('click', () => toggleShade(true));
+  document.getElementById('shade').addEventListener('click', (e) => {
+    if (e.target.id === 'shade' || e.target.classList.contains('shade-handle')) toggleShade(false);
+  });
+
+  function updateClock() {
+    const now = new Date();
+    const t = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    statusTime.textContent = '☕️ Devsumer · ' + t;
+  }
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  let touchStartY = 0;
+  document.addEventListener('touchstart', e => { touchStartY = e.touches[0].clientY; });
+  document.addEventListener('touchend', e => {
+    const touchEndY = e.changedTouches[0].clientY;
+    if (touchStartY < 50 && touchEndY > touchStartY + 50) toggleShade(true);
+  });
+
+  fetch(SHELL_APPS_URL)
+    .then(r => (r.ok ? r.json() : null))
+    .then(apps => mergeAndInitHome(Array.isArray(apps) ? apps : null))
+    .catch(() => mergeAndInitHome(null));
+</script>
+</body>
+</html>

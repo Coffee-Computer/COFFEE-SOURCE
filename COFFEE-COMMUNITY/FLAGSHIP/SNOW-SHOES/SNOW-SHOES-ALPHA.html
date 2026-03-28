@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snow Shoes α — DAW (coffee-ui + Coffee stack)</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-SYNTH/coffee-synth.js"></script>
+  <script src="../../../COFFEE-FUZZ/coffee-fuzz.js"></script>
+  <script src="../../../COFFEE-TRANSPORT/coffee-transport.js"></script>
+  <script src="../../../COFFEE-PATTERN/coffee-pattern.js"></script>
+  <script src="../../../COFFEE-CADENCE/coffee-cadence.js"></script>
+  <script src="./snow-shoes.js"></script>
+  <script src="./snow-shoes-daw.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600;800&display=swap');
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+
+    [data-cadence='transport-strip'] {
+      flex-wrap: wrap;
+    }
+
+    /* Full-bleed shell (coffee-ui container defaults to 600px — we bypass for DAW) */
+    .ss-daw-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      max-width: none;
+      margin: 0;
+      background: var(--coffee-bg-surface);
+      color: var(--coffee-text-primary);
+      user-select: none;
+    }
+
+    .ss-daw-main {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: row;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ss-track-list {
+      width: 16rem;
+      flex-shrink: 0;
+      overflow-y: auto;
+      background: var(--coffee-bg-elev);
+      border-right: 1px solid var(--coffee-panel);
+    }
+
+    /* Stacking context: plugin z-index values stay *below* the plugin browser modal (sibling). */
+    .ss-workspace {
+      flex: 1 1 auto;
+      position: relative;
+      z-index: 0;
+      isolation: isolate;
+      overflow: hidden;
+      background-color: #141414;
+      background-image: url('https://www.transparenttextures.com/patterns/carbon-fibre.png');
+      background-repeat: repeat;
+    }
+
+    .ss-grid-overlay {
+      position: absolute;
+      inset: 0;
+      opacity: 0.1;
+      pointer-events: none;
+      background-image:
+        linear-gradient(var(--coffee-panel) 1px, transparent 1px),
+        linear-gradient(90deg, var(--coffee-panel) 1px, transparent 1px);
+      background-size: 100px 100px;
+    }
+
+    .window-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .plugin-window {
+      position: absolute;
+      background: var(--coffee-bg-elev);
+      border: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-sm);
+      box-shadow: var(--coffee-shadow-soft);
+      pointer-events: auto;
+      display: flex;
+      flex-direction: column;
+      min-width: 300px;
+      min-height: 200px;
+      z-index: 10;
+    }
+
+    .window-header {
+      flex-shrink: 0;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      background: var(--coffee-bg-surface);
+      border-bottom: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-sm) var(--coffee-radius-sm) 0 0;
+    }
+
+    .window-content {
+      flex: 1 1 auto;
+      padding: 12px;
+      overflow: auto;
+    }
+
+    .resizer {
+      width: 10px;
+      height: 10px;
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: nwse-resize;
+    }
+
+    .plugin-window.ss-plugin-window--iframe {
+      width: min(920px, calc(100vw - 40px));
+      height: min(720px, calc(100vh - 100px));
+    }
+
+    .window-content.ss-iframe-plugin-content {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+    }
+
+    .ss-plugin-iframe {
+      flex: 1 1 auto;
+      min-height: 320px;
+      width: 100%;
+      border: none;
+      border-radius: var(--coffee-radius-sm);
+      background: #0a0a0c;
+    }
+
+    /* SHOES3 plugin browser */
+    .ss-plugins-modal {
+      position: absolute;
+      inset: 0;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      background: rgba(0, 0, 0, 0.78);
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s;
+    }
+
+    .ss-plugins-modal.open {
+      pointer-events: auto;
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .ss-modal-sheet {
+      transform: translateY(100%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .ss-plugins-modal.open .ss-modal-sheet {
+      transform: translateY(0);
+    }
+
+    .ss-plugin-card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: var(--coffee-space-md);
+    }
+
+    .ss-mixer-footer {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--coffee-bg-elev);
+      border-top: 1px solid var(--coffee-panel);
+      padding: 0;
+      overflow: visible;
+    }
+
+    .ss-mixer-toggle {
+      flex-shrink: 0;
+      width: 100%;
+      margin: 0;
+      padding: 8px 12px;
+      border: none;
+      border-bottom: 1px solid var(--coffee-panel);
+      background: var(--coffee-bg-surface);
+      color: var(--coffee-text-muted);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .ss-mixer-toggle:hover {
+      background: var(--coffee-bg-elev);
+      color: var(--coffee-text-primary);
+    }
+
+    .ss-mixer-body {
+      max-height: 17rem;
+      overflow-x: auto;
+      overflow-y: hidden;
+      padding: var(--coffee-space-md);
+      transition: max-height 0.35s ease, opacity 0.25s ease, padding-top 0.25s ease, padding-bottom 0.25s ease;
+    }
+
+    .ss-mixer-footer.ss-mixer-collapsed .ss-mixer-body {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .ss-mixer-channels {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .mixer-strip {
+      width: 80px;
+      flex-shrink: 0;
+      background: var(--coffee-bg-surface);
+      border: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-sm);
+      padding: 10px 0;
+    }
+
+    .ss-master-strip {
+      border-right: 2px solid rgba(74, 222, 128, 0.25);
+    }
+
+    .ss-fader-meter-row {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+    }
+
+    .fader-container {
+      height: 200px;
+      width: 30px;
+      background: #111;
+      position: relative;
+      border-radius: 3px;
+    }
+
+    .fader-thumb {
+      width: 100%;
+      height: 15px;
+      background: #555;
+      border: 1px solid #777;
+      position: absolute;
+      bottom: 50%;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .fader-thumb:hover {
+      background: var(--coffee-accent);
+    }
+
+    .meter-container {
+      width: 8px;
+      height: 200px;
+      background: #050505;
+      margin-left: 5px;
+      position: relative;
+      border-radius: 2px;
+    }
+
+    .meter-fill {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      height: 0%;
+      background: linear-gradient(to top, #4ade80, #facc15, #f87171);
+      transition: height 0.05s ease-out;
+    }
+
+    .keys-container {
+      display: flex;
+      gap: 2px;
+      height: 120px;
+      align-items: flex-start;
+    }
+
+    .key {
+      background: #f8fafc;
+      color: #0f172a;
+      width: 30px;
+      height: 100%;
+      border-radius: 0 0 4px 4px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 5px;
+      font-size: 10px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .key.black {
+      background: #1e293b;
+      color: #e2e8f0;
+      height: 60%;
+      width: 20px;
+      margin-left: -11px;
+      margin-right: -11px;
+      z-index: 2;
+    }
+
+    .key.active {
+      background: var(--coffee-accent);
+      color: #0f172a;
+    }
+
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .pad {
+      aspect-ratio: 1 / 1;
+      background: #334155;
+      border: 2px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--coffee-text-primary);
+    }
+
+    .pad.active {
+      background: var(--coffee-accent);
+      color: #0f172a;
+      transform: scale(0.96);
+    }
+
+    .ss-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .ss-dot-red { background: #ef4444; }
+    .ss-dot-amber { background: #eab308; }
+
+    input[type="range"] {
+      accent-color: var(--coffee-accent);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: var(--coffee-panel); border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    SnowShoesDaw.boot(document.getElementById('app'));
+  </script>
+</body>
+</html>

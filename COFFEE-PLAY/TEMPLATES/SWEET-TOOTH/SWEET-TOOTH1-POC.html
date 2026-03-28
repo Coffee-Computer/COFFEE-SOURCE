@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- POC: standalone RAF + async delays. Stack: SWEET-TOOTH.html — see README.md -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sweet Tooth - Candy Matcher</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #3b0a3b;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            color: #fff;
+        }
+        canvas {
+            display: block;
+            background-color: #4c1d4c !important; /* Force a lighter background */
+            cursor: pointer;
+            filter: brightness(1.2); /* Boost brightness of the whole canvas */
+        }
+        .ui-panel {
+            position: absolute;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #juice-meter {
+            width: 24px;
+            height: 250px;
+            background: rgba(0,0,0,0.8);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+            border: 4px solid #00ffff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+        #juice-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #ff00ff, #00ffff, #ffffff);
+            transition: height 0.3s ease-out;
+        }
+        .label-box {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 1.2rem;
+            border-radius: 1.5rem;
+            border: 3px solid #ff00ff;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer" class="ui-panel top-10 left-10">
+    <div class="label-box">
+        <div class="text-xs uppercase font-black text-pink-400 mb-1 tracking-widest">Sugar Score</div>
+        <div class="text-6xl font-black text-white" id="score">0</div>
+    </div>
+</div>
+
+<div class="ui-panel top-10 right-10 flex flex-col items-center gap-6">
+    <div class="label-box text-center min-w-[140px]">
+        <div class="text-xs uppercase font-black text-cyan-400 mb-1">Juice Level</div>
+        <div class="text-3xl font-black text-white" id="level-display">Lvl 1</div>
+    </div>
+    <div id="juice-meter">
+        <div id="juice-fill"></div>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+/**
+ * SWEET TOOTH - ULTRA VISIBILITY
+ * Overrides dimming and boosts contrast
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+const ROWS = 8;
+const COLS = 8;
+const TILE_SIZE = 75; 
+const CANDY_TYPES = ['🍭', '🍬', '🍫', '🍩', '🧁', '🍪'];
+
+let grid = [];
+let score = 0;
+let level = 1;
+let juice = 0;
+let selected = null;
+let isProcessing = false;
+
+function init() {
+    resize();
+    generateGrid();
+    loop();
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function getGridOffset() {
+    return {
+        x: (canvas.width - COLS * TILE_SIZE) / 2,
+        y: (canvas.height - ROWS * TILE_SIZE) / 2
+    };
+}
+
+function generateGrid() {
+    grid = [];
+    for (let r = 0; r < ROWS; r++) {
+        grid[r] = [];
+        for (let c = 0; c < COLS; c++) {
+            grid[r][c] = createRandomCandy(r, c);
+        }
+    }
+    if (findMatches().length > 0) generateGrid();
+}
+
+function createRandomCandy(r, c) {
+    const typeIndex = Math.floor(Math.random() * CANDY_TYPES.length);
+    return {
+        type: typeIndex,
+        icon: CANDY_TYPES[typeIndex],
+        r: r,
+        c: c,
+        scale: 1,
+        offsetY: 0
+    };
+}
+
+function findMatches() {
+    let matches = [];
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS - 2; c++) {
+            const type = grid[r][c].type;
+            if (grid[r][c+1].type === type && grid[r][c+2].type === type) {
+                matches.push({r, c}, {r, c: c+1}, {r, c: c+2});
+            }
+        }
+    }
+    for (let c = 0; c < COLS; c++) {
+        for (let r = 0; r < ROWS - 2; r++) {
+            const type = grid[r][c].type;
+            if (grid[r+1][c].type === type && grid[r+2][c].type === type) {
+                matches.push({r, c}, {r: r+1, c}, {r: r+2, c});
+            }
+        }
+    }
+    return Array.from(new Set(matches.map(m => `${m.r},${m.c}`)))
+                .map(s => {
+                    const [r, c] = s.split(',').map(Number);
+                    return {r, c};
+                });
+}
+
+async function processMatches() {
+    isProcessing = true;
+    let matches = findMatches();
+    
+    while (matches.length > 0) {
+        score += matches.length * 25;
+        juice += matches.length * 4;
+        updateUI();
+        
+        matches.forEach(m => { grid[m.r][m.c].scale = 0; });
+        await new Promise(r => setTimeout(r, 120));
+        
+        for (let c = 0; c < COLS; c++) {
+            let emptySpaces = 0;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (matches.some(m => m.r === r && m.c === c)) {
+                    emptySpaces++;
+                } else if (emptySpaces > 0) {
+                    const candy = grid[r][c];
+                    grid[r + emptySpaces][c] = candy;
+                    candy.r = r + emptySpaces;
+                    candy.offsetY = -emptySpaces * TILE_SIZE;
+                }
+            }
+            for (let i = 0; i < emptySpaces; i++) {
+                const newCandy = createRandomCandy(i, c);
+                grid[i][c] = newCandy;
+                newCandy.offsetY = -emptySpaces * TILE_SIZE;
+            }
+        }
+        
+        await new Promise(r => setTimeout(r, 180));
+        matches = findMatches();
+    }
+    isProcessing = false;
+}
+
+function updateUI() {
+    document.getElementById('score').innerText = score;
+    if (juice >= 100) {
+        juice = 0;
+        level++;
+        document.getElementById('level-display').innerText = `Lvl ${level}`;
+    }
+    document.getElementById('juice-fill').style.height = juice + '%';
+}
+
+function handleInteract(e) {
+    if (isProcessing) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const my = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+    
+    const offset = getGridOffset();
+    const c = Math.floor((mx - offset.x) / TILE_SIZE);
+    const r = Math.floor((my - offset.y) / TILE_SIZE);
+    
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+
+    if (!selected) {
+        selected = {r, c};
+    } else {
+        const dr = Math.abs(selected.r - r);
+        const dc = Math.abs(selected.c - c);
+        if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+            swap(selected.r, selected.c, r, c);
+        }
+        selected = null;
+    }
+}
+
+async function swap(r1, c1, r2, c2) {
+    isProcessing = true;
+    const temp = grid[r1][c1];
+    grid[r1][c1] = grid[r2][c2];
+    grid[r2][c2] = temp;
+    grid[r1][c1].r = r1; grid[r1][c1].c = c1;
+    grid[r2][c2].r = r2; grid[r2][c2].c = c2;
+
+    if (findMatches().length === 0) {
+        await new Promise(r => setTimeout(r, 200));
+        const tb = grid[r1][c1];
+        grid[r1][c1] = grid[r2][c2];
+        grid[r2][c2] = tb;
+        grid[r1][c1].r = r1; grid[r1][c1].c = c1;
+        grid[r2][c2].r = r2; grid[r2][c2].c = c2;
+        isProcessing = false;
+    } else {
+        processMatches();
+    }
+}
+
+function update() {
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const candy = grid[r][c];
+            if (candy.offsetY < 0) candy.offsetY += 18;
+            if (candy.offsetY > 0) candy.offsetY = 0;
+            if (candy.scale < 1) candy.scale += 0.2;
+        }
+    }
+}
+
+function draw() {
+    // Clear with a lighter purple to combat the dimming
+    ctx.fillStyle = '#4c1d4c'; 
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const offset = getGridOffset();
+
+    // Bold Board Border
+    ctx.strokeStyle = '#ff00ff';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(offset.x - 3, offset.y - 3, COLS * TILE_SIZE + 6, ROWS * TILE_SIZE + 6);
+
+    for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+            const candy = grid[r][c];
+            const px = offset.x + c * TILE_SIZE;
+            const py = offset.y + r * TILE_SIZE + candy.offsetY;
+
+            // Grid Squares - Lighter and clearer
+            ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.08)';
+            ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+            if (selected && selected.r === r && selected.c === c) {
+                ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
+                ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 4;
+                ctx.strokeRect(px + 4, py + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+            }
+
+            ctx.save();
+            ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+            ctx.scale(candy.scale, candy.scale);
+            
+            // Text Rendering Fixes
+            ctx.font = 'bold 54px Arial'; // Bigger font
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Force a bright rendering
+            ctx.globalAlpha = 1.0; 
+            ctx.fillStyle = '#ffffff'; // Fill white behind emoji for brightness
+            ctx.fillText(candy.icon, 0, 0);
+            
+            ctx.restore();
+        }
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener('mousedown', handleInteract);
+window.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    handleInteract(e);
+}, { passive: false });
+window.addEventListener('resize', resize);
+window.onload = init;
+
+</script>
+</body>
+</html>

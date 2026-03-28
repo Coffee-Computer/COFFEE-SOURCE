@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Skater - CSS Shader Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee-cream: #fdfaf6;
+            --coffee-deep: #1b130c;
+            --skater-pink: #ec4899;
+        }
+        body {
+            background-color: var(--coffee-cream);
+            color: var(--coffee-deep);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        /* The Canvas where "Shaders" are applied */
+        #viewport {
+            perspective: 1000px;
+            overflow: hidden;
+            background: #000;
+        }
+        #stage {
+            width: 300px;
+            height: 300px;
+            background: linear-gradient(45deg, #ff0080, #7928ca);
+            border-radius: 20px;
+            position: relative;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 50px rgba(236, 72, 153, 0.3);
+        }
+        .code-editor {
+            font-family: 'Fira Code', monospace;
+            background: #1e1e1e;
+            color: #f0f0f0;
+            resize: none;
+        }
+        .glossy-reflection {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .property-tag {
+            @apply text-[10px] px-1.5 py-0.5 rounded bg-stone-800 text-stone-400 font-mono;
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar -->
+    <aside class="w-80 bg-white border-r border-stone-200 p-6 flex flex-col gap-6 z-10 shadow-sm">
+        <div>
+            <h1 class="text-3xl font-black text-stone-800 italic">coffee<span class="text-pink-600">.skater()</span></h1>
+            <p class="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Object-Based Shader Engine</p>
+        </div>
+
+        <div class="space-y-4">
+            <h3 class="text-xs font-black text-stone-400 uppercase">Named Presets</h3>
+            <button onclick="skater.load('psycho')" class="w-full text-left p-3 rounded-xl bg-pink-50 text-pink-700 hover:bg-pink-100 transition border border-pink-100">
+                <p class="text-sm font-bold">🌈 Psycho Brew</p>
+                <p class="text-[10px] opacity-70">Hue & zoom oscillation</p>
+            </button>
+            <button onclick="skater.load('ghost')" class="w-full text-left p-3 rounded-xl bg-stone-50 text-stone-700 hover:bg-stone-100 transition border border-stone-100">
+                <p class="text-sm font-bold">👻 Ghost Steam</p>
+                <p class="text-[10px] opacity-70">Blur & invert pulses</p>
+            </button>
+        </div>
+
+        <div class="mt-auto">
+            <div class="p-4 bg-stone-100 rounded-xl border border-stone-200">
+                <p class="text-[10px] font-bold text-stone-400 uppercase mb-3">Shader Schema</p>
+                <div class="grid grid-cols-1 gap-2">
+                    <div class="flex justify-between items-center">
+                        <span class="property-tag">hue</span>
+                        <span class="text-[9px] text-stone-400">0 - 360</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="property-tag">zoom</span>
+                        <span class="text-[9px] text-stone-400">0.5 - 2.0</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="property-tag">melt</span>
+                        <span class="text-[9px] text-stone-400">-90 - 90</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="property-tag">ghost</span>
+                        <span class="text-[9px] text-stone-400">px blur</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="property-tag">negate</span>
+                        <span class="text-[9px] text-stone-400">0.0 - 1.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Engine Room -->
+    <main class="flex-1 flex flex-col">
+        <!-- Render Viewport -->
+        <section id="viewport" class="flex-1 flex items-center justify-center p-12">
+            <div id="stage">
+                <div class="glossy-reflection"></div>
+                <div class="text-white font-black text-6xl italic opacity-30 select-none">SKATE</div>
+            </div>
+        </section>
+
+        <!-- Editor Console -->
+        <footer class="h-96 bg-stone-900 flex border-t-4 border-pink-600">
+            <div class="flex-1 flex flex-col p-4">
+                <div class="flex justify-between items-center mb-2 px-2">
+                    <span class="text-[10px] font-bold text-pink-500 uppercase">shader.json</span>
+                    <div class="flex gap-2">
+                        <button onclick="skater.stop()" class="text-[10px] text-stone-500 hover:text-white uppercase font-bold">Stop</button>
+                        <button onclick="skater.compile()" class="text-[10px] bg-pink-600 text-white px-3 py-1 rounded uppercase font-bold">Re-Brew</button>
+                    </div>
+                </div>
+                <textarea id="editor" class="code-editor flex-1 p-4 outline-none text-sm" spellcheck="false">[
+  {
+    "hue": 0,
+    "zoom": 1.0,
+    "melt": 0,
+    "ghost": 0,
+    "negate": 0
+  },
+  {
+    "hue": 180,
+    "zoom": 1.5,
+    "melt": 15,
+    "ghost": 10,
+    "negate": 0.5
+  },
+  {
+    "hue": 360,
+    "zoom": 1.0,
+    "melt": -15,
+    "ghost": 0,
+    "negate": 0
+  }
+]</textarea>
+            </div>
+            <div class="w-72 bg-black border-l border-stone-800 p-6">
+                <h4 class="text-[10px] font-bold text-stone-500 uppercase mb-4 tracking-widest">Active State</h4>
+                <div id="telemetry" class="font-mono text-[11px] space-y-3">
+                    <div class="text-pink-500 border-b border-stone-900 pb-2 flex justify-between">
+                        <span>MODE:</span> <span class="font-bold">OBJECT_INTERPOLATION</span>
+                    </div>
+                    <div class="text-stone-400 flex justify-between">
+                        <span>HUE:</span> <span id="val-hue" class="text-white">0</span>
+                    </div>
+                    <div class="text-stone-400 flex justify-between">
+                        <span>ZOOM:</span> <span id="val-zoom" class="text-white">1.0</span>
+                    </div>
+                    <div class="text-stone-400 flex justify-between">
+                        <span>MELT:</span> <span id="val-melt" class="text-white">0</span>
+                    </div>
+                    <div class="text-stone-400 flex justify-between">
+                        <span>NEGATE:</span> <span id="val-negate" class="text-white">0</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const skater = (() => {
+            const stage = document.getElementById('stage');
+            const editor = document.getElementById('editor');
+            
+            let timeline = [];
+            let isRunning = false;
+            let currentStep = 0;
+            let frameCount = 0;
+
+            const presets = {
+                psycho: `[
+  { "hue": 0, "zoom": 1, "melt": 0, "ghost": 0, "negate": 0 },
+  { "hue": 360, "zoom": 2, "melt": 0, "ghost": 0, "negate": 0 }
+]`,
+                ghost: `[
+  { "hue": 220, "zoom": 1, "melt": 5, "ghost": 0, "negate": 0 },
+  { "hue": 220, "zoom": 1.1, "melt": -5, "ghost": 20, "negate": 0.8 },
+  { "hue": 220, "zoom": 1, "melt": 5, "ghost": 0, "negate": 0 }
+]`
+            };
+
+            const updateTelemetry = (state) => {
+                document.getElementById('val-hue').innerText = Math.round(state.hue || 0);
+                document.getElementById('val-zoom').innerText = (state.zoom || 1).toFixed(2);
+                document.getElementById('val-melt').innerText = Math.round(state.melt || 0);
+                document.getElementById('val-negate').innerText = (state.negate || 0).toFixed(2);
+            };
+
+            const animate = () => {
+                if(!isRunning || timeline.length === 0) return;
+
+                frameCount++;
+                
+                // Determine step
+                const state = timeline[currentStep];
+                
+                // Apply shader mapping from Object keys
+                const h = state.hue ?? 0;
+                const z = state.zoom ?? 1;
+                const m = state.melt ?? 0;
+                const g = state.ghost ?? 0;
+                const n = state.negate ?? 0;
+                
+                stage.style.filter = `hue-rotate(${h}deg) blur(${g}px) invert(${n * 100}%)`;
+                stage.style.transform = `scale(${z}) skewX(${m}deg)`;
+
+                updateTelemetry(state);
+
+                // Step through the object array every 40 frames
+                if(frameCount % 40 === 0) {
+                    currentStep = (currentStep + 1) % timeline.length;
+                }
+
+                requestAnimationFrame(animate);
+            };
+
+            return {
+                compile: () => {
+                    try {
+                        const raw = editor.value;
+                        // Clean comments and parse
+                        const cleanJson = raw.replace(/\/\/.*$/gm, '');
+                        timeline = JSON.parse(cleanJson);
+                        
+                        frameCount = 0;
+                        currentStep = 0;
+                        
+                        if(!isRunning) {
+                            isRunning = true;
+                            animate();
+                        }
+                    } catch (e) {
+                        console.error("Skater Compile Error:", e);
+                        // Using a text overlay instead of alert
+                        const errLine = document.createElement('div');
+                        errLine.className = 'text-red-500 font-mono text-[10px] mt-2';
+                        errLine.innerText = "> Error: Invalid Object Syntax";
+                        document.getElementById('telemetry').appendChild(errLine);
+                    }
+                },
+                stop: () => {
+                    isRunning = false;
+                    stage.style.filter = '';
+                    stage.style.transform = '';
+                    document.getElementById('val-hue').innerText = '0';
+                },
+                load: (key) => {
+                    editor.value = presets[key];
+                    skater.compile();
+                }
+            };
+        })();
+
+        window.onload = skater.compile;
+    </script>
+</body>
+</html>

@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Play() // Blaster Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;700;900&display=swap');
+        
+        :root {
+            --accent: #00ff88;
+            --danger: #ff3366;
+        }
+
+        body { 
+            background: #050505; 
+            color: white; 
+            font-family: 'Inter', sans-serif; 
+            overflow: hidden; 
+            margin: 0; 
+            user-select: none;
+            cursor: crosshair;
+        }
+
+        canvas { 
+            display: block; 
+            width: 100vw; 
+            height: 100vh; 
+            background: radial-gradient(circle at center, #0a0a0a 0%, #000 100%); 
+        }
+
+        .ui-layer { 
+            position: fixed; 
+            inset: 0; 
+            pointer-events: none; 
+            z-index: 10; 
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1rem;
+        }
+
+        .terminal { font-family: 'Fira Code', monospace; }
+
+        @keyframes muzzle-flash {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+
+        .flash {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            filter: blur(5px);
+            animation: muzzle-flash 0.1s ease-out forwards;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="stage"></canvas>
+
+    <div class="ui-layer">
+        <div class="flex justify-between items-start">
+            <div class="flex items-center gap-4">
+                <div class="w-10 h-10 bg-white text-black flex items-center justify-center font-black rounded-xl italic text-xl">C</div>
+                <div>
+                    <h1 class="text-sm font-black uppercase tracking-tighter italic leading-none text-emerald-400">Coffee.Play(Combat)</h1>
+                    <p id="engine-status" class="text-[10px] text-white/40 terminal uppercase tracking-widest mt-1">Weapon Systems: Online</p>
+                </div>
+            </div>
+
+            <div id="leaderboard" class="flex flex-col gap-2 items-end"></div>
+        </div>
+
+        <div class="flex flex-col items-center justify-center gap-4">
+            <div id="announcer" class="text-6xl font-black italic uppercase tracking-tighter opacity-0 transform scale-90 transition-all duration-500"></div>
+        </div>
+
+        <div class="flex justify-between items-end">
+            <div id="stats-panel" class="glass p-5 min-w-[240px]">
+                <div class="flex justify-between items-end mb-3">
+                    <span class="text-[10px] uppercase font-bold text-white/40 tracking-widest">Combat Integrity</span>
+                    <span id="hp-value" class="text-xl font-black italic">100</span>
+                </div>
+                <div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+                    <div id="hp-bar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 100%"></div>
+                </div>
+            </div>
+
+            <div class="flex flex-col items-end gap-1 opacity-40 terminal text-[10px]">
+                <div>WASD TO MANEUVER</div>
+                <div>LEFT CLICK TO DISCHARGE BLASTER</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const Coffee = {
+            canvas: document.getElementById('stage'),
+            ctx: document.getElementById('stage').getContext('2d'),
+            entities: [],
+            projectiles: [],
+            player: null,
+            keys: {},
+            mouse: { x: 0, y: 0, down: false },
+            lastTime: 0,
+
+            play: function(setup) {
+                this.config = {
+                    friction: 0.92,
+                    onUpdate: setup.onUpdate || (() => {}),
+                    onDraw: setup.onDraw || (() => {}),
+                    ...setup
+                };
+                this._init();
+            },
+
+            _init: function() {
+                const resize = () => {
+                    this.canvas.width = window.innerWidth;
+                    this.canvas.height = window.innerHeight;
+                };
+                window.addEventListener('resize', resize);
+                resize();
+
+                window.addEventListener('keydown', e => this.keys[e.key.toLowerCase()] = true);
+                window.addEventListener('keyup', e => this.keys[e.key.toLowerCase()] = false);
+                window.addEventListener('mousemove', e => {
+                    this.mouse.x = e.clientX;
+                    this.mouse.y = e.clientY;
+                });
+                window.addEventListener('mousedown', () => this.mouse.down = true);
+                window.addEventListener('mouseup', () => this.mouse.down = false);
+
+                requestAnimationFrame((t) => this._loop(t));
+            },
+
+            spawn: function(props = {}) {
+                const entity = {
+                    id: Math.random().toString(36).substr(2, 9),
+                    x: props.x || this.canvas.width / 2,
+                    y: props.y || this.canvas.height / 2,
+                    vx: 0, vy: 0,
+                    radius: props.radius || 20,
+                    speed: props.speed || 0.8,
+                    maxSpeed: props.maxSpeed || 8,
+                    health: 100,
+                    score: 0,
+                    color: props.color || '#00ff88',
+                    name: props.name || 'Unit',
+                    tags: props.tags || [],
+                    lastShot: 0,
+                    ...props
+                };
+                this.entities.push(entity);
+                return entity;
+            },
+
+            shoot: function(origin, targetX, targetY) {
+                const angle = Math.atan2(targetY - origin.y, targetX - origin.x);
+                const speed = 15;
+                this.projectiles.push({
+                    x: origin.x + Math.cos(angle) * origin.radius,
+                    y: origin.y + Math.sin(angle) * origin.radius,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    color: origin.color,
+                    owner: origin.id,
+                    life: 100
+                });
+            },
+
+            _loop: function(timestamp) {
+                const dt = timestamp - this.lastTime;
+                this.lastTime = timestamp;
+
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this._drawGrid();
+
+                // Projectile Logic
+                for (let i = this.projectiles.length - 1; i >= 0; i--) {
+                    const p = this.projectiles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= 1;
+
+                    // Rendering Projectile
+                    this.ctx.shadowBlur = 10;
+                    this.ctx.shadowColor = p.color;
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.beginPath();
+                    this.ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+                    this.ctx.fill();
+
+                    // Collision Check
+                    this.entities.forEach(ent => {
+                        if (ent.id !== p.owner && this.getDistance(p, ent) < ent.radius) {
+                            ent.health -= 25;
+                            ent.vx += p.vx * 0.2;
+                            ent.vy += p.vy * 0.2;
+                            p.life = 0; // Destroy bullet
+                            if (ent.health <= 0 && p.owner === this.player.id) {
+                                this.player.score += 100;
+                            }
+                        }
+                    });
+
+                    if (p.life <= 0 || p.x < 0 || p.x > this.canvas.width || p.y < 0 || p.y > this.canvas.height) {
+                        this.projectiles.splice(i, 1);
+                    }
+                }
+
+                // Entity Logic
+                this.entities.forEach((ent, index) => {
+                    ent.x += ent.vx;
+                    ent.y += ent.vy;
+                    ent.vx *= this.config.friction;
+                    ent.vy *= this.config.friction;
+
+                    // Bounce
+                    if (ent.x < ent.radius || ent.x > this.canvas.width - ent.radius) ent.vx *= -0.8;
+                    if (ent.y < ent.radius || ent.y > this.canvas.height - ent.radius) ent.vy *= -0.8;
+
+                    // Death
+                    if (ent.health <= 0) {
+                        if (ent === this.player) {
+                            this.announce("RE-SYNCING BIOMETRICS...");
+                            ent.health = 100;
+                            ent.score = Math.max(0, ent.score - 500);
+                        } else {
+                            this.entities.splice(index, 1);
+                            // Respawn enemy
+                            setTimeout(() => spawnEnemy(), 2000);
+                        }
+                    }
+                });
+
+                this.config.onUpdate(this);
+
+                // Render Entities
+                this.entities.forEach(ent => {
+                    this.ctx.save();
+                    this.ctx.shadowBlur = 15;
+                    this.ctx.shadowColor = ent.color;
+                    this.ctx.fillStyle = ent.color;
+                    this.ctx.beginPath();
+                    this.ctx.arc(ent.x, ent.y, ent.radius, 0, Math.PI * 2);
+                    this.ctx.fill();
+                    
+                    // Aim Line for Player
+                    if (ent === this.player) {
+                        this.ctx.beginPath();
+                        this.ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                        this.ctx.setLineDash([5, 5]);
+                        this.ctx.moveTo(ent.x, ent.y);
+                        this.ctx.lineTo(this.mouse.x, this.mouse.y);
+                        this.ctx.stroke();
+                    }
+
+                    this.ctx.restore();
+                });
+
+                this._updateUI();
+                requestAnimationFrame((t) => this._loop(t));
+            },
+
+            _drawGrid: function() {
+                this.ctx.strokeStyle = 'rgba(255,255,255,0.02)';
+                const size = 60;
+                for (let x = 0; x < this.canvas.width; x += size) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, 0);
+                    this.ctx.lineTo(x, this.canvas.height);
+                    this.ctx.stroke();
+                }
+                for (let y = 0; y < this.canvas.height; y += size) {
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(0, y);
+                    this.ctx.lineTo(this.canvas.width, y);
+                    this.ctx.stroke();
+                }
+            },
+
+            _updateUI: function() {
+                if (this.player) {
+                    document.getElementById('hp-bar').style.width = this.player.health + "%";
+                    document.getElementById('hp-value').textContent = Math.ceil(this.player.health);
+                }
+                const lb = document.getElementById('leaderboard');
+                const sorted = [...this.entities].sort((a,b) => b.score - a.score);
+                lb.innerHTML = sorted.map(ent => `
+                    <div class="glass px-4 py-2 flex items-center gap-4 min-w-[160px]">
+                        <div class="w-2 h-2 rounded-full ${ent.health < 50 ? 'animate-pulse' : ''}" style="background: ${ent.color}"></div>
+                        <div class="flex-grow text-[10px] font-bold uppercase tracking-widest">${ent.name}</div>
+                        <div class="text-[10px] font-mono text-emerald-400">${ent.score}</div>
+                    </div>
+                `).join('');
+            },
+
+            announce: function(msg) {
+                const el = document.getElementById('announcer');
+                el.textContent = msg;
+                el.style.opacity = "1";
+                el.style.transform = "scale(1)";
+                setTimeout(() => { el.style.opacity = "0"; }, 2000);
+            },
+
+            getDistance: (e1, e2) => Math.sqrt((e2.x - e1.x)**2 + (e2.y - e1.y)**2)
+        };
+
+        const spawnEnemy = () => {
+            Coffee.spawn({
+                name: 'Drone ' + Math.floor(Math.random() * 99),
+                color: '#ff3366',
+                x: Math.random() * window.innerWidth,
+                y: Math.random() * window.innerHeight,
+                tags: ['enemy'],
+                radius: 12
+            });
+        };
+
+        Coffee.play({
+            onUpdate: (game) => {
+                if (!game.player) {
+                    game.player = game.spawn({ name: 'Pilot', color: '#00ff88' });
+                    for(let i=0; i<6; i++) spawnEnemy();
+                }
+
+                const p = game.player;
+                if (game.keys['w']) p.vy -= p.speed;
+                if (game.keys['s']) p.vy += p.speed;
+                if (game.keys['a']) p.vx -= p.speed;
+                if (game.keys['d']) p.vx += p.speed;
+
+                // Fire Mechanic
+                if (game.mouse.down && Date.now() - p.lastShot > 150) {
+                    game.shoot(p, game.mouse.x, game.mouse.y);
+                    p.lastShot = Date.now();
+                    // Small kickback
+                    const angle = Math.atan2(game.mouse.y - p.y, game.mouse.x - p.x);
+                    p.vx -= Math.cos(angle) * 0.5;
+                    p.vy -= Math.sin(angle) * 0.5;
+                }
+
+                // AI Logic
+                game.entities.forEach(ent => {
+                    if (ent.tags.includes('enemy')) {
+                        const dist = game.getDistance(p, ent);
+                        if (dist < 400) {
+                            ent.vx += (p.x - ent.x) / dist * 0.15;
+                            ent.vy += (p.y - ent.y) / dist * 0.15;
+                            
+                            // Enemy Fire
+                            if (dist < 250 && Date.now() - ent.lastShot > 1500) {
+                                game.shoot(ent, p.x, p.y);
+                                ent.lastShot = Date.now();
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

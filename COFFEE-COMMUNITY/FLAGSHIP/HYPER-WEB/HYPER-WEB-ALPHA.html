@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Hyper-Web">
+  <meta name="cce:id" content="hyper-web-alpha">
+  <meta name="cce:icon" content="◇">
+  <meta name="cce:color" content="#a855f7">
+  <meta name="cce:description" content="CCE composition — OMNI + inspector + hyper-tick timeline">
+  <title>Hyper-Web α</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-INSPECTOR/coffee-inspector.js"></script>
+  <script src="../../tools/cce-validate.js"></script>
+  <script src="../../../COFFEE-OMNI/coffee-omni.js"></script>
+  <link rel="stylesheet" href="./hyper-web.css">
+</head>
+<body class="hyper-root">
+  <header class="hyper-header">
+    <div class="hyper-brand"><span aria-hidden="true">◇</span> HYPER-WEB α</div>
+    <div class="hyper-actions" id="hyper-actions"></div>
+  </header>
+
+  <div class="hyper-body">
+    <aside class="hyper-rail" aria-label="Layers">
+      <h4>Layers</h4>
+      <div id="hyper-layer-list"></div>
+    </aside>
+    <main class="hyper-stage-wrap" aria-label="Stage">
+      <div class="hyper-stage" id="hyper-stage">
+        <div class="hyper-composition" id="hyper-composition" aria-hidden="true"></div>
+      </div>
+    </main>
+    <aside class="hyper-inspector" id="hyper-inspector-mount" aria-label="Inspector"></aside>
+  </div>
+
+  <div class="hyper-timeline-shell" aria-label="Timeline">
+    <div class="hyper-timeline-transport">
+      <button type="button" id="hyper-play" style="min-width:44px;min-height:44px;border-radius:8px;border:1px solid var(--coffee-panel);background:var(--coffee-bg-surface);color:inherit;cursor:pointer">▶</button>
+      <span class="hyper-time-readout" id="hyper-time-readout">0.00s</span>
+      <input type="range" id="hyper-scrub" min="0" max="3000" value="0" step="10" aria-label="Scrub time" style="flex:1" />
+      <span class="hyper-time-readout">/ 30s</span>
+    </div>
+    <div class="hyper-timeline-panel" id="hyper-timeline-panel">
+      <div class="hyper-timeline-inner" id="hyper-timeline-inner">
+        <div id="hyper-timeline-content"></div>
+        <div class="hyper-playhead" id="hyper-playhead" aria-hidden="true"></div>
+      </div>
+    </div>
+  </div>
+  <p class="hyper-hint">Timeline: horizontal ruler + one track row per layer (scroll sideways if needed). <strong>Add guest</strong> = scene2d demo; <strong>Add art guest</strong> = FORGE + <code>coffee.art</code> (flow preset inlined, no COIL fetch). <code>hyper-web-guest.js</code> + <code>hyper-tick</code> / <code>hyper-prop</code>. <strong>Upload HTML:</strong> relative <code>&lt;script src&gt;</code> via injected <code>&lt;base&gt;</code>. <strong>Transform:</strong> <code>Scale = 1</code> fills the composition; <strong>Reset transform</strong> if needed.</p>
+
+  <input type="file" id="hyper-file" accept=".html,text/html" style="display:none" />
+
+  <script>
+(function () {
+  var STORAGE_KEY = 'hyper-web-alpha-project';
+  var MAX_TIME = 30;
+  var TL_LABEL_W = 80;
+  var TL_PX_PER_SEC = 40;
+
+  coffee.injectTheme('dark');
+  document.documentElement.style.setProperty('--coffee-accent', '#a855f7');
+
+  var stage = document.getElementById('hyper-stage');
+  var composition = document.getElementById('hyper-composition');
+  var layerList = document.getElementById('hyper-layer-list');
+  var actions = document.getElementById('hyper-actions');
+  var scrub = document.getElementById('hyper-scrub');
+  var playBtn = document.getElementById('hyper-play');
+  var timeReadout = document.getElementById('hyper-time-readout');
+  var fileInput = document.getElementById('hyper-file');
+  var timelinePanel = document.getElementById('hyper-timeline-panel');
+  var timelineInner = document.getElementById('hyper-timeline-inner');
+  var timelineContent = document.getElementById('hyper-timeline-content');
+  var playheadEl = document.getElementById('hyper-playhead');
+
+  var layers = [];
+
+  /**
+   * Reference 16:9 frame for letterbox/cover math only (?hyper-letterbox=1 / ?hyper-cover=1).
+   * Default stretch mode fills the stage with any aspect — actual pixels ≠ these constants.
+   */
+  var COMP_W = 1280;
+  var COMP_H = 720;
+  /** Oversize iframe vs composition clip to kill sub-pixel black slivers (frame keeps overflow:hidden). */
+  var LAYER_PX_BLEED = 1;
+  /**
+   * Horizontal inset: iframe is narrower + shifted so `.hyper-layer-frame` black shows L+R gutters
+   * (~8px each). Looks “centered” with bars; tweak 7–9 if needed. Shrinks when comp is very narrow.
+   */
+  var HYPER_IFRAME_GUTTER_X = 8;
+  /**
+   * Shift the iframe inside `.hyper-layer-frame` only (+ = right). Not the guest’s layer X/Y.
+   * Use ~4px to hide a rail-side hairline; clamped so the iframe stays inside the frame.
+   */
+  var HYPER_IFRAME_NUDGE_X = 4;
+
+  /**
+   * Composition fit (query overrides):
+   *   default     → stretch: comp = padded stage (fills black area; aspect follows window)
+   *   ?hyper-letterbox=1 → contain 16:9 (bars)
+   *   ?hyper-cover=1     → cover 16:9 (crop)
+   */
+  var HYPER_FIT = 'stretch';
+  if (typeof location !== 'undefined') {
+    if (location.search.indexOf('hyper-letterbox=1') >= 0) HYPER_FIT = 'contain';
+    else if (location.search.indexOf('hyper-cover=1') >= 0) HYPER_FIT = 'cover';
+  }
+
+  function fitComposition() {
+    if (!stage || !composition) return;
+    try {
+      var pad = HYPER_FIT === 'stretch' ? 0 : 24;
+      var aw = Math.max(0, stage.clientWidth - pad);
+      var ah = Math.max(0, stage.clientHeight - pad);
+      composition.style.removeProperty('transform');
+
+      if (HYPER_FIT === 'stretch') {
+        /*
+         * Pin to the stage box. Flex + same-size px child could still sit top-left in some grid/min-height
+         * cases; inset:0 matches what users mean by “fill the black stage”.
+         */
+        composition.style.position = 'absolute';
+        composition.style.left = '0';
+        composition.style.top = '0';
+        composition.style.right = '0';
+        composition.style.bottom = '0';
+        composition.style.width = 'auto';
+        composition.style.height = 'auto';
+        composition.style.margin = '0';
+        return;
+      }
+
+      /* contain / cover: flex-centered frame with explicit 16:9 scaled size */
+      composition.style.position = 'relative';
+      composition.style.removeProperty('left');
+      composition.style.removeProperty('top');
+      composition.style.removeProperty('right');
+      composition.style.removeProperty('bottom');
+      composition.style.transform = 'none';
+      if (aw <= 0 || ah <= 0) {
+        composition.style.removeProperty('width');
+        composition.style.removeProperty('height');
+        return;
+      }
+      var s =
+        HYPER_FIT === 'contain'
+          ? Math.min(aw / COMP_W, ah / COMP_H)
+          : Math.max(aw / COMP_W, ah / COMP_H);
+      if (!Number.isFinite(s) || s <= 0) {
+        composition.style.removeProperty('width');
+        composition.style.removeProperty('height');
+        return;
+      }
+      composition.style.width = COMP_W * s + 'px';
+      composition.style.height = COMP_H * s + 'px';
+    } finally {
+      try {
+        sizeGuestLayersToComposition();
+      } catch (eSz) {}
+      /* Tell guests the real composition CSS size (stretch is rarely 1280×720). */
+      try {
+        if (composition && layers && layers.length) {
+          var dimV = roundedCompositionSize();
+          var vw = dimV.w;
+          var vh = dimV.h;
+          if (vw > 0 && vh > 0) {
+            var layV = guestIframeLayoutPx(vw, vh);
+            var vmsg = {
+              type: 'hyper-viewport',
+              width: layV.width,
+              height: layV.height
+            };
+            for (var vi = 0; vi < layers.length; vi++) {
+              var Lv = layers[vi];
+              if (Lv.iframe && Lv.iframe.contentWindow) {
+                try {
+                  Lv.iframe.contentWindow.postMessage(vmsg, '*');
+                } catch (e) {}
+              }
+            }
+          }
+        }
+      } catch (e2) {}
+    }
+  }
+
+  /**
+   * Blob: URLs are opaque — relative &lt;script src&gt; and &lt;link href&gt; resolve wrong, so guests load
+   * with background/CSS only and no animations. Inject &lt;base href&gt; to the Hyper-Web page directory.
+   */
+  function htmlForBlobLayer(html) {
+    if (!html || typeof html !== 'string') return html;
+    if (/<base[\s>]/i.test(html)) return html;
+    var baseHref = new URL('.', window.location.href).href;
+    var tag = '<base href="' + baseHref.replace(/"/g, '&quot;') + '">';
+    var headOpen = html.match(/<head([^>]*)>/i);
+    if (headOpen) {
+      var idx = headOpen.index + headOpen[0].length;
+      return html.slice(0, idx) + tag + html.slice(idx);
+    }
+    var htmlOpen = html.match(/<html([^>]*)>/i);
+    if (htmlOpen) {
+      var j = htmlOpen.index + htmlOpen[0].length;
+      return html.slice(0, j) + '<head>' + tag + '</head>' + html.slice(j);
+    }
+    return '<!DOCTYPE html><html><head>' + tag + '</head><body>' + html + '</body></html>';
+  }
+
+  /** Add ?hyper-debug=1 to URL for extra layout logs */
+  var HYPER_DEBUG =
+    typeof location !== 'undefined' &&
+    (location.search.indexOf('hyper-debug=1') >= 0 || location.search.indexOf('hyper-debug=true') >= 0);
+
+  function debugLayout(tag, L) {
+    if (!stage || !composition) return;
+    var pack = {
+      tag: tag,
+      stage: { w: stage.clientWidth, h: stage.clientHeight },
+      composition: {
+        css: { w: composition.style.width || '(css)', h: composition.style.height || '(css)' },
+        rect: composition.getBoundingClientRect()
+      },
+      layerProps: L && L.props ? L.props : null
+    };
+    if (L && L.frameEl) {
+      pack.frameRect = L.frameEl.getBoundingClientRect();
+    }
+    console.info('[Hyper-Web]', pack);
+  }
+
+  window.addEventListener('resize', fitComposition);
+  if (typeof ResizeObserver !== 'undefined' && stage) {
+    new ResizeObserver(fitComposition).observe(stage);
+  }
+  requestAnimationFrame(function () {
+    fitComposition();
+    setTimeout(fitComposition, 100);
+  });
+
+  var selectedId = null;
+  var globalT = 0;
+  var playing = false;
+  var rafId = null;
+  var lastTs = 0;
+  var insp = null;
+
+  var TRANSFORM_XY_MIN = -1200;
+  var TRANSFORM_XY_MAX = 1200;
+  var TRANSFORM_FIELDS = [
+    {
+      key: 'x',
+      type: 'range',
+      label: 'X (px)',
+      min: TRANSFORM_XY_MIN,
+      max: TRANSFORM_XY_MAX,
+      step: 1,
+      default: 0
+    },
+    {
+      key: 'y',
+      type: 'range',
+      label: 'Y (px)',
+      min: TRANSFORM_XY_MIN,
+      max: TRANSFORM_XY_MAX,
+      step: 1,
+      default: 0
+    },
+    {
+      key: 'scale',
+      type: 'range',
+      label: 'Scale (1 = full frame)',
+      min: 0.2,
+      max: 2.5,
+      step: 0.05,
+      default: 1
+    },
+    { key: 'opacity', type: 'range', label: 'Opacity', min: 0, max: 100, step: 1, default: 100 },
+    { key: 'rotate', type: 'range', label: 'Rotate °', min: 0, max: 360, step: 1, default: 0 }
+  ];
+
+  var GUEST_MANIFEST = {
+    hyper: {
+      controls: [
+        { key: 'bgHue', type: 'range', label: 'Background hue', min: 0, max: 360, default: 220, section: 'Look' }
+      ]
+    }
+  };
+
+  /** Second built-in clip: coffee.forge + coffee.art (inlined flow preset) — tests layout vs scene2d guest. */
+  var ART_GUEST_MANIFEST = {
+    hyper: {
+      controls: [
+        { key: 'artHue', type: 'range', label: 'Palette hue', min: 0, max: 360, default: 30, section: 'Look' }
+      ]
+    }
+  };
+
+  function uid() {
+    return 'L' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function getLayer(id) {
+    for (var i = 0; i < layers.length; i++) {
+      if (layers[i].id === id) return layers[i];
+    }
+    return null;
+  }
+
+  function selectedLayer() {
+    return selectedId ? getLayer(selectedId) : null;
+  }
+
+  function applyLayerTransform(L) {
+    if (!L || !L.frameEl || !L.xformEl || !L.iframe) return;
+    var p = L.props;
+    var x = Number.isFinite(Number(p.x)) ? Number(p.x) : 0;
+    var y = Number.isFinite(Number(p.y)) ? Number(p.y) : 0;
+    var sc = Number.isFinite(Number(p.scale)) ? Number(p.scale) : 1;
+    if (!Number.isFinite(sc) || sc <= 0) sc = 1;
+    var rot = Number.isFinite(Number(p.rotate)) ? Number(p.rotate) : 0;
+    var op = Number.isFinite(Number(p.opacity)) ? Number(p.opacity) : 100;
+    /*
+     * Transform must be on .hyper-layer-frame (the clip), not on an inner wrapper that fills the frame.
+     * If xform had translate/scale while frame stayed inset:0 on the composition, X/Y only panned the iframe
+     * inside a full-size clip — “moving the art” not the layer on the stage. Iframe stays transform:none.
+     */
+    var rotN = ((rot % 360) + 360) % 360;
+    var identity =
+      Math.abs(x) < 0.001 && Math.abs(y) < 0.001 && Math.abs(sc - 1) < 0.001 && rotN < 0.001;
+    L.frameEl.style.transform = identity
+      ? 'none'
+      : 'translate(' + x + 'px,' + y + 'px) scale(' + sc + ') rotate(' + rot + 'deg)';
+    L.frameEl.style.transformOrigin = '50% 50%';
+    if (L.xformEl) L.xformEl.style.transform = 'none';
+    L.iframe.style.transform = 'none';
+    L.frameEl.style.opacity = String(op / 100);
+  }
+
+  /**
+   * One rounding rule for layer iframe px + hyper-viewport: Math.round(painted rect), fallback client*.
+   * Avoids host floor + guest floor double-shaving ~1px slivers at composition edges.
+   */
+  function roundedCompositionSize() {
+    if (!composition) return { w: 0, h: 0 };
+    var r = composition.getBoundingClientRect();
+    var w = Math.round(r.width);
+    var h = Math.round(r.height);
+    if (w < 1 || h < 1) {
+      w = Math.max(0, Math.round(composition.clientWidth));
+      h = Math.max(0, Math.round(composition.clientHeight));
+    }
+    return { w: w, h: h };
+  }
+
+  /** Iframe px inside frame: optional L/R gutters + bleed height; must match hyper-viewport. */
+  function guestIframeLayoutPx(compW, compH) {
+    var iwFull = compW + LAYER_PX_BLEED;
+    var ihFull = compH + LAYER_PX_BLEED;
+    var g = HYPER_IFRAME_GUTTER_X;
+    var innerW = iwFull - 2 * g;
+    if (innerW < 48) {
+      g = Math.max(0, Math.floor((iwFull - 48) / 2));
+      innerW = iwFull - 2 * g;
+    }
+    if (innerW < 2) {
+      innerW = iwFull;
+      g = 0;
+    }
+    var left = g + HYPER_IFRAME_NUDGE_X;
+    var maxLeft = Math.max(0, compW - innerW);
+    if (left > maxLeft) left = maxLeft;
+    if (left < 0) left = 0;
+    return { left: left, top: 0, width: innerW, height: ihFull };
+  }
+
+  /**
+   * % width/height on nested abs iframes often resolve to the iframe intrinsic size (~300×150),
+   * so guests hug the top-left of the composition. Pin frame → xform → iframe to composition
+   * size in px after every layout pass. Iframe: gutters + optional HYPER_IFRAME_NUDGE_X. hyper-viewport
+   * = iframe inner width/height (unchanged by nudge).
+   */
+  function sizeGuestLayersToComposition() {
+    if (!composition || !layers) return;
+    var dim = roundedCompositionSize();
+    var w = dim.w;
+    var h = dim.h;
+    if (w <= 0 || h <= 0) return;
+    var lay = guestIframeLayoutPx(w, h);
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (!L.frameEl || !L.xformEl || !L.iframe) continue;
+      L.frameEl.style.left = '0';
+      L.frameEl.style.top = '0';
+      L.frameEl.style.right = 'auto';
+      L.frameEl.style.bottom = 'auto';
+      L.frameEl.style.width = w + 'px';
+      L.frameEl.style.height = h + 'px';
+      L.xformEl.style.left = '0';
+      L.xformEl.style.top = '0';
+      L.xformEl.style.right = 'auto';
+      L.xformEl.style.bottom = 'auto';
+      L.xformEl.style.width = w + 'px';
+      L.xformEl.style.height = h + 'px';
+      L.iframe.style.left = lay.left + 'px';
+      L.iframe.style.top = lay.top + 'px';
+      L.iframe.style.right = 'auto';
+      L.iframe.style.bottom = 'auto';
+      L.iframe.style.width = lay.width + 'px';
+      L.iframe.style.height = lay.height + 'px';
+      applyLayerTransform(L);
+    }
+  }
+
+  function pushHyperProp(L, key, value) {
+    if (!L || !L.iframe || !L.iframe.contentWindow) return;
+    try {
+      L.iframe.contentWindow.postMessage(coffee.omni.hyperPropMessage(key, value), '*');
+    } catch (err) {}
+  }
+
+  function broadcastTick() {
+    var msg = coffee.omni.hyperTick(globalT, playing);
+    for (var i = 0; i < layers.length; i++) {
+      var L = layers[i];
+      if (L.iframe && L.iframe.contentWindow) {
+        try {
+          L.iframe.contentWindow.postMessage(msg, '*');
+        } catch (e) {}
+      }
+    }
+  }
+
+  function tick(ts) {
+    if (playing && lastTs) {
+      globalT += (ts - lastTs) / 1000;
+      if (globalT > MAX_TIME) globalT = MAX_TIME;
+    }
+    lastTs = ts;
+    syncScrubber();
+    broadcastTick();
+    if (playing) rafId = requestAnimationFrame(tick);
+  }
+
+  function timelineLaneWidthPx() {
+    return MAX_TIME * TL_PX_PER_SEC;
+  }
+
+  function updatePlayhead() {
+    if (!playheadEl || !timelineInner) return;
+    var x = TL_LABEL_W + (globalT / MAX_TIME) * timelineLaneWidthPx();
+    playheadEl.style.left = x + 'px';
+  }
+
+  function flexRow(el) {
+    el.style.display = 'flex';
+    el.style.flexDirection = 'row';
+    el.style.flexWrap = 'nowrap';
+    el.style.alignItems = 'stretch';
+  }
+
+  /** Sticky label column must not shrink (else “Time” + “0s” merge; stacked rows overlap as “Guest demoGuest demo”). */
+  function pinTrackLabel(el) {
+    el.style.flexGrow = '0';
+    el.style.flexShrink = '0';
+    el.style.flexBasis = TL_LABEL_W + 'px';
+    el.style.width = TL_LABEL_W + 'px';
+    el.style.minWidth = TL_LABEL_W + 'px';
+    el.style.maxWidth = TL_LABEL_W + 'px';
+    el.style.boxSizing = 'border-box';
+  }
+
+  function refreshTimelineTracks() {
+    if (!timelineContent || !timelineInner) return;
+    var laneW = timelineLaneWidthPx();
+    timelineInner.style.minWidth = TL_LABEL_W + laneW + 'px';
+    timelineContent.innerHTML = '';
+
+    var rulerRow = document.createElement('div');
+    rulerRow.className = 'hyper-track-row hyper-ruler-row';
+    rulerRow.style.minHeight = '28px';
+    flexRow(rulerRow);
+    var rl = document.createElement('div');
+    rl.className = 'hyper-track-label';
+    rl.textContent = 'Time';
+    pinTrackLabel(rl);
+    var rLane = document.createElement('div');
+    rLane.className = 'hyper-track-lane';
+    rLane.style.width = laneW + 'px';
+    rLane.style.flex = 'none';
+    flexRow(rLane);
+    var s;
+    for (s = 0; s <= MAX_TIME; s += 5) {
+      var cell = document.createElement('div');
+      cell.className = 'hyper-ruler-cell';
+      cell.textContent = s + 's';
+      cell.style.flex = '1';
+      cell.style.minWidth = '0';
+      rLane.appendChild(cell);
+    }
+    rulerRow.appendChild(rl);
+    rulerRow.appendChild(rLane);
+    timelineContent.appendChild(rulerRow);
+
+    if (layers.length === 0) {
+      var emptyRow = document.createElement('div');
+      emptyRow.className = 'hyper-track-row hyper-track-placeholder';
+      emptyRow.style.minHeight = '52px';
+      flexRow(emptyRow);
+      var elab = document.createElement('div');
+      elab.className = 'hyper-track-label';
+      elab.textContent = 'Tracks';
+      pinTrackLabel(elab);
+      var elane = document.createElement('div');
+      elane.className = 'hyper-track-lane';
+      elane.style.width = laneW + 'px';
+      elane.style.flex = 'none';
+      elane.style.minHeight = '52px';
+      elane.style.position = 'relative';
+      flexRow(elane);
+      var hint = document.createElement('div');
+      hint.className = 'hyper-track-empty-hint';
+      hint.textContent =
+        'No clips yet — use Add guest or Upload HTML. Each layer = one row; stack order matches the layer list.';
+      elane.appendChild(hint);
+      emptyRow.appendChild(elab);
+      emptyRow.appendChild(elane);
+      timelineContent.appendChild(emptyRow);
+    }
+
+    var i;
+    for (i = layers.length - 1; i >= 0; i--) {
+      (function (L) {
+        var row = document.createElement('div');
+        row.className = 'hyper-track-row';
+        row.style.minHeight = '52px';
+        flexRow(row);
+        var lab = document.createElement('div');
+        lab.className = 'hyper-track-label';
+        lab.textContent = L.name.length > 14 ? L.name.slice(0, 12) + '\u2026' : L.name;
+        lab.title = L.name;
+        pinTrackLabel(lab);
+        var lane = document.createElement('div');
+        lane.className = 'hyper-track-lane';
+        lane.style.width = laneW + 'px';
+        lane.style.flex = 'none';
+        lane.style.minHeight = '52px';
+        lane.style.position = 'relative';
+        flexRow(lane);
+        var clip = document.createElement('div');
+        clip.className = 'hyper-clip' + (L.preset === 'guest' ? '' : ' hyper-clip-html');
+        clip.textContent = L.name;
+        if (L.id === selectedId) clip.classList.add('selected');
+        clip.onclick = function (ev) {
+          ev.stopPropagation();
+          selectedId = L.id;
+          refreshLayerList();
+          rebuildInspector();
+          refreshTimelineTracks();
+        };
+        lane.appendChild(clip);
+        row.appendChild(lab);
+        row.appendChild(lane);
+        timelineContent.appendChild(row);
+      })(layers[i]);
+    }
+    updatePlayhead();
+  }
+
+  if (timelinePanel) {
+    timelinePanel.addEventListener('click', function (e) {
+      var lane = e.target.closest('.hyper-track-lane');
+      if (!lane || lane.closest('.hyper-ruler-row')) return;
+      if (e.target.closest('.hyper-clip')) return;
+      var rect = lane.getBoundingClientRect();
+      var x = e.clientX - rect.left;
+      var w = rect.width;
+      if (w <= 0) return;
+      globalT = Math.max(0, Math.min(MAX_TIME, (x / w) * MAX_TIME));
+      syncScrubber();
+      broadcastTick();
+    });
+  }
+
+  function syncScrubber() {
+    scrub.value = String(Math.round((globalT / MAX_TIME) * 3000));
+    timeReadout.textContent = globalT.toFixed(2) + 's';
+    updatePlayhead();
+  }
+
+  function startPlayback() {
+    if (playing) return;
+    playing = true;
+    playBtn.textContent = '❚❚';
+    lastTs = 0;
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopPlayback() {
+    playing = false;
+    playBtn.textContent = '▶';
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+    lastTs = 0;
+    broadcastTick();
+  }
+
+  playBtn.addEventListener('click', function () {
+    if (playing) stopPlayback();
+    else startPlayback();
+  });
+
+  scrub.addEventListener('input', function () {
+    var v = parseFloat(scrub.value) / 3000;
+    globalT = Math.max(0, Math.min(MAX_TIME, v * MAX_TIME));
+    timeReadout.textContent = globalT.toFixed(2) + 's';
+    broadcastTick();
+  });
+
+  function mountLayer(L) {
+    var frame = document.createElement('div');
+    frame.className = 'hyper-layer-frame';
+    frame.dataset.layerId = L.id;
+    var xform = document.createElement('div');
+    xform.className = 'hyper-layer-xform';
+    xform.style.cssText =
+      'position:absolute;left:0;top:0;right:0;bottom:0;width:100%;height:100%;margin:0;padding:0;box-sizing:border-box;transform:none;';
+    var ifr = document.createElement('iframe');
+    ifr.className = 'hyper-layer-embed';
+    ifr.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+    ifr.setAttribute('frameborder', '0');
+    ifr.src = L.src;
+    ifr.style.cssText =
+      'position:absolute;left:0;top:0;right:0;bottom:0;width:100%;height:100%;margin:0;padding:0;border:0;box-sizing:border-box;display:block;transform:none;';
+    xform.appendChild(ifr);
+    frame.appendChild(xform);
+    (composition || stage).appendChild(frame);
+    L.frameEl = frame;
+    L.xformEl = xform;
+    L.iframe = ifr;
+    applyLayerTransform(L);
+    ifr.addEventListener('load', function () {
+      applyLayerTransform(L);
+      fitComposition();
+      broadcastTick();
+      console.info('[Hyper-Web] iframe load', L.name, L.src);
+      debugLayout('after iframe load', L);
+    });
+    requestAnimationFrame(function () {
+      applyLayerTransform(L);
+      fitComposition();
+      console.info('[Hyper-Web] layer mounted', L.name, {
+        src: L.src,
+        props: L.props,
+        frame: frame.getBoundingClientRect(),
+        composition: composition.getBoundingClientRect()
+      });
+      if (HYPER_DEBUG) debugLayout('after mount rAF', L);
+    });
+  }
+
+  function unmountLayer(L) {
+    if (L.frameEl && L.frameEl.parentNode) L.frameEl.parentNode.removeChild(L.frameEl);
+    if (L.blobUrl) {
+      try {
+        URL.revokeObjectURL(L.blobUrl);
+      } catch (e) {}
+    }
+    L.frameEl = null;
+    L.xformEl = null;
+    L.iframe = null;
+  }
+
+  function refreshLayerList() {
+    layerList.innerHTML = '';
+    for (var i = layers.length - 1; i >= 0; i--) {
+      (function (L) {
+        var row = document.createElement('div');
+        row.className = 'hyper-layer-item';
+        row.textContent = L.name;
+        row.dataset.active = L.id === selectedId ? '1' : '0';
+        row.onclick = function () {
+          selectedId = L.id;
+          refreshLayerList();
+          rebuildInspector();
+        };
+        layerList.appendChild(row);
+      })(layers[i]);
+    }
+    refreshTimelineTracks();
+  }
+
+  function transformSection() {
+    return { title: 'Transform', fields: TRANSFORM_FIELDS.slice() };
+  }
+
+  /** Keep transform keys finite so inspector + applyLayerTransform never drift (import / partial props). */
+  function coerceLayerTransformProps(p) {
+    if (!p) return;
+    var x = Number(p.x);
+    var y = Number(p.y);
+    p.x = Number.isFinite(x)
+      ? Math.min(TRANSFORM_XY_MAX, Math.max(TRANSFORM_XY_MIN, x))
+      : 0;
+    p.y = Number.isFinite(y)
+      ? Math.min(TRANSFORM_XY_MAX, Math.max(TRANSFORM_XY_MIN, y))
+      : 0;
+    var sc = Number(p.scale);
+    p.scale = Number.isFinite(sc) && sc > 0 ? Math.min(2.5, Math.max(0.2, sc)) : 1;
+    var op = Number(p.opacity);
+    p.opacity = Number.isFinite(op) ? Math.min(100, Math.max(0, op)) : 100;
+    var rot = Number(p.rotate);
+    p.rotate = Number.isFinite(rot) ? ((rot % 360) + 360) % 360 : 0;
+  }
+
+  /** One click: layer fills the composition box (most “not full screen” reports = scale ≠ 1 or X/Y offset). */
+  function resetSelectedLayerTransform() {
+    var layer = selectedLayer();
+    if (!layer) {
+      coffee.toast('Select a layer first', 'info', 1200);
+      return;
+    }
+    layer.props.scale = 1;
+    layer.props.x = 0;
+    layer.props.y = 0;
+    layer.props.rotate = 0;
+    applyLayerTransform(layer);
+    if (insp) insp.update();
+    coffee.toast('Transform reset (1×, centered)', 'success', 1400);
+  }
+
+  /** Inspector + mount timing: one rAF is sometimes too early; two frames settles sliders vs props. */
+  function settleLayerTransformToDefault(L) {
+    if (!L) return;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        var G = getLayer(L.id);
+        if (!G) return;
+        G.props.scale = 1;
+        G.props.x = 0;
+        G.props.y = 0;
+        applyLayerTransform(G);
+        if (insp && selectedId === G.id) insp.update();
+        fitComposition();
+      });
+    });
+  }
+
+  function rebuildInspector() {
+    if (insp) insp.destroy();
+    var L = selectedLayer();
+    if (L) coerceLayerTransformProps(L.props);
+    var sections = [transformSection()];
+    if (L && L.schema && L.schema.controls && L.schema.controls.length) {
+      var extra = coffee.omni.inspectorSectionsFromControls(L.schema.controls, 'Layer');
+      for (var i = 0; i < extra.length; i++) sections.push(extra[i]);
+    }
+    insp = coffee.inspector({
+      mount: '#hyper-inspector-mount',
+      title: L ? L.name : 'Properties',
+      emptyText: 'Select a layer',
+      sections: sections,
+      syncFrom: function () {
+        var layer = selectedLayer();
+        if (!layer) return null;
+        coerceLayerTransformProps(layer.props);
+        return layer.props;
+      },
+      syncTo: function (key, value) {
+        var layer = selectedLayer();
+        if (!layer) return;
+        var transformKeys = { x: 1, y: 1, scale: 1, opacity: 1, rotate: 1 };
+        if (transformKeys[key]) {
+          var n = typeof value === 'number' ? value : parseFloat(value);
+          if (key === 'x' || key === 'y') {
+            var xy = Number.isFinite(n) ? n : 0;
+            layer.props[key] = Math.min(TRANSFORM_XY_MAX, Math.max(TRANSFORM_XY_MIN, xy));
+          }
+          else if (key === 'scale') layer.props[key] = Number.isFinite(n) ? n : 1;
+          else if (key === 'opacity') layer.props[key] = Number.isFinite(n) ? n : 100;
+          else if (key === 'rotate') layer.props[key] = Number.isFinite(n) ? n : 0;
+          applyLayerTransform(layer);
+        } else {
+          layer.props[key] = value;
+          pushHyperProp(layer, key, value);
+        }
+      },
+      showDelete: true,
+      onDelete: function () {
+        var layer = selectedLayer();
+        if (!layer) return;
+        unmountLayer(layer);
+        layers = layers.filter(function (x) {
+          return x.id !== layer.id;
+        });
+        selectedId = layers.length ? layers[layers.length - 1].id : null;
+        refreshLayerList();
+        rebuildInspector();
+        coffee.toast('Layer removed', 'info', 1200);
+      }
+    });
+    insp.update();
+    var Lsync = selectedLayer();
+    if (Lsync) applyLayerTransform(Lsync);
+  }
+
+  function addGuestLayer() {
+    var sch = coffee.omni.parseSchemaFromManifest(GUEST_MANIFEST);
+    var props = Object.assign(
+      { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+      coffee.omni.defaultPropsFromControls(sch.controls)
+    );
+    var L = {
+      id: uid(),
+      name: 'Guest demo',
+      src: 'HYPER-GUEST-DEMO.html',
+      blobUrl: null,
+      preset: 'guest',
+      schema: sch,
+      props: props,
+      savedHtml: null
+    };
+    layers.push(L);
+    mountLayer(L);
+    selectedId = L.id;
+    refreshLayerList();
+    rebuildInspector();
+    settleLayerTransformToDefault(L);
+    coffee.toast('Guest clip added', 'success', 1400);
+  }
+
+  function addArtGuestLayer() {
+    var sch = coffee.omni.parseSchemaFromManifest(ART_GUEST_MANIFEST);
+    var props = Object.assign(
+      { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+      coffee.omni.defaultPropsFromControls(sch.controls)
+    );
+    var L = {
+      id: uid(),
+      name: 'Art guest',
+      src: 'HYPER-GUEST-ART-DEMO.html',
+      blobUrl: null,
+      preset: 'art',
+      schema: sch,
+      props: props,
+      savedHtml: null
+    };
+    layers.push(L);
+    mountLayer(L);
+    selectedId = L.id;
+    refreshLayerList();
+    rebuildInspector();
+    settleLayerTransformToDefault(L);
+    coffee.toast('Art guest added (FORGE + art)', 'success', 1600);
+  }
+
+  function addUploadedLayer(html, metaName) {
+    var r = coffee.omni.validateHtml(html);
+    if (!r.valid) {
+      coffee.toast('CCE rejected: ' + r.errors.slice(0, 2).join('; '), 'danger', 4000);
+      return;
+    }
+    var htmlBlob = htmlForBlobLayer(html);
+    var blobUrl = URL.createObjectURL(new Blob([htmlBlob], { type: 'text/html' }));
+    var sch = coffee.omni.parseSchemaFromManifest({});
+    var props = Object.assign(
+      { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+      coffee.omni.defaultPropsFromControls(sch.controls)
+    );
+    var L = {
+      id: uid(),
+      name: metaName || (r.metadata && r.metadata.name) || 'Uploaded',
+      src: blobUrl,
+      blobUrl: blobUrl,
+      preset: null,
+      schema: sch,
+      props: props,
+      savedHtml: html
+    };
+    layers.push(L);
+    mountLayer(L);
+    selectedId = L.id;
+    refreshLayerList();
+    rebuildInspector();
+    settleLayerTransformToDefault(L);
+    coffee.toast('Layer added (CCE ok)', 'success', 1400);
+  }
+
+  window.addEventListener('message', function (e) {
+    if (!coffee.omni.isHyperReadyMessage(e.data)) return;
+    for (var i = 0; i < layers.length; i++) {
+      if (layers[i].iframe && layers[i].iframe.contentWindow === e.source) {
+        layers[i].ready = true;
+        return;
+      }
+    }
+  });
+
+  function clearAllLayers() {
+    for (var i = 0; i < layers.length; i++) unmountLayer(layers[i]);
+    layers = [];
+    selectedId = null;
+  }
+
+  function exportProject() {
+    var payload = {
+      version: 1,
+      time: globalT,
+      layers: layers.map(function (L) {
+        return {
+          name: L.name,
+          preset: L.preset,
+          props: Object.assign({}, L.props),
+          html: L.savedHtml || null
+        };
+      })
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hyper-web-project.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    coffee.toast('Exported', 'success', 1200);
+  }
+
+  function importProject(json) {
+    var data;
+    try {
+      data = typeof json === 'string' ? JSON.parse(json) : json;
+    } catch (err) {
+      coffee.toast('Invalid JSON', 'danger', 2000);
+      return;
+    }
+    if (!data || !Array.isArray(data.layers)) {
+      coffee.toast('Bad project shape', 'danger', 2000);
+      return;
+    }
+    clearAllLayers();
+    globalT = typeof data.time === 'number' ? data.time : 0;
+    syncScrubber();
+    for (var i = 0; i < data.layers.length; i++) {
+      var row = data.layers[i];
+      if (row.preset === 'guest') {
+        var sch = coffee.omni.parseSchemaFromManifest(GUEST_MANIFEST);
+        var L = {
+          id: uid(),
+          name: row.name || 'Guest demo',
+          src: 'HYPER-GUEST-DEMO.html',
+          blobUrl: null,
+          preset: 'guest',
+          schema: sch,
+          props: Object.assign(
+            { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+            coffee.omni.defaultPropsFromControls(sch.controls),
+            row.props || {}
+          ),
+          savedHtml: null
+        };
+        coerceLayerTransformProps(L.props);
+        layers.push(L);
+        mountLayer(L);
+      } else if (row.preset === 'art') {
+        var schA = coffee.omni.parseSchemaFromManifest(ART_GUEST_MANIFEST);
+        var La = {
+          id: uid(),
+          name: row.name || 'Art guest',
+          src: 'HYPER-GUEST-ART-DEMO.html',
+          blobUrl: null,
+          preset: 'art',
+          schema: schA,
+          props: Object.assign(
+            { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+            coffee.omni.defaultPropsFromControls(schA.controls),
+            row.props || {}
+          ),
+          savedHtml: null
+        };
+        coerceLayerTransformProps(La.props);
+        layers.push(La);
+        mountLayer(La);
+      } else if (row.html && typeof row.html === 'string') {
+        var r = coffee.omni.validateHtml(row.html);
+        if (!r.valid) {
+          coffee.toast('Skipped invalid layer: ' + (row.name || 'uploaded'), 'warning', 2500);
+          continue;
+        }
+        var htmlImp = htmlForBlobLayer(row.html);
+        var blobUrl = URL.createObjectURL(new Blob([htmlImp], { type: 'text/html' }));
+        var sch2 = coffee.omni.parseSchemaFromManifest({});
+        var L2 = {
+          id: uid(),
+          name: row.name || 'Uploaded',
+          src: blobUrl,
+          blobUrl: blobUrl,
+          preset: null,
+          schema: sch2,
+          props: Object.assign(
+            { x: 0, y: 0, scale: 1, opacity: 100, rotate: 0 },
+            coffee.omni.defaultPropsFromControls(sch2.controls),
+            row.props || {}
+          ),
+          savedHtml: row.html
+        };
+        coerceLayerTransformProps(L2.props);
+        layers.push(L2);
+        mountLayer(L2);
+      }
+    }
+    selectedId = layers.length ? layers[layers.length - 1].id : null;
+    refreshLayerList();
+    rebuildInspector();
+    broadcastTick();
+    coffee.toast('Project loaded', 'info', 1400);
+  }
+
+  actions.appendChild(
+    coffee.row(
+      [
+        coffee.button(
+          'Add guest',
+          function () {
+            addGuestLayer();
+          },
+          { style: { minHeight: '40px' } }
+        ),
+        coffee.button(
+          'Add art guest',
+          function () {
+            addArtGuestLayer();
+          },
+          { style: { minHeight: '40px' } }
+        ),
+        coffee.button(
+          'Upload HTML',
+          function () {
+            fileInput.click();
+          },
+          { style: { minHeight: '40px' } }
+        ),
+        coffee.button(
+          'Reset transform',
+          function () {
+            resetSelectedLayerTransform();
+          },
+          { style: { minHeight: '40px' } }
+        ),
+        coffee.button(
+          'Export',
+          function () {
+            exportProject();
+          },
+          { style: { minHeight: '40px' } }
+        ),
+        coffee.button(
+          'Import',
+          function () {
+            var inp = document.createElement('input');
+            inp.type = 'file';
+            inp.accept = '.json,application/json';
+            inp.onchange = function () {
+              var f = inp.files && inp.files[0];
+              if (!f) return;
+              var r = new FileReader();
+              r.onload = function () {
+                importProject(r.result);
+              };
+              r.readAsText(f);
+            };
+            inp.click();
+          },
+          { style: { minHeight: '40px' } }
+        )
+      ],
+      { style: { gap: '8px', flexWrap: 'wrap' } }
+    )
+  );
+
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files && fileInput.files[0];
+    fileInput.value = '';
+    if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      addUploadedLayer(r.result, f.name.replace(/\.html?$/i, ''));
+    };
+    r.readAsText(f);
+  });
+
+  refreshLayerList();
+  syncScrubber();
+  rebuildInspector();
+  broadcastTick();
+})();
+  </script>
+</body>
+</html>

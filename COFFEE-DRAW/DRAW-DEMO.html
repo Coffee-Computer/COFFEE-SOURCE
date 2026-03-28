@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.draw() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-SCENE2D/coffee-scene2d.js"></script>
+  <script src="../COFFEE-PLEX/coffee-plex.js"></script>
+  <script src="./coffee-draw.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.draw()', 1);
+    const sub = coffee.para('Interactive drawing. Depends on scene2d. Drag to draw.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const drawView = coffee.draw({
+      brush: { size: 4, color: '#1a1a2e' },
+      background: '#ffffff',
+      width: 450,
+      height: 300
+    });
+
+    const clearBtn = coffee.button('Clear', () => {
+      drawView.draw.clear();
+    });
+
+    const card = coffee.card([header, sub, drawView, clearBtn], { style: { width: '100%', maxWidth: '490px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

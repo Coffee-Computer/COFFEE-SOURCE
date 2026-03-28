@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="cce:name" content="Coffee.Hub">
+    <meta name="cce:id" content="coffee-hub">
+    <meta name="cce:icon" content="☕">
+    <meta name="cce:color" content="#eab308">
+    <meta name="cce:description" content="Community hub — flagship links, maintainers, docs">
+    <title>Coffee.Hub() // Community & Open Source</title>
+    <link rel="stylesheet" href="COMMUNITY-HUB.css">
+</head>
+<body class="ch-hub">
+
+    <nav class="ch-nav" aria-label="Coffee Hub">
+        <button type="button" class="ch-nav-burger" id="ch-nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="ch-nav-mobile-panel">
+            <span class="ch-nav-burger-line" aria-hidden="true"></span>
+            <span class="ch-nav-burger-line" aria-hidden="true"></span>
+            <span class="ch-nav-burger-line" aria-hidden="true"></span>
+        </button>
+        <div class="ch-nav-brand">
+            <div class="ch-nav-logo" aria-hidden="true">C</div>
+            <span class="ch-nav-title">COFFEE.HUB<span class="ch-accent-paren">()</span></span>
+        </div>
+        <div class="ch-nav-links">
+            <a href="#" onclick="event.preventDefault(); showSection('community');">COMMUNITY</a>
+            <a href="#" onclick="event.preventDefault(); showSection('maintainers');">MAINTAINERS</a>
+            <a href="#" onclick="event.preventDefault(); showSection('docs');">DOCUMENTATION</a>
+        </div>
+        <button type="button" class="ch-nav-cta">JOIN THE BREW</button>
+    </nav>
+
+    <div id="ch-nav-mobile-layer" class="ch-nav-mobile-layer" aria-hidden="true">
+        <div class="ch-nav-mobile-backdrop" id="ch-nav-mobile-backdrop" aria-hidden="true"></div>
+        <div class="ch-nav-mobile-panel" id="ch-nav-mobile-panel" role="dialog" aria-modal="true" aria-label="Hub menu">
+            <p class="ch-nav-mobile-panel-label ch-sidebar-label">Navigate</p>
+            <nav class="ch-nav-mobile-links" aria-label="Sections">
+                <a href="#" class="ch-nav-mobile-link" data-section="community">Community</a>
+                <a href="#" class="ch-nav-mobile-link" data-section="maintainers">Maintainers</a>
+                <a href="#" class="ch-nav-mobile-link" data-section="docs">Documentation</a>
+            </nav>
+            <p class="ch-nav-mobile-panel-label ch-sidebar-label">Core modules</p>
+            <nav class="ch-nav-mobile-links" aria-label="Modules">
+                <a href="#" class="ch-nav-mobile-link" data-section="community">Dashboard</a>
+                <a href="#" class="ch-nav-mobile-link" data-section="maintainers">Maintainer board</a>
+                <a href="#" class="ch-nav-mobile-link" data-section="docs">Docs / API reference</a>
+                <span class="ch-nav-mobile-link ch-nav-mobile-link--disabled">Governance (Soon)</span>
+            </nav>
+            <div class="ch-nav-mobile-status ch-status-card">
+                <div class="ch-status-line">
+                    <span class="ch-status-dot" aria-hidden="true"></span>
+                    Community Edition · frozen baseline
+                </div>
+                <div class="ch-status-meta ch-mono">See SOURCE-STATUS.md</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ch-shell">
+        <aside class="ch-sidebar" aria-label="Hub navigation">
+            <div class="ch-sidebar-section">
+                <h3 class="ch-sidebar-label">CORE MODULES</h3>
+                <nav class="ch-sidebar-nav">
+                    <a href="#" class="ch-sidebar-link" onclick="event.preventDefault(); showSection('community');">Dashboard</a>
+                    <a href="#" class="ch-sidebar-link" onclick="event.preventDefault(); showSection('maintainers');">Maintainer Board</a>
+                    <a href="#" class="ch-sidebar-link" onclick="event.preventDefault(); showSection('docs');">Docs / API Reference</a>
+                    <span class="ch-sidebar-link ch-sidebar-link--disabled">Governance (Soon)</span>
+                </nav>
+            </div>
+            <div class="ch-sidebar-section">
+                <h3 class="ch-sidebar-label">CURRENT STATUS</h3>
+                <div class="ch-status-card">
+                    <div class="ch-status-line">
+                        <span class="ch-status-dot" aria-hidden="true"></span>
+                        Community Edition · frozen baseline
+                    </div>
+                    <div class="ch-status-meta ch-mono">See SOURCE-STATUS.md</div>
+                </div>
+            </div>
+        </aside>
+
+        <main id="content-mount" class="ch-main">
+            <div id="section-community" class="ch-section ch-animate-in">
+                <header class="ch-section-header">
+                    <h1 class="ch-hero-title">The Collective <span class="ch-text-accent">Roast.</span></h1>
+                    <p class="ch-lede">Everything happening in the Coffee ecosystem — flagship apps and community entry points. Cards load from <span class="ch-mono">community-hub-apps.json</span>.</p>
+                </header>
+
+                <div id="community-hub-cards" class="ch-cards-grid" aria-live="polite">
+                    <p id="community-hub-cards-loading" class="ch-loading">Loading community apps…</p>
+                </div>
+            </div>
+
+            <div id="section-maintainers" class="ch-section ch-hidden">
+                <header class="ch-section-header">
+                    <h1 class="ch-hero-title">Open <span class="ch-text-accent">Positions.</span></h1>
+                    <p class="ch-lede">Help shape the future of Coffee. Select a project to apply for maintainer status.</p>
+                </header>
+
+                <div class="ch-stack">
+                    <div class="ch-row-card">
+                        <div>
+                            <h4 class="ch-row-title">Lead: Coffee.Kernel</h4>
+                            <p class="ch-row-sub">C++, Rust // Memory Management & Roasting Engine</p>
+                        </div>
+                        <div class="ch-row-actions">
+                            <div>
+                                <div class="ch-row-stipend-label">Stipend</div>
+                                <div class="ch-row-stipend-value">2.4 ETH / Qtr</div>
+                            </div>
+                            <button type="button" class="ch-btn-apply">APPLY</button>
+                        </div>
+                    </div>
+                    <div class="ch-row-card ch-row-card--dim">
+                        <div>
+                            <h4 class="ch-row-title">Maintainer: Coffee.SDK (Go)</h4>
+                            <p class="ch-row-sub">Golang // API Wrappers & Developer Experience</p>
+                        </div>
+                        <div class="ch-row-actions">
+                            <div>
+                                <div class="ch-row-stipend-label">Stipend</div>
+                                <div class="ch-row-stipend-value">1.2 ETH / Qtr</div>
+                            </div>
+                            <button type="button" class="ch-btn-apply">APPLY</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="section-docs" class="ch-section ch-hidden">
+                <div class="ch-docs-layout">
+                    <nav class="ch-docs-toc" aria-label="Documentation sections">
+                        <h5>Getting Started</h5>
+                        <ul>
+                            <li class="ch-toc-active">Quick Start</li>
+                            <li>Installation</li>
+                            <li>Core Concepts</li>
+                        </ul>
+                        <h5>API Reference</h5>
+                        <ul>
+                            <li>Auth Methods</li>
+                            <li>The Roast Object</li>
+                            <li>Stream Listeners</li>
+                        </ul>
+                    </nav>
+                    <div class="ch-docs-body">
+                        <h2>Quick Start Guide</h2>
+                        <p>Welcome to the Coffee.SDK. To begin interacting with the bean-chain, you first need to initialize your environment. Ensure you have Node.js 18+ installed.</p>
+
+                        <div class="ch-code-window ch-mono">
+                            <div class="ch-code-dots" aria-hidden="true">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <div class="ch-code-line">npm install <span class="ch-dim">@coffee/sdk</span></div>
+                        </div>
+
+                        <h3>Initial Setup</h3>
+                        <div class="ch-code-window ch-mono ch-code-block">
+                            <span class="cmt">// Initialize the roast engine</span><br>
+                            <span class="kw">import</span> { Coffee } <span class="kw">from</span> <span class="str">'@coffee/sdk'</span>;<br><br>
+                            <span class="kw">const</span> engine = <span class="kw">new</span> Coffee({<br>
+                            &nbsp;&nbsp;temp: <span class="num">92</span>,<br>
+                            &nbsp;&nbsp;bean: <span class="str">'ETH_ROAST_01'</span><br>
+                            });<br><br>
+                            <span class="kw">await</span> engine.ignite();
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="ch-footer ch-mono">
+        <div>COFFEE_HUB_SECURE_V1.2</div>
+        <div class="ch-footer-meta">
+            <span>PING: 24ms</span>
+            <span class="ch-footer-secure">CONNECTED: SHA-256</span>
+        </div>
+    </footer>
+
+    <script>
+        const COMMUNITY_HUB_APPS_URL = './community-hub-apps.json';
+
+        const TAG_TONE_CLASS = {
+            yellow: 'ch-tag--yellow',
+            blue: 'ch-tag--blue',
+            green: 'ch-tag--green'
+        };
+
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function openHubAppUrl(url) {
+            if (!url || url === '#') return;
+            try {
+                var abs = new URL(url, window.location.href).href;
+                window.open(abs, '_blank', 'noopener,noreferrer');
+            } catch (e) {
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+        }
+
+        function renderCommunityHubCards(apps) {
+            var grid = document.getElementById('community-hub-cards');
+            var loading = document.getElementById('community-hub-cards-loading');
+            if (!grid) return;
+            if (loading) loading.remove();
+
+            var list = Array.isArray(apps) ? apps : [];
+            if (list.length === 0) {
+                grid.innerHTML = '<p class="ch-empty">No community apps in <span class="ch-mono">community-hub-apps.json</span> yet.</p>';
+                return;
+            }
+
+            grid.innerHTML = '';
+            list.forEach(function (app) {
+                var tone = app.tagTone && TAG_TONE_CLASS[app.tagTone] ? app.tagTone : 'yellow';
+                var tagClass = TAG_TONE_CLASS[tone];
+                var url = app.url || '#';
+                var title = app.title || app.name || 'Untitled';
+                var card = document.createElement('div');
+                card.className = 'ch-card';
+                card.setAttribute('role', 'link');
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('aria-label', 'Open ' + title);
+                if (url && url !== '#') {
+                    card.dataset.url = url;
+                }
+                card.innerHTML =
+                    '<span class="ch-tag ' + tagClass + '">' + escapeHtml(app.tag || 'App') + '</span>' +
+                    '<h4 class="ch-card-title">' + escapeHtml(title) + '</h4>' +
+                    '<p class="ch-card-desc">' + escapeHtml(app.description || '') + '</p>' +
+                    '<div class="ch-card-footer">' +
+                    '<span class="ch-card-meta ch-mono">' + escapeHtml(app.footer || '') + '</span>' +
+                    '<span class="ch-card-cta">' + escapeHtml(app.buttonLabel || 'OPEN') + '</span>' +
+                    '</div>';
+
+                function activate() {
+                    openHubAppUrl(card.dataset.url);
+                }
+                card.addEventListener('click', activate);
+                card.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter' || ev.key === ' ') {
+                        ev.preventDefault();
+                        activate();
+                    }
+                });
+
+                grid.appendChild(card);
+            });
+        }
+
+        function loadCommunityHubApps() {
+            fetch(COMMUNITY_HUB_APPS_URL)
+                .then(function (r) {
+                    if (!r.ok) throw new Error(r.statusText);
+                    return r.json();
+                })
+                .then(renderCommunityHubCards)
+                .catch(function () {
+                    var grid = document.getElementById('community-hub-cards');
+                    var loading = document.getElementById('community-hub-cards-loading');
+                    if (loading) loading.remove();
+                    if (grid) {
+                        grid.innerHTML = '<p class="ch-error">Could not load <span class="ch-mono">community-hub-apps.json</span>. Serve this folder over HTTP (e.g. Live Server).</p>';
+                    }
+                });
+        }
+
+        function closeChMobileNav() {
+            var layer = document.getElementById('ch-nav-mobile-layer');
+            var burger = document.getElementById('ch-nav-burger');
+            if (layer) {
+                layer.classList.remove('ch-nav-mobile-open');
+                layer.setAttribute('aria-hidden', 'true');
+            }
+            if (burger) burger.setAttribute('aria-expanded', 'false');
+            document.body.classList.remove('ch-nav-mobile-active');
+        }
+
+        function toggleChMobileNav() {
+            var layer = document.getElementById('ch-nav-mobile-layer');
+            if (!layer) return;
+            var open = !layer.classList.contains('ch-nav-mobile-open');
+            layer.classList.toggle('ch-nav-mobile-open', open);
+            layer.setAttribute('aria-hidden', open ? 'false' : 'true');
+            var burger = document.getElementById('ch-nav-burger');
+            if (burger) burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+            document.body.classList.toggle('ch-nav-mobile-active', open);
+        }
+
+        function showSection(sectionId) {
+            closeChMobileNav();
+            document.querySelectorAll('.ch-section').forEach(function (el) {
+                el.classList.add('ch-hidden');
+            });
+            var target = document.getElementById('section-' + sectionId);
+            if (target) {
+                target.classList.remove('ch-hidden');
+                target.classList.add('ch-animate-in');
+            }
+            var mount = document.getElementById('content-mount');
+            if (mount) mount.scrollTop = 0;
+        }
+
+        function initChMobileNav() {
+            var burger = document.getElementById('ch-nav-burger');
+            var backdrop = document.getElementById('ch-nav-mobile-backdrop');
+            if (burger) burger.addEventListener('click', toggleChMobileNav);
+            if (backdrop) backdrop.addEventListener('click', closeChMobileNav);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeChMobileNav();
+            });
+            document.querySelectorAll('.ch-nav-mobile-link[data-section]').forEach(function (a) {
+                a.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    var id = a.getAttribute('data-section');
+                    if (id) showSection(id);
+                });
+            });
+        }
+
+        window.onload = function () {
+            console.log('Coffee.Hub Initialized.');
+            loadCommunityHubApps();
+            initChMobileNav();
+        };
+    </script>
+</body>
+</html>

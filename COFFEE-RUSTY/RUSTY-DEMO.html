@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.rusty — Rust in the browser</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    .code-editor { font-family: 'Fira Code', 'Courier New', monospace; resize: none; background: #1e1e1e; color: #d4d4d4; line-height: 1.5; }
+    .console { background: #0a0a0a; color: #e0e0e0; font-family: 'Fira Code', monospace; }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--coffee-panel); border-radius: 4px; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-rusty.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+
+    const outputDiv = document.createElement('div');
+    outputDiv.className = 'custom-scrollbar';
+    outputDiv.style.cssText = 'flex:1;overflow-y:auto;padding:16px;fontSize:13px;lineHeight:1.6;whiteSpace:pre-wrap';
+
+    const statusEl = document.createElement('span');
+    statusEl.id = 'rusty-status';
+    statusEl.style.cssText = 'fontSize:11px;fontWeight:700;color:var(--coffee-text-muted);textTransform:uppercase';
+
+    const backendEl = document.createElement('span');
+    backendEl.style.cssText = 'fontSize:11px;color:var(--coffee-text-muted);fontStyle:italic';
+
+    const rusty = coffee.rusty({
+      onOutput: (text) => {
+        const line = document.createElement('div');
+        line.style.color = '#e0e0e0';
+        line.textContent = text;
+        outputDiv.appendChild(line);
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+      },
+      onError: (text) => {
+        const line = document.createElement('div');
+        line.style.color = '#ef4444';
+        line.style.fontWeight = '600';
+        line.textContent = text;
+        outputDiv.appendChild(line);
+        outputDiv.scrollTop = outputDiv.scrollHeight;
+      },
+      onStatus: (status) => {
+        statusEl.textContent = status;
+        statusEl.style.color = status === 'compiling' ? '#d97706' : status === 'success' ? '#22c55e' : status === 'failed' || status === 'error' ? '#ef4444' : 'var(--coffee-text-muted)';
+      }
+    });
+
+    backendEl.textContent = 'Rust Playground API';
+
+    const editor = coffee.textarea({
+      placeholder: '// Your Rust code here...',
+      value: rusty.loadLastCode() || rusty.loadExample('brew'),
+      rows: 12,
+      style: { fontFamily: "'Fira Code', monospace", fontSize: '14px', background: '#1e1e1e', color: '#d4d4d4', border: '1px solid #333', minHeight: '200px' }
+    });
+
+    function run() {
+      outputDiv.innerHTML = '';
+      rusty.execute(editor.value);
+    }
+
+    function clearOut() {
+      outputDiv.innerHTML = '';
+      rusty.clearOutput();
+    }
+
+    function loadEx(key) {
+      editor.value = rusty.loadExample(key);
+    }
+
+    function saveScript() {
+      const name = prompt('Script name:');
+      if (name && name.trim()) {
+        rusty.saveScript(name.trim(), editor.value);
+        if (coffee.toast) coffee.toast('Saved ' + name.trim(), 'success', 1500);
+      }
+    }
+
+    const scriptSelect = coffee.select({ options: [], style: { flex: 1 } });
+
+    function refreshScriptList() {
+      const names = rusty.listScripts();
+      scriptSelect.innerHTML = '';
+      const def = document.createElement('option');
+      def.value = '';
+      def.textContent = names.length ? '— Load saved —' : '— No saved —';
+      scriptSelect.appendChild(def);
+      names.forEach(n => {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        scriptSelect.appendChild(opt);
+      });
+    }
+
+    function loadScript() {
+      const name = scriptSelect.value;
+      if (!name) return;
+      editor.value = rusty.loadScript(name);
+      if (coffee.toast) coffee.toast('Loaded ' + name, 'info', 1500);
+    }
+
+    scriptSelect.onchange = loadScript;
+
+    // Sidebar
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:260px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px;background:var(--coffee-bg-surface)';
+
+    const header = coffee.heading('coffee.rusty()', 1);
+    const sub = coffee.para('Rust via Playground API. Control saves scripts locally.');
+    sub.style.color = 'var(--coffee-text-muted)';
+    sub.style.fontSize = '11px';
+
+    sidebar.appendChild(header);
+    sidebar.appendChild(sub);
+    sidebar.appendChild(coffee.para('Cargo recipes', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', fontWeight: '700', textTransform: 'uppercase', marginTop: '8px' } }));
+    sidebar.appendChild(coffee.col([
+      coffee.button('🦀 Hello, World', () => loadEx('hello'), { style: { justifyContent: 'flex-start', textAlign: 'left' } }),
+      coffee.button('📦 Structs & Impls', () => loadEx('structs'), { style: { justifyContent: 'flex-start', textAlign: 'left' } }),
+      coffee.button('🧬 Generics', () => loadEx('generics'), { style: { justifyContent: 'flex-start', textAlign: 'left' } }),
+      coffee.button('♨️ Brew Demo', () => loadEx('brew'), { style: { justifyContent: 'flex-start', textAlign: 'left' } })
+    ], { style: { gap: '6px' } }));
+    sidebar.appendChild(coffee.para('Persistence (Control)', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', fontWeight: '700', textTransform: 'uppercase', marginTop: '12px' } }));
+    sidebar.appendChild(coffee.col([
+      coffee.row([coffee.button('Save', () => { saveScript(); refreshScriptList(); }, { style: { flex: 1 } })], { style: { gap: '6px' } }),
+      coffee.row([scriptSelect], { style: { width: '100%' } })
+    ], { style: { gap: '6px' } }));
+    sidebar.appendChild(coffee.para('', { style: { flex: 1 } }));
+    const sysBox = document.createElement('div');
+    sysBox.style.cssText = 'padding:12px;background:var(--coffee-bg-elev);borderRadius:var(--coffee-radius-sm);marginTop:auto';
+    sysBox.appendChild(coffee.para('Backend', { style: { fontSize: '10px', color: '#ce412b', fontFamily: 'monospace' } }));
+    sysBox.appendChild(backendEl);
+    sidebar.appendChild(sysBox);
+
+    // Main
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:column;min-width:0;background:var(--coffee-bg-elev)';
+
+    const toolbar = document.createElement('header');
+    toolbar.style.cssText = 'padding:12px 16px;border-bottom:1px solid var(--coffee-panel);display:flex;align-items:center;justify-content:space-between;background:var(--coffee-bg-surface)';
+    toolbar.appendChild(coffee.row([
+      coffee.button('⚡ Compile & Run', run, { style: { backgroundColor: '#ce412b', color: '#fff' } }),
+      coffee.button('Clear', clearOut)
+    ], { style: { gap: '8px' } }));
+    toolbar.appendChild(coffee.row([statusEl], { style: { gap: '8px' } }));
+    main.appendChild(toolbar);
+
+    const editorWrap = document.createElement('div');
+    editorWrap.style.cssText = 'flex:1;padding:16px;position:relative';
+    editorWrap.appendChild(editor);
+    editorWrap.style.display = 'flex';
+    editor.style.flex = '1';
+    editor.style.minHeight = '0';
+    main.appendChild(editorWrap);
+
+    const consoleWrap = document.createElement('div');
+    consoleWrap.className = 'console';
+    consoleWrap.style.cssText = 'height:200px;padding:16px;border-top:4px solid var(--coffee-panel);overflow:hidden;display:flex;flex-direction:column';
+    consoleWrap.appendChild(coffee.para('Console (STDOUT)', { style: { fontSize: '10px', color: 'var(--coffee-text-muted)', marginBottom: '8px', textTransform: 'uppercase' } }));
+    consoleWrap.appendChild(outputDiv);
+    main.appendChild(consoleWrap);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+
+    document.getElementById('app').appendChild(layout);
+    refreshScriptList();
+  </script>
+</body>
+</html>

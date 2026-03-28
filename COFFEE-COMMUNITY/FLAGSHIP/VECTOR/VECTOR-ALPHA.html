@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Vector">
+  <meta name="cce:id" content="vector">
+  <meta name="cce:icon" content="◈">
+  <meta name="cce:color" content="#10b981">
+  <meta name="cce:description" content="SVG illustrator — coffee.svg + coffee.inspector + save/load">
+  <title>Vector α — Coffee SVG</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-SVG/coffee-svg.js"></script>
+  <script src="../../../COFFEE-INSPECTOR/coffee-inspector.js"></script>
+  <link rel="stylesheet" href="./vector.css">
+</head>
+<body class="vec-root">
+  <header class="vec-header">
+    <div class="vec-brand">
+      <span aria-hidden="true">◈</span>
+      <span>VECTOR α</span>
+    </div>
+    <div class="vec-actions" id="vec-header-actions"></div>
+  </header>
+
+  <div class="vec-body">
+    <aside class="vec-toolbar" id="vec-toolbar" aria-label="Tools"></aside>
+    <main class="vec-stage">
+      <div class="vec-canvas-wrap" id="vec-canvas-wrap"></div>
+    </main>
+    <aside class="vec-inspector" id="vec-inspector-mount" aria-label="Properties"></aside>
+  </div>
+  <p class="vec-hint">Select tool: click a shape. Draw: drag on canvas. Inspector edits selection. Save stores this document in local storage.</p>
+
+  <script>
+(function () {
+  var STORAGE_KEY = 'vector-alpha-doc';
+  var dark = false;
+
+  function applyTheme() {
+    coffee.injectTheme(dark ? 'dark' : 'light');
+    document.documentElement.style.setProperty('--coffee-accent', '#10b981');
+  }
+  applyTheme();
+
+  var canvasWrap = document.getElementById('vec-canvas-wrap');
+  var headerActions = document.getElementById('vec-header-actions');
+  var toolbar = document.getElementById('vec-toolbar');
+  var fillPickerEl = null;
+
+  var svgApi = coffee.svg({
+    width: 920,
+    height: 560,
+    onSelect: function () {
+      if (insp) insp.update();
+    }
+  });
+  canvasWrap.appendChild(svgApi.getSVG());
+
+  function shapesGroup() {
+    var root = svgApi.getSVG();
+    return root.querySelector('[data-coffee-svg-shapes]');
+  }
+
+  function persistDoc() {
+    var g = shapesGroup();
+    if (!g) return;
+    try {
+      coffee.save(STORAGE_KEY, {
+        html: g.innerHTML,
+        fill: svgApi.getFillColor(),
+        tool: svgApi.getTool()
+      });
+      coffee.toast('Saved', 'success', 1400);
+    } catch (e) {
+      console.warn(e);
+      document.body.appendChild(coffee.msg('Could not save (storage full).', 'warning'));
+    }
+  }
+
+  function loadDoc() {
+    var d = coffee.load(STORAGE_KEY);
+    var g = shapesGroup();
+    if (!d || !g) return;
+    if (typeof d.html === 'string') g.innerHTML = d.html;
+    if (typeof d.fill === 'string') {
+      svgApi.setFillColor(d.fill);
+      if (fillPickerEl) fillPickerEl.value = d.fill;
+    }
+    if (d.tool) svgApi.setTool(d.tool);
+    syncToolButtons();
+    if (insp) insp.update();
+    coffee.toast('Loaded', 'info', 1400);
+  }
+
+  function syncFrom() {
+    var el = svgApi.getSelected();
+    if (!el) return null;
+    var tag = el.tagName.toLowerCase();
+    var fill = el.getAttribute('fill') || '#10b981';
+    var fo = parseFloat(el.getAttribute('fill-opacity'));
+    if (!Number.isFinite(fo)) fo = 1;
+    var opacity = Math.round(fo * 100);
+
+    if (tag === 'rect') {
+      return {
+        fill: fill,
+        opacity: opacity,
+        x: parseFloat(el.getAttribute('x')) || 0,
+        y: parseFloat(el.getAttribute('y')) || 0,
+        width: parseFloat(el.getAttribute('width')) || 0,
+        height: parseFloat(el.getAttribute('height')) || 0,
+        cx: null,
+        cy: null,
+        r: null,
+        text: null,
+        fontSize: null
+      };
+    }
+    if (tag === 'circle') {
+      return {
+        fill: fill,
+        opacity: opacity,
+        x: null,
+        y: null,
+        width: null,
+        height: null,
+        cx: parseFloat(el.getAttribute('cx')) || 0,
+        cy: parseFloat(el.getAttribute('cy')) || 0,
+        r: parseFloat(el.getAttribute('r')) || 0,
+        text: null,
+        fontSize: null
+      };
+    }
+    if (tag === 'text') {
+      var fs = parseFloat(el.getAttribute('font-size'));
+      return {
+        fill: fill,
+        opacity: opacity,
+        x: parseFloat(el.getAttribute('x')) || 0,
+        y: parseFloat(el.getAttribute('y')) || 0,
+        width: null,
+        height: null,
+        cx: null,
+        cy: null,
+        r: null,
+        text: el.textContent || '',
+        fontSize: Number.isFinite(fs) ? fs : 24
+      };
+    }
+    return null;
+  }
+
+  function num(v) {
+    var n = typeof v === 'number' ? v : parseFloat(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function syncTo(key, value) {
+    var el = svgApi.getSelected();
+    if (!el) return;
+    var tag = el.tagName.toLowerCase();
+    if (key === 'fill') {
+      svgApi.updateSelected('fill', value);
+      return;
+    }
+    if (key === 'opacity') {
+      svgApi.updateSelected('opacity', String(num(value) / 100));
+      return;
+    }
+    if (key === 'text' && tag === 'text') {
+      svgApi.updateSelected('text', value);
+      return;
+    }
+    if (key === 'fontSize' && tag === 'text') {
+      svgApi.updateSelected('fontSize', String(num(value)));
+      return;
+    }
+    if (tag === 'rect') {
+      if (key === 'x') svgApi.updateSelected('x', String(num(value)));
+      if (key === 'y') svgApi.updateSelected('y', String(num(value)));
+      if (key === 'width') svgApi.updateSelected('width', String(Math.max(0, num(value))));
+      if (key === 'height') svgApi.updateSelected('height', String(Math.max(0, num(value))));
+    }
+    if (tag === 'circle') {
+      if (key === 'cx') svgApi.updateSelected('cx', String(num(value)));
+      if (key === 'cy') svgApi.updateSelected('cy', String(num(value)));
+      if (key === 'r') svgApi.updateSelected('r', String(Math.max(0, num(value))));
+    }
+    if (tag === 'text') {
+      if (key === 'x') svgApi.updateSelected('x', String(num(value)));
+      if (key === 'y') svgApi.updateSelected('y', String(num(value)));
+    }
+  }
+
+  var insp = coffee.inspector({
+    mount: '#vec-inspector-mount',
+    title: 'Selection',
+    emptyText: 'Select a shape (Select tool)',
+    sections: [
+      {
+        title: 'Appearance',
+        fields: [
+          { key: 'fill', type: 'color', label: 'Fill' },
+          { key: 'opacity', type: 'range', label: 'Opacity', min: 0, max: 100, step: 1 }
+        ]
+      },
+      {
+        title: 'Rectangle',
+        fields: [
+          { key: 'x', type: 'number', label: 'X' },
+          { key: 'y', type: 'number', label: 'Y' },
+          { key: 'width', type: 'number', label: 'Width' },
+          { key: 'height', type: 'number', label: 'Height' }
+        ]
+      },
+      {
+        title: 'Circle',
+        fields: [
+          { key: 'cx', type: 'number', label: 'Center X' },
+          { key: 'cy', type: 'number', label: 'Center Y' },
+          { key: 'r', type: 'number', label: 'Radius' }
+        ]
+      },
+      {
+        title: 'Text',
+        fields: [
+          { key: 'text', type: 'text', label: 'Content' },
+          { key: 'fontSize', type: 'range', label: 'Size', min: 8, max: 120, step: 1 }
+        ]
+      }
+    ],
+    syncFrom: syncFrom,
+    syncTo: syncTo,
+    onDelete: function () {
+      svgApi.deleteSelected();
+      insp.update();
+    }
+  });
+
+  var themeBtn = coffee.button(dark ? 'Light' : 'Dark', function () {
+    dark = !dark;
+    themeBtn.textContent = dark ? 'Light' : 'Dark';
+    applyTheme();
+  }, { style: { minHeight: '40px', fontSize: '12px' } });
+
+  headerActions.appendChild(themeBtn);
+  headerActions.appendChild(coffee.button('Save', persistDoc, { style: { minHeight: '40px', fontSize: '12px' } }));
+  headerActions.appendChild(coffee.button('Load', loadDoc, { style: { minHeight: '40px', fontSize: '12px' } }));
+  headerActions.appendChild(coffee.button('Clear', function () {
+    if (confirm('Clear all shapes?')) {
+      svgApi.clear();
+      insp.update();
+    }
+  }, { style: { minHeight: '40px', fontSize: '12px' } }));
+  headerActions.appendChild(coffee.button('Export', function () {
+    svgApi.export();
+  }, { style: { minHeight: '40px', fontSize: '12px' } }));
+
+  var fillRow = document.createElement('div');
+  fillRow.className = 'vec-fill-row';
+  fillRow.innerHTML = '<span>New shapes</span>';
+  var fillPicker = document.createElement('input');
+  fillPicker.type = 'color';
+  fillPicker.value = svgApi.getFillColor();
+  fillPicker.title = 'Fill for new shapes';
+  fillPickerEl = fillPicker;
+  fillPicker.addEventListener('input', function () {
+    svgApi.setFillColor(fillPicker.value);
+  });
+  fillRow.appendChild(fillPicker);
+  headerActions.appendChild(fillRow);
+
+  var toolDefs = [
+    { id: 'select', label: '⎋', title: 'Select' },
+    { id: 'rect', label: '▭', title: 'Rectangle' },
+    { id: 'circle', label: '○', title: 'Circle' },
+    { id: 'text', label: 'T', title: 'Text' }
+  ];
+  var toolButtons = [];
+
+  function syncToolButtons() {
+    var t = svgApi.getTool();
+    toolButtons.forEach(function (b, i) {
+      var active = toolDefs[i].id === t;
+      b.style.opacity = active ? '1' : '0.65';
+      b.style.boxShadow = active ? '0 0 0 2px var(--coffee-accent, #10b981)' : 'none';
+    });
+  }
+
+  toolDefs.forEach(function (def, i) {
+    var wrap = document.createElement('div');
+    wrap.className = 'vec-tool-wrap';
+    var b = coffee.button(def.label, function () {
+      svgApi.setTool(def.id);
+      syncToolButtons();
+    }, {
+      style: { minWidth: '44px', minHeight: '44px', fontSize: '18px', fontWeight: '700' }
+    });
+    b.title = def.title;
+    toolButtons.push(b);
+    wrap.appendChild(b);
+    toolbar.appendChild(wrap);
+  });
+  syncToolButtons();
+
+  svgApi.setTool('rect');
+  syncToolButtons();
+
+  insp.update();
+})();
+  </script>
+</body>
+</html>

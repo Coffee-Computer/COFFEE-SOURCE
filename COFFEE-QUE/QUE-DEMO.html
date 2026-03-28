@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.que + wire</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    .que-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+    .que-card { background: var(--coffee-bg-surface); border: 1px solid var(--coffee-panel); border-radius: var(--coffee-radius-sm); padding: 12px; position: relative; transition: all 0.2s; }
+    .que-card:hover { border-color: var(--coffee-accent); box-shadow: var(--coffee-shadow-soft); }
+    .que-card pre { font-size: 11px; line-height: 1.3; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre-wrap; word-break: break-all; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-WIRE/coffee-wire.js"></script>
+  <script src="./coffee-que.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+
+    let q = coffee.que({ adapter: coffee.wire.control() });
+    let currentStorage = 'control';
+    q.collection('default');
+
+    async function switchStorage(backend) {
+      if (backend === currentStorage) return;
+      const col = q.currentCollection;
+      const adapters = {
+        control: () => coffee.wire.control(),
+        drive: () => coffee.wire.drive('que-demo'),
+        localStorage: () => coffee.wire.localStorage({ prefix: 'coffee_wire_' }),
+        memory: () => coffee.wire.memory()
+      };
+      const adapter = adapters[backend]();
+      q = coffee.que({ adapter });
+      if (adapter.init) await q.init();
+      q.collection(col);
+      currentStorage = backend;
+      refreshCollections();
+      refreshSearch();
+      updateStorageLabel();
+      if (coffee.toast) coffee.toast('Switched to ' + backend, 'info', 1500);
+    }
+
+    function updateStorageLabel() {
+      const labels = { control: 'Control (save/load)', drive: 'Drive (IndexedDB)', localStorage: 'localStorage', memory: 'memory (no persist)' };
+      storageLabelEl.textContent = 'Storage: ' + labels[currentStorage];
+    }
+
+    const resultsGrid = document.createElement('div');
+    resultsGrid.className = 'que-grid';
+    resultsGrid.style.cssText = 'flex:1;overflow-y:auto;padding:var(--coffee-space-lg)';
+
+    const docCountEl = document.createElement('span');
+    docCountEl.id = 'que-doc-count';
+    docCountEl.style.cssText = 'fontSize:12px;fontWeight:600;color:var(--coffee-text-muted);background:var(--coffee-bg-elev);padding:6px 12px;borderRadius:999px';
+
+    const collectionSelect = coffee.select({
+      id: 'que-collection',
+      options: [],
+      style: { flex: 1, minWidth: 0 }
+    });
+    collectionSelect.onchange = () => {
+      q.collection(collectionSelect.value);
+      refreshSearch();
+    };
+
+    const searchInput = coffee.input({
+      type: 'text',
+      placeholder: 'Search by key or value...',
+      id: 'que-search',
+      style: { flex: 1, minWidth: 0 }
+    });
+    searchInput.oninput = () => refreshSearch();
+
+    const jsonInput = coffee.textarea({
+      placeholder: '{"item": "Latte", "price": 4.50, "roast": "Medium"}',
+      rows: 3,
+      style: { fontFamily: 'monospace', fontSize: '13px', width: '100%' }
+    });
+
+    function refreshCollections() {
+      const cols = q.collections();
+      collectionSelect.innerHTML = '';
+      cols.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        collectionSelect.appendChild(opt);
+      });
+      collectionSelect.value = q.currentCollection;
+    }
+
+    function refreshSearch() {
+      const term = searchInput.value.trim();
+      const list = q.filter(term);
+      render(list);
+      docCountEl.textContent = list.length + ' Docs';
+    }
+
+    function render(list) {
+      resultsGrid.innerHTML = '';
+      if (list.length === 0) {
+        const empty = document.createElement('div');
+        empty.style.cssText = 'grid-column:1/-1;padding:48px;text-align:center;color:var(--coffee-text-muted)';
+        empty.innerHTML = '<p style="font-size:48px;margin-bottom:12px">🫙</p><p style="font-weight:600">This pot is empty.</p>';
+        resultsGrid.appendChild(empty);
+        return;
+      }
+      list.forEach((doc) => {
+        const card = document.createElement('div');
+        card.className = 'que-card';
+        const pre = document.createElement('pre');
+        pre.textContent = JSON.stringify(doc, null, 2);
+        pre.style.color = 'var(--coffee-text-primary)';
+        const removeBtn = coffee.button('✕', () => {
+          q.removeDoc(doc);
+          refreshSearch();
+          if (coffee.toast) coffee.toast('Removed', 'info', 1500);
+        }, { style: { position: 'absolute', top: '8px', right: '8px', minWidth: '28px', minHeight: '28px', padding: '4px', fontSize: '12px', color: '#ef4444', backgroundColor: 'transparent', border: 'none', boxShadow: 'none' } });
+        removeBtn.style.opacity = '0.7';
+        card.addEventListener('mouseenter', () => { removeBtn.style.opacity = '1'; });
+        card.addEventListener('mouseleave', () => { removeBtn.style.opacity = '0.7'; });
+        card.appendChild(removeBtn);
+        card.appendChild(pre);
+        resultsGrid.appendChild(card);
+      });
+    }
+
+    function saveDoc() {
+      try {
+        const val = jsonInput.value.trim();
+        if (!val) return;
+        const obj = JSON.parse(val);
+        q.add(obj);
+        jsonInput.value = '';
+        refreshSearch();
+        if (coffee.toast) coffee.toast('Saved', 'success', 1500);
+      } catch (e) {
+        if (coffee.toast) coffee.toast('Invalid JSON', 'error', 2000);
+      }
+    }
+
+    function newCollection() {
+      const name = prompt('Name your new collection:');
+      if (name && name.trim()) {
+        const slug = name.trim().toLowerCase().replace(/\s/g, '_');
+        q.newCollection(slug);
+        refreshCollections();
+        refreshSearch();
+        if (coffee.toast) coffee.toast('Created ' + slug, 'info', 1500);
+      }
+    }
+
+    function clearCollection() {
+      if (confirm('Empty the "' + q.currentCollection + '" collection?')) {
+        q.clear();
+        refreshSearch();
+        if (coffee.toast) coffee.toast('Cleared', 'info', 1500);
+      }
+    }
+
+    function seedDemo() {
+      const demo = [
+        { item: 'Espresso', origin: 'Ethiopia', price: 3.5, stock: 12 },
+        { item: 'Flat White', origin: 'Colombia', price: 4.5, stock: 8 },
+        { item: 'Cold Brew', origin: 'Brazil', price: 5, stock: 20 },
+        { item: 'Mocha', origin: 'Ghana', price: 5.5, stock: 5 }
+      ];
+      demo.forEach(d => q.add(d));
+      refreshSearch();
+      if (coffee.toast) coffee.toast('Seeded demo data', 'success', 2000);
+    }
+
+    const header = coffee.heading('coffee.que + wire', 1);
+    const sub = coffee.para('Document store. Que = in-memory. Wire = persistence.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:260px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px;background:var(--coffee-bg-surface)';
+    sidebar.appendChild(header);
+    sidebar.appendChild(sub);
+    sidebar.appendChild(coffee.col([
+      coffee.para('Collection', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+      coffee.row([collectionSelect], { style: { width: '100%' } }),
+      coffee.button('+ New Collection', newCollection)
+    ], { style: { gap: '8px' } }));
+    sidebar.appendChild(coffee.para('Quick actions', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginTop: '12px', marginBottom: '4px' } }));
+    sidebar.appendChild(coffee.button('☕ Seed Demo', seedDemo));
+    sidebar.appendChild(coffee.button('🗑️ Clear Pot', clearCollection, { style: { color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent' } }));
+    sidebar.appendChild(coffee.para('Storage backend', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginTop: '12px', marginBottom: '4px' } }));
+    const storageBtns = coffee.row([
+      coffee.button('Control', () => switchStorage('control'), { style: { flex: 1, fontSize: '11px', padding: '6px 8px' } }),
+      coffee.button('Drive', () => switchStorage('drive'), { style: { flex: 1, fontSize: '11px', padding: '6px 8px' } }),
+      coffee.button('LS', () => switchStorage('localStorage'), { style: { flex: 1, fontSize: '11px', padding: '6px 8px' } }),
+      coffee.button('Mem', () => switchStorage('memory'), { style: { flex: 1, fontSize: '11px', padding: '6px 8px' } })
+    ], { style: { gap: '4px', flexWrap: 'wrap' } });
+    sidebar.appendChild(storageBtns);
+    const storageLabelEl = coffee.para('Storage: Control (save/load)', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', marginTop: '4px' } });
+    sidebar.appendChild(storageLabelEl);
+
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:column;min-width:0;background:var(--coffee-bg-elev)';
+    const headerBar = document.createElement('header');
+    headerBar.style.cssText = 'padding:12px 16px;border-bottom:1px solid var(--coffee-panel);display:flex;align-items:center;gap:12px;background:var(--coffee-bg-surface)';
+    headerBar.appendChild(searchInput);
+    headerBar.appendChild(docCountEl);
+    main.appendChild(headerBar);
+    main.appendChild(resultsGrid);
+
+    const footer = document.createElement('footer');
+    footer.style.cssText = 'padding:16px;border-top:1px solid var(--coffee-panel);background:var(--coffee-bg-surface)';
+    const footerInner = coffee.row([
+      coffee.col([jsonInput], { style: { flex: 1, minWidth: 0 } }),
+      coffee.button('Pour Into Pot', saveDoc, { style: { alignSelf: 'stretch' } })
+    ], { style: { gap: '12px', maxWidth: '900px', margin: '0 auto', width: '100%' } });
+    footer.appendChild(footerInner);
+
+    main.appendChild(footer);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'width:100%;height:100%';
+    app.appendChild(layout);
+
+    refreshCollections();
+    refreshSearch();
+    updateStorageLabel();
+  </script>
+</body>
+</html>

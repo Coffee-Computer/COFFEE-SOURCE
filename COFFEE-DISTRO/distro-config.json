@@ -1,0 +1,20 @@
+{
+  "distro": "Coffee Source Distro",
+  "version": "0.1.0",
+  "maintainerGithub": "YOUR_GITHUB_USERNAME",
+  "purpose": "Ship a verifiable, self-contained slice of the Coffee stack (Control, UI, Community wiring) so forks and mirrors can prove they’re built on the same core bricks.",
+  "whoItsFor": [
+    "Maintainers shipping a Coffee-based site or mirror",
+    "Contributors who want a clear “what this build is” reference",
+    "Anyone checking /distro or /about-coffee for provenance"
+  ],
+  "whoItsNotFor": [
+    "Production auth or legal compliance (this page is informational)",
+    "End users who only need the app — send them to the splash / homescreen instead"
+  ],
+  "requirements": [
+    "Static host or dev server that serves JSON (fetch to distro-config.json)",
+    "Modern browser with crypto.getRandomValues (session attestation)",
+    "coffee-control.js + coffee-ui.js paths intact relative to this file"
+  ]
+}

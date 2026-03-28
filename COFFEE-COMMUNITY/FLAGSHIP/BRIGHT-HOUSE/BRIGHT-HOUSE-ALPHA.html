@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Bright House">
+  <meta name="cce:id" content="bright-house">
+  <meta name="cce:icon" content="🖼️">
+  <meta name="cce:color" content="#3b82f6">
+  <meta name="cce:description" content="Batch photo editor — coffee.pix + coffee.filterCss + coffee.ui">
+  <title>Bright House α — Coffee photo editor</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-PIX/coffee-pix.js"></script>
+  <script src="../../../COFFEE-FILTER/coffee-filter.js"></script>
+  <link rel="stylesheet" href="./bright-house.css">
+</head>
+<body>
+  <header class="bh-header">
+    <div class="bh-header-left">
+      <div class="bh-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+      </div>
+      <h1 class="bh-title">Bright House</h1>
+    </div>
+    <div class="bh-header-actions" id="bh-header-actions"></div>
+  </header>
+
+  <div class="editor-container">
+    <main class="viewport">
+      <div id="drop-zone">
+        <p>Drag photos here or click to upload multiple</p>
+        <input type="file" id="file-input" hidden accept="image/*" multiple>
+      </div>
+      <div id="bh-stack" class="bh-stack bh-hidden" aria-hidden="false">
+        <img id="bh-original" class="bh-original" alt="">
+        <canvas id="bh-canvas" class="bh-canvas" width="1" height="1"></canvas>
+      </div>
+
+      <button type="button" id="compare-btn" class="bh-compare bh-hidden">Hold to see original</button>
+
+      <div id="filmstrip" class="filmstrip bh-hidden"></div>
+    </main>
+
+    <aside class="sidebar">
+      <div id="controls-wrapper" class="bh-controls-disabled">
+        <div class="bh-section">
+          <h3 class="bh-section-title">Adjustments</h3>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Brightness</span>
+              <span id="val-brightness">100%</span>
+            </div>
+            <input type="range" id="brightness" min="0" max="200" value="100">
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Contrast</span>
+              <span id="val-contrast">100%</span>
+            </div>
+            <input type="range" id="contrast" min="0" max="200" value="100">
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Saturation</span>
+              <span id="val-saturate">100%</span>
+            </div>
+            <input type="range" id="saturate" min="0" max="200" value="100">
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Warmth</span>
+              <span id="val-sepia">0%</span>
+            </div>
+            <input type="range" id="sepia" min="0" max="100" value="0">
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Blur</span>
+              <span id="val-blur">0px</span>
+            </div>
+            <input type="range" id="blur" min="0" max="10" value="0">
+          </div>
+
+          <div class="control-group">
+            <div class="control-header">
+              <span>Exposure</span>
+              <span id="val-grayscale">0%</span>
+            </div>
+            <input type="range" id="grayscale" min="0" max="100" value="0">
+          </div>
+        </div>
+
+        <div class="bh-section" style="margin-bottom:0">
+          <h3 class="bh-section-title">Presets</h3>
+          <div class="filter-grid">
+            <button type="button" class="filter-btn active" data-preset="none">Original</button>
+            <button type="button" class="filter-btn" data-preset="vivid">Vivid</button>
+            <button type="button" class="filter-btn" data-preset="noir">Noir</button>
+            <button type="button" class="filter-btn" data-preset="warm">Golden</button>
+            <button type="button" class="filter-btn" data-preset="cool">Polar</button>
+            <button type="button" class="filter-btn" data-preset="faded">Faded</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <canvas id="export-canvas" class="bh-hidden" width="0" height="0" aria-hidden="true"></canvas>
+
+  <script>
+(function () {
+  var coffee = window.coffee;
+  var dark = true;
+
+  function applyTheme() {
+    coffee.injectTheme(dark ? 'dark' : 'light');
+    document.documentElement.style.setProperty('--coffee-accent', '#3b82f6');
+  }
+  applyTheme();
+
+  var themeToggle = coffee.button(dark ? 'Light' : 'Dark', function () {
+    dark = !dark;
+    themeToggle.textContent = dark ? 'Light' : 'Dark';
+    applyTheme();
+  }, {
+    style: {
+      position: 'fixed',
+      top: '12px',
+      right: '12px',
+      zIndex: 100,
+      fontSize: '12px',
+      padding: '6px 12px',
+      minHeight: '36px',
+      boxShadow: 'var(--coffee-shadow-soft)'
+    }
+  });
+  document.body.appendChild(themeToggle);
+
+  var headerActions = document.getElementById('bh-header-actions');
+  var fileInput = document.getElementById('file-input');
+  var dropZone = document.getElementById('drop-zone');
+  var bhStack = document.getElementById('bh-stack');
+  var bhOriginal = document.getElementById('bh-original');
+  var bhCanvas = document.getElementById('bh-canvas');
+  var controlsWrapper = document.getElementById('controls-wrapper');
+  var compareBtn = document.getElementById('compare-btn');
+  var filmstrip = document.getElementById('filmstrip');
+
+  /** coffee.pix — canvas pixel engine (B/C/S). coffee.filterCss.overlay — sepia / blur / grayscale (+ cool tint on canvas bg). */
+  var pix = coffee.pix({ canvas: bhCanvas, maxDim: 3200 });
+
+  function updateLabels() {
+    sliders.forEach(function (id) {
+      var suffix = id === 'blur' ? 'px' : '%';
+      var label = document.getElementById('val-' + id);
+      if (label) label.textContent = state[id] + suffix;
+    });
+  }
+
+  function applyEdits() {
+    if (!pix.hasImage) return;
+    pix.adjust({
+      brightness: state.brightness - 100,
+      contrast: state.contrast - 100,
+      saturation: state.saturate - 100
+    });
+    bhCanvas.style.filter = cssOverlayFilter();
+    updateLabels();
+  }
+
+  function onReset() {
+    resetState();
+    syncSliders();
+    if (pix.hasImage) {
+      pix.reset();
+      applyEdits();
+    }
+    document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+    var none = document.querySelector('[data-preset="none"]');
+    if (none) none.classList.add('active');
+    bhCanvas.style.backgroundColor = 'transparent';
+  }
+
+  function onDownload() {
+    if (!pix.hasImage) {
+      document.body.appendChild(coffee.msg('Load a photo first.', 'info'));
+      return;
+    }
+    var exp = document.getElementById('export-canvas');
+    var ctx = exp.getContext('2d');
+    exp.width = bhCanvas.width;
+    exp.height = bhCanvas.height;
+    ctx.filter = coffee.filterCss.overlay(state);
+    ctx.drawImage(bhCanvas, 0, 0);
+    if (document.querySelector('.filter-btn.active') && document.querySelector('.filter-btn.active').dataset.preset === 'cool') {
+      ctx.fillStyle = 'rgba(0,0,255,0.05)';
+      ctx.fillRect(0, 0, exp.width, exp.height);
+    }
+    var link = document.createElement('a');
+    link.download = 'brighthouse-edit-' + (activeIndex + 1) + '.png';
+    link.href = exp.toDataURL('image/png');
+    link.click();
+  }
+
+  var resetBtn = coffee.button('Reset', onReset, {
+    style: {
+      fontSize: '13px',
+      minHeight: '36px',
+      backgroundColor: 'var(--coffee-bg-surface)',
+      color: 'var(--coffee-text-primary)',
+      boxShadow: 'none',
+      border: '1px solid var(--coffee-panel)',
+      fontWeight: '600'
+    }
+  });
+  var downloadBtn = coffee.button('Export photo', onDownload, {
+    style: {
+      fontSize: '13px',
+      minHeight: '36px',
+      fontWeight: '700'
+    }
+  });
+  headerActions.appendChild(resetBtn);
+  headerActions.appendChild(downloadBtn);
+
+  var sliders = ['brightness', 'contrast', 'saturate', 'sepia', 'blur', 'grayscale'];
+  var state = {
+    brightness: 100,
+    contrast: 100,
+    saturate: 100,
+    sepia: 0,
+    blur: 0,
+    grayscale: 0
+  };
+
+  var images = [];
+  var activeIndex = 0;
+
+  dropZone.onclick = function () { fileInput.click(); };
+  fileInput.onchange = function (e) { loadFiles(e.target.files); };
+
+  function loadFiles(files) {
+    if (!files.length) return;
+    var fileList = Array.from(files);
+    var processed = 0;
+    fileList.forEach(function (file) {
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        images.push(e.target.result);
+        processed++;
+        if (processed === fileList.length) initEditor();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadImageFromIndex(index, resetUi) {
+    var url = images[index];
+    bhOriginal.src = url;
+    var img = new Image();
+    img.onload = function () {
+      pix.load(img);
+      if (resetUi) {
+        resetState();
+        syncSliders();
+        document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+        var none = document.querySelector('[data-preset="none"]');
+        if (none) none.classList.add('active');
+        bhCanvas.style.backgroundColor = 'transparent';
+      }
+      applyEdits();
+    };
+    img.src = url;
+  }
+
+  function initEditor() {
+    if (images.length === 0) return;
+    activeIndex = 0;
+    bhStack.classList.remove('bh-hidden');
+    dropZone.classList.add('bh-hidden');
+    controlsWrapper.classList.remove('bh-controls-disabled');
+    compareBtn.classList.remove('bh-hidden');
+    if (images.length > 1) {
+      filmstrip.classList.remove('bh-hidden');
+      renderFilmstrip();
+    }
+    loadImageFromIndex(0, true);
+  }
+
+  function renderFilmstrip() {
+    filmstrip.innerHTML = '';
+    images.forEach(function (src, idx) {
+      var thumb = document.createElement('img');
+      thumb.src = src;
+      thumb.className = 'thumb' + (idx === activeIndex ? ' active' : '');
+      thumb.onclick = function () { switchImage(idx); };
+      filmstrip.appendChild(thumb);
+    });
+  }
+
+  function switchImage(index) {
+    activeIndex = index;
+    renderFilmstrip();
+    loadImageFromIndex(index, false);
+  }
+
+  sliders.forEach(function (id) {
+    document.getElementById(id).oninput = function (e) {
+      state[id] = e.target.value;
+      applyEdits();
+      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+    };
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(function (btn) {
+    btn.onclick = function () {
+      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var preset = btn.dataset.preset;
+      if (!pix.hasImage) return;
+      if (preset === 'none') {
+        resetState();
+        syncSliders();
+        pix.reset();
+        bhCanvas.style.backgroundColor = 'transparent';
+        applyEdits();
+        return;
+      }
+      resetState();
+      if (preset === 'vivid') {
+        state.saturate = 150;
+        state.contrast = 110;
+      } else if (preset === 'noir') {
+        state.grayscale = 100;
+        state.contrast = 130;
+      } else if (preset === 'warm') {
+        state.sepia = 40;
+        state.brightness = 105;
+      } else if (preset === 'cool') {
+        state.saturate = 80;
+        bhCanvas.style.backgroundColor = 'rgba(0,0,255,0.05)';
+      } else if (preset === 'faded') {
+        state.brightness = 110;
+        state.contrast = 80;
+        state.saturate = 70;
+      }
+      syncSliders();
+      pix.reset();
+      applyEdits();
+    };
+  });
+
+  function resetState() {
+    state.brightness = 100;
+    state.contrast = 100;
+    state.saturate = 100;
+    state.sepia = 0;
+    state.blur = 0;
+    state.grayscale = 0;
+    bhCanvas.style.backgroundColor = 'transparent';
+  }
+
+  function syncSliders() {
+    sliders.forEach(function (id) {
+      document.getElementById(id).value = state[id];
+    });
+  }
+
+  compareBtn.onmousedown = function () {
+    bhCanvas.style.visibility = 'hidden';
+  };
+  compareBtn.onmouseup = function () {
+    bhCanvas.style.visibility = 'visible';
+  };
+  compareBtn.ontouchstart = function (e) {
+    e.preventDefault();
+    bhCanvas.style.visibility = 'hidden';
+  };
+  compareBtn.ontouchend = function () {
+    bhCanvas.style.visibility = 'visible';
+  };
+
+  window.addEventListener('dragover', function (e) { e.preventDefault(); });
+  window.addEventListener('drop', function (e) {
+    e.preventDefault();
+    if (e.dataTransfer.files.length) loadFiles(e.dataTransfer.files);
+  });
+})();
+  </script>
+</body>
+</html>

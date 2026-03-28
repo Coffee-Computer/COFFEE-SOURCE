@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Profile() // Community Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --coffee-gold: #d4a373;
+            --coffee-dark: #0f0f11;
+            --coffee-card: #16161a;
+            --coffee-border: #2a2a2e;
+        }
+
+        body {
+            background-color: var(--coffee-dark);
+            color: #e4e4e7;
+            font-family: 'Space Grotesk', sans-serif;
+            background-image: radial-gradient(#2a2a2e 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        .id-card-glow {
+            box-shadow: 0 0 50px -12px rgba(212, 163, 115, 0.2);
+        }
+
+        .mono { font-family: 'Space Mono', monospace; }
+
+        .achievement-badge {
+            background: rgba(212, 163, 115, 0.1);
+            border: 1px solid rgba(212, 163, 115, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .achievement-badge:hover {
+            background: rgba(212, 163, 115, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .glass {
+            background: rgba(22, 22, 26, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--coffee-border);
+        }
+
+        /* Scanline effect for ID photo */
+        .scanline {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanline::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                rgba(18, 16, 16, 0) 50%,
+                rgba(0, 0, 0, 0.1) 50%
+            ), linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .status-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        .code-block {
+            background: #000;
+            border-left: 3px solid var(--coffee-gold);
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 flex items-center justify-center">
+
+    <div class="max-w-5xl w-full grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- LEFT COLUMN: THE ID CARD -->
+        <div class="lg:col-span-4 space-y-6">
+            <div class="glass rounded-3xl overflow-hidden id-card-glow border-t-4 border-t-[#d4a373]">
+                <div class="p-6 text-center border-b border-zinc-800">
+                    <div class="flex justify-between items-center mb-6">
+                        <span class="mono text-[10px] text-zinc-500 uppercase tracking-widest">Community Edition</span>
+                        <div class="flex items-center gap-1">
+                            <div class="w-2 h-2 rounded-full bg-emerald-500 status-pulse"></div>
+                            <span class="mono text-[10px] text-emerald-500">ONLINE</span>
+                        </div>
+                    </div>
+                    
+                    <div class="relative inline-block mb-4">
+                        <div class="w-32 h-32 rounded-2xl bg-zinc-800 scanline border-2 border-[#d4a373] p-1">
+                            <img id="avatar" src="https://api.dicebear.com/7.x/adventurer/svg?seed=CoffeeMaster&backgroundColor=b6e3f4,c0aede,d1d4f9" alt="Avatar" class="w-full h-full rounded-xl object-cover">
+                        </div>
+                        <button onclick="randomizeAvatar()" class="absolute -bottom-2 -right-2 bg-zinc-900 border border-zinc-700 p-2 rounded-full hover:bg-zinc-800 transition-colors">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 text-[#d4a373]"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="text-2xl font-bold tracking-tight">Alex "Bean" Miller</h1>
+                    <p class="mono text-xs text-[#d4a373] mt-1 font-bold">@coffee_master_99</p>
+                </div>
+
+                <div class="p-6 space-y-4">
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-zinc-500 mono uppercase">Member Since</span>
+                        <span class="text-zinc-200 font-semibold">MAR 2024</span>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-zinc-500 mono uppercase">OS Knowledge</span>
+                        <div class="flex gap-1">
+                            <div class="w-3 h-3 rounded-sm bg-[#d4a373]"></div>
+                            <div class="w-3 h-3 rounded-sm bg-[#d4a373]"></div>
+                            <div class="w-3 h-3 rounded-sm bg-[#d4a373]"></div>
+                            <div class="w-3 h-3 rounded-sm bg-zinc-800"></div>
+                            <div class="w-3 h-3 rounded-sm bg-zinc-800"></div>
+                        </div>
+                    </div>
+                    <div class="flex justify-between items-center text-xs">
+                        <span class="text-zinc-500 mono uppercase">Security Clear.</span>
+                        <span class="text-zinc-200 font-semibold">LEVEL 4</span>
+                    </div>
+                </div>
+
+                <div class="bg-zinc-900/50 p-4 border-t border-zinc-800">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/d/d0/QR_code_for_mobile_English_Wikipedia.svg" alt="QR" class="w-full h-12 object-contain opacity-20 invert grayscale">
+                </div>
+            </div>
+
+            <!-- ACHIEVEMENTS -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="mono text-[10px] text-zinc-500 uppercase tracking-widest mb-4">Achievements</h3>
+                <div class="flex flex-wrap gap-2">
+                    <div class="achievement-badge p-2 rounded-lg" title="First PR Merged">
+                        <i data-lucide="git-pull-request" class="w-5 h-5 text-emerald-400"></i>
+                    </div>
+                    <div class="achievement-badge p-2 rounded-lg" title="100 Days of Code">
+                        <i data-lucide="flame" class="w-5 h-5 text-orange-400"></i>
+                    </div>
+                    <div class="achievement-badge p-2 rounded-lg" title="Bug Hunter">
+                        <i data-lucide="bug" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <div class="achievement-badge p-2 rounded-lg" title="Coffee Addict">
+                        <i data-lucide="coffee" class="w-5 h-5 text-[#d4a373]"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: CONTENT -->
+        <div class="lg:col-span-8 space-y-6">
+            
+            <!-- ABOUT & GOALS -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="flex items-center gap-2 text-sm font-bold mb-3">
+                        <i data-lucide="user" class="w-4 h-4 text-[#d4a373]"></i> About Me
+                    </h3>
+                    <p class="text-sm text-zinc-400 leading-relaxed">
+                        Full-stack architect building the future of decentralized coffee orchestration. I believe in open-source everything and dark-mode by default. Currently obsessed with Rust and Ollama local deployments.
+                    </p>
+                </div>
+                <div class="glass rounded-2xl p-6">
+                    <h3 class="flex items-center gap-2 text-sm font-bold mb-3">
+                        <i data-lucide="target" class="w-4 h-4 text-[#d4a373]"></i> 2024 Goals
+                    </h3>
+                    <ul class="text-sm text-zinc-400 space-y-2">
+                        <li class="flex items-center gap-2 italic">
+                            <div class="w-1 h-1 rounded-full bg-[#d4a373]"></div> Build a custom Coffee sidecar
+                        </li>
+                        <li class="flex items-center gap-2 italic">
+                            <div class="w-1 h-1 rounded-full bg-[#d4a373]"></div> Reach 500 OSS Contributions
+                        </li>
+                        <li class="flex items-center gap-2 italic opacity-50">
+                            <div class="w-1 h-1 rounded-full bg-zinc-600"></div> Master Neovim (In progress...)
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- CODE BIN (The "New Top 8") -->
+            <div class="glass rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="flex items-center gap-2 text-sm font-bold">
+                        <i data-lucide="code-2" class="w-4 h-4 text-[#d4a373]"></i> Snippet Bin
+                    </h3>
+                    <span class="mono text-[10px] text-zinc-600 uppercase">snippet_v2.coffee</span>
+                </div>
+                <div class="code-block p-4 rounded-xl overflow-x-auto">
+                    <pre class="text-xs text-emerald-500 mono leading-relaxed">
+<span class="text-zinc-500">// Initialize Coffee Community Engine</span>
+<span class="text-purple-400">const</span> <span class="text-blue-400">coffee</span> = <span class="text-purple-400">new</span> <span class="text-yellow-400">CommunityEngine</span>({
+    id: <span class="text-orange-300">"alex_bean"</span>,
+    modules: [<span class="text-orange-300">"ollama"</span>, <span class="text-orange-300">"docker"</span>],
+    brewing: <span class="text-purple-400">true</span>
+});
+
+<span class="text-blue-400">coffee</span>.<span class="text-yellow-400">on</span>(<span class="text-orange-300">'ignite'</span>, () => {
+    <span class="text-blue-400">console</span>.<span class="text-yellow-400">log</span>(<span class="text-orange-300">"System Ready. ☕"</span>);
+});</pre>
+                </div>
+            </div>
+
+            <!-- SOCIAL FEED -->
+            <div class="glass rounded-2xl p-6">
+                <h3 class="flex items-center gap-2 text-sm font-bold mb-4">
+                    <i data-lucide="message-square" class="w-4 h-4 text-[#d4a373]"></i> Recent Pings
+                </h3>
+                <div class="space-y-4">
+                    <!-- Post 1 -->
+                    <div class="border-b border-zinc-800 pb-4">
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">
+                                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Felix" alt="Friend" class="w-full h-full">
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold">@dev_felix</h4>
+                                <p class="text-[10px] text-zinc-500">2 hours ago</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-zinc-300">Just finished the Llama 3 sidecar integration. The performance is insane! Coffee.OS is leveling up. 🚀</p>
+                    </div>
+
+                    <!-- Post 2 -->
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <div class="w-8 h-8 rounded-full bg-zinc-800 overflow-hidden">
+                                <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=Sarah" alt="Friend" class="w-full h-full">
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-bold">@sarah_codes</h4>
+                                <p class="text-[10px] text-zinc-500">5 hours ago</p>
+                            </div>
+                        </div>
+                        <p class="text-sm text-zinc-300">Anyone attending the Brew-Hackathon tonight? I'm looking for a partner to build a custom scheduler module.</p>
+                    </div>
+                </div>
+                <button class="w-full mt-4 py-3 border border-dashed border-zinc-700 rounded-xl text-xs text-zinc-500 hover:text-white hover:border-[#d4a373] transition-all">
+                    View All Activity...
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        function randomizeAvatar() {
+            const seeds = ['Oliver', 'Sasha', 'Bear', 'Coco', 'Pepper', 'Milo', 'Midnight', 'Zoe', 'Caffeine', 'Script'];
+            const randomSeed = seeds[Math.floor(Math.random() * seeds.length)] + Math.floor(Math.random() * 1000);
+            const avatarImg = document.getElementById('avatar');
+            
+            // Add a little flicker animation
+            avatarImg.style.opacity = '0.5';
+            setTimeout(() => {
+                avatarImg.src = `https://api.dicebear.com/7.x/adventurer/svg?seed=${randomSeed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+                avatarImg.style.opacity = '1';
+            }, 100);
+        }
+
+        // Add small hover interaction to achievement icons
+        document.querySelectorAll('.achievement-badge').forEach(badge => {
+            badge.addEventListener('mouseenter', () => {
+                const icon = badge.querySelector('i');
+                icon.style.transform = 'scale(1.2) rotate(10deg)';
+                icon.style.transition = 'transform 0.2s ease';
+            });
+            badge.addEventListener('mouseleave', () => {
+                const icon = badge.querySelector('i');
+                icon.style.transform = 'scale(1) rotate(0deg)';
+            });
+        });
+    </script>
+</body>
+</html>

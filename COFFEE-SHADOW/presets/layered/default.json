@@ -1,0 +1,23 @@
+{
+  "layers": [
+    {
+      "mode": "background",
+      "opacity": 1,
+      "blend": "normal",
+      "params": { "color": [0.05, 0.05, 0.1] }
+    },
+    {
+      "mode": "liquid",
+      "opacity": 1,
+      "blend": "normal",
+      "params": {
+        "density": 5,
+        "color_shift": 1,
+        "zoom": 1,
+        "speed": 1,
+        "brightness": 1,
+        "complexity": 4
+      }
+    }
+  ]
+}

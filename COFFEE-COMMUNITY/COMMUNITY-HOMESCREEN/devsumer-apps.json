@@ -1,0 +1,22 @@
+[
+  { "id": "coffee-hub", "name": "Hub", "icon": "🏠", "color": "#eab308", "url": "../COMMUNITY-HUB/COMMUNITY-HUB.html" },
+  { "id": "scribe", "name": "Scribe", "icon": "📝", "color": "#d4a373", "url": "../FLAGSHIP/SCRIBE/SCRIBE-ALPHA.html", "desktop": true },
+  { "id": "terminal", "name": "Coffee.Terminal", "icon": "⌘", "color": "#eab308", "url": "../../COFFEE-TERMINAL/COFFEE-TERMINAL-ALPHA.html", "desktop": true },
+  { "id": "anti-social", "name": "Anti-Social + DnD", "icon": "😈", "color": "#7c3aed", "url": "../FLAGSHIP/ANTI-SOCIAL/ANTI-SOCIAL-SWITCHER.html", "desktop": true },
+  { "id": "duck-ide", "name": "DUCK IDE", "icon": "🦆", "color": "#f59e0b", "url": "../FLAGSHIP/DUCK-IDE/DUCK-IDE-ALPHA.html", "desktop": true },
+  { "id": "friendz", "name": "Friendz", "icon": "🤝", "color": "#d4a373", "url": "../FLAGSHIP/FRIENDZ/FRIENDZ-ALPHA.html" },
+  { "id": "late", "name": "LATE", "icon": "⏳", "color": "#d4a373", "url": "../FLAGSHIP/LATE/LATE-ALPHA.html", "desktop": true },
+  { "id": "speak", "name": "Speak", "icon": "🎙️", "color": "#4f46e5", "url": "../FLAGSHIP/SPEAK/SPEAK-ALPHA.html" },
+  { "id": "frugal", "name": "Frugal", "icon": "🧡", "color": "#ff4500", "url": "../FLAGSHIP/FRUGAL/FRUGAL-ALPHA.html" },
+  { "id": "bright-house", "name": "Bright House", "icon": "🖼️", "color": "#3b82f6", "url": "../FLAGSHIP/BRIGHT-HOUSE/BRIGHT-HOUSE-ALPHA.html", "desktop": true },
+  { "id": "snap-shot", "name": "Snap Shot", "icon": "📸", "color": "#008080", "url": "../FLAGSHIP/SNAP-SHOT/SNAP-SHOT-ALPHA.html" },
+  { "id": "snow-shoes", "name": "Snow Shoes", "icon": "🎛️", "color": "#38bdf8", "url": "../FLAGSHIP/SNOW-SHOES/SNOW-SHOES-ALPHA.html", "desktop": true },
+  { "id": "vector", "name": "Vector", "icon": "◈", "color": "#10b981", "url": "../FLAGSHIP/VECTOR/VECTOR-ALPHA.html", "desktop": true },
+  { "id": "kite", "name": "Kite", "icon": "🪁", "color": "#00aaff", "url": "../FLAGSHIP/KITE/KITE-ALPHA.html", "desktop": true },
+  { "id": "hyper-web", "name": "Hyper-Web", "icon": "◇", "color": "#a855f7", "url": "../FLAGSHIP/HYPER-WEB/HYPER-WEB-ALPHA.html", "desktop": true },
+  { "id": "canopy", "name": "Canopy", "icon": "🌿", "color": "#3b82f6", "url": "../FLAGSHIP/CANOPY/CANOPY-ALPHA.html", "desktop": true },
+  { "id": "yay-3d", "name": "YAY-3D", "icon": "🧊", "color": "#ff3e00", "url": "../FLAGSHIP/YAY-3D/YAY-ALPHA.html", "desktop": true },
+  { "id": "ghost-network", "name": "Ghost", "icon": "👻", "color": "#8b5cf6", "url": "../FLAGSHIP/GHOST-NETWORK/GHOST-NETWORK-ALPHA.html", "desktop": true },
+  { "id": "kati-chat-mobile", "name": "KATI Mobile", "icon": "✦", "color": "#d8b4fe", "url": "../FLAGSHIP/KATI/KATI-CHAT-MOBILE.html" },
+  { "id": "helix", "name": "Helix", "icon": "🧬", "color": "#22d3ee", "url": "../FLAGSHIP/HELIX/HELIX-ALPHA.html", "desktop": true }
+]

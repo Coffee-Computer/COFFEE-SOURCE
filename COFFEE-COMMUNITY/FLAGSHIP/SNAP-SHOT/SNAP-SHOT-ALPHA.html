@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Snap Shot">
+  <meta name="cce:id" content="snap-shot">
+  <meta name="cce:icon" content="📸">
+  <meta name="cce:color" content="#008080">
+  <meta name="cce:description" content="Y2K photobooth — coffee.camera + coffee.shot + coffee.save/load reel">
+  <title>Snap Shot α — Coffee camera booth</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-FILTER/coffee-filter.js"></script>
+  <script src="../../../COFFEE-SHOT/coffee-shot.js"></script>
+  <link rel="stylesheet" href="./snapshot.css">
+</head>
+<body>
+  <div class="ss-root">
+    <header class="ss-header ss-win-border">
+      <div class="ss-win-titlebar">
+        <div class="ss-title-left">
+          <span aria-hidden="true">📸</span>
+          <span class="ss-title-sm">SNAPSHOT.EXE</span>
+        </div>
+        <div class="ss-title-deco">
+          <span class="ss-deco-btn" aria-hidden="true">_</span>
+          <span class="ss-deco-btn" aria-hidden="true">×</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="ss-main-col">
+      <main class="ss-main-stage">
+        <div class="ss-camera-box ss-win-border" id="ss-container">
+          <div id="ss-flash" class="ss-shutter-flash" aria-hidden="true"></div>
+          <video id="ss-video" autoplay playsinline muted></video>
+          <img id="ss-preview" class="ss-preview-img" alt="Preview">
+          <div id="ss-preview-actions" class="ss-preview-actions"></div>
+        </div>
+
+        <div class="ss-shutter-row">
+          <div id="ss-flip-host"></div>
+          <div class="ss-shutter-wrap" id="ss-shutter-host"></div>
+        </div>
+        <p class="ss-mode-text" id="ss-mode">Live feed</p>
+      </main>
+
+      <div class="ss-filter-bar" id="ss-pill-row" role="toolbar" aria-label="Filters"></div>
+
+      <div class="ss-filmstrip" id="ss-filmstrip">
+        <div class="ss-filmstrip-empty" id="ss-filmstrip-empty">No snaps yet…</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var PRESETS = [
+    { id: 'none', label: 'NORMAL', filter: 'none' },
+    { id: 'noir', label: 'NOIR', filter: { grayscale: 100 } },
+    { id: 'retro', label: 'RETRO', filter: { sepia: 100 } },
+    { id: 'cyber', label: 'CYBER', filter: { hueRotate: 90, saturate: 200 } },
+    { id: 'xray', label: 'XRAY', filter: { invert: 100 } },
+    { id: 'pop', label: 'POP', filter: { contrast: 200, brightness: 120 } },
+    { id: 'dream', label: 'DREAM', filter: { blur: 3 } },
+    { id: 'vintage', label: 'VINTAGE', filter: { sepia: 50, contrast: 150 } }
+  ];
+
+  var STORAGE_KEY = 'snap-shot-reel';
+  var MAX_REEL = 48;
+
+  var dark = true;
+  var currentPresetId = 'none';
+  var currentFilter = 'none';
+  var photos = [];
+  var previewMode = false;
+  var activeStream = null;
+  var facingMode = 'user';
+
+  function loadReel() {
+    var d = coffee.load(STORAGE_KEY);
+    if (!Array.isArray(d)) return;
+    photos = d.filter(function (x) {
+      return typeof x === 'string' && x.indexOf('data:image') === 0;
+    });
+    if (photos.length > MAX_REEL) photos = photos.slice(0, MAX_REEL);
+  }
+
+  function persistReel() {
+    try {
+      coffee.save(STORAGE_KEY, photos);
+    } catch (e) {
+      console.warn(e);
+      document.body.appendChild(coffee.msg('Could not save reel (storage full). Export PNGs or clear reel.', 'warning'));
+    }
+  }
+
+  var video = document.getElementById('ss-video');
+  var preview = document.getElementById('ss-preview');
+  var flash = document.getElementById('ss-flash');
+  var modeEl = document.getElementById('ss-mode');
+  var filmstrip = document.getElementById('ss-filmstrip');
+  var pillRow = document.getElementById('ss-pill-row');
+  var previewActions = document.getElementById('ss-preview-actions');
+  var shutterHost = document.getElementById('ss-shutter-host');
+  var flipHost = document.getElementById('ss-flip-host');
+
+  function applyTheme() {
+    coffee.injectTheme(dark ? 'dark' : 'light');
+    document.documentElement.style.setProperty('--coffee-accent', '#1084d0');
+  }
+  applyTheme();
+
+  var themeBtn = coffee.button(dark ? 'Light' : 'Dark', function () {
+    dark = !dark;
+    themeBtn.textContent = dark ? 'Light' : 'Dark';
+    applyTheme();
+  }, {
+    style: {
+      fontSize: '12px',
+      padding: '6px 12px',
+      minHeight: '36px',
+      boxShadow: 'var(--coffee-shadow-soft)'
+    }
+  });
+  themeBtn.className = 'ss-theme-fab';
+  document.body.appendChild(themeBtn);
+
+  var clearReelBtn = coffee.button('Clear reel', function () {
+    photos = [];
+    try {
+      coffee.save(STORAGE_KEY, []);
+    } catch (e) { /* ignore */ }
+    renderFilmstrip();
+    if (previewMode) goLive();
+    document.body.appendChild(coffee.msg('Reel cleared.', 'info'));
+  }, {
+    style: {
+      position: 'fixed',
+      top: '52px',
+      right: '10px',
+      zIndex: 200,
+      fontSize: '11px',
+      padding: '6px 10px',
+      minHeight: '32px',
+      backgroundColor: 'var(--coffee-bg-surface)',
+      color: 'var(--coffee-text-primary)',
+      border: '1px solid var(--coffee-panel)',
+      boxShadow: 'var(--coffee-shadow-soft)'
+    }
+  });
+  document.body.appendChild(clearReelBtn);
+
+  function presetById(id) {
+    for (var i = 0; i < PRESETS.length; i++) {
+      if (PRESETS[i].id === id) return PRESETS[i];
+    }
+    return PRESETS[0];
+  }
+
+  function setFilterFromPreset(p) {
+    currentPresetId = p.id;
+    currentFilter = p.filter;
+    if (!previewMode) coffee.shot.applyLive(video, currentFilter);
+    renderPills();
+  }
+
+  function renderPills() {
+    pillRow.innerHTML = '';
+    PRESETS.forEach(function (p) {
+      var active = p.id === currentPresetId;
+      var btn = coffee.button(p.label, function () {
+        if (previewMode) goLive();
+        setFilterFromPreset(p);
+      }, {
+        style: { minWidth: 'auto', minHeight: '32px' }
+      });
+      btn.className = 'ss-pill' + (active ? ' ss-pill-active' : '');
+      btn.setAttribute('type', 'button');
+      btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+      pillRow.appendChild(btn);
+    });
+  }
+
+  function goLive() {
+    previewMode = false;
+    video.classList.remove('ss-hidden');
+    preview.classList.remove('ss-visible');
+    previewActions.classList.remove('ss-visible');
+    previewActions.innerHTML = '';
+    modeEl.textContent = 'Live feed';
+    shutter.disabled = false;
+    shutter.style.opacity = '1';
+    flipBtn.disabled = false;
+    coffee.shot.applyLive(video, currentFilter);
+  }
+
+  function showPreview(dataUrl) {
+    previewMode = true;
+    preview.src = dataUrl;
+    video.classList.add('ss-hidden');
+    preview.classList.add('ss-visible');
+    previewActions.classList.add('ss-visible');
+    previewActions.innerHTML = '';
+    modeEl.textContent = 'Preview';
+
+    var saveBtn = coffee.button('DOWNLOAD', function () {
+      var a = document.createElement('a');
+      a.download = 'snapshot-' + Date.now() + '.png';
+      a.href = preview.src;
+      a.click();
+    }, { style: { minHeight: '36px' } });
+    saveBtn.className = 'ss-action-btn ss-action-save';
+
+    var retackBtn = coffee.button('RETACK', function () {
+      goLive();
+    }, { style: { minHeight: '36px' } });
+    retackBtn.className = 'ss-action-btn ss-action-retack';
+
+    previewActions.appendChild(saveBtn);
+    previewActions.appendChild(retackBtn);
+
+    shutter.disabled = true;
+    shutter.style.opacity = '0.35';
+    flipBtn.disabled = true;
+  }
+
+  function triggerFlash() {
+    flash.classList.remove('ss-flash-anim');
+    void flash.offsetWidth;
+    flash.classList.add('ss-flash-anim');
+  }
+
+  var flipBtn = coffee.button('FLIP', function () {
+    if (!activeStream || previewMode) return;
+    var next = facingMode === 'user' ? 'environment' : 'user';
+    flipBtn.disabled = true;
+    coffee.switchCamera({
+      target: '#ss-video',
+      currentStream: activeStream,
+      facingMode: next,
+      audio: false
+    }).then(function (r) {
+      facingMode = next;
+      activeStream = r.stream;
+      coffee.shot.applyLive(video, currentFilter);
+      flipBtn.disabled = false;
+    }).catch(function () {
+      flipBtn.disabled = false;
+      document.body.appendChild(coffee.msg('No back camera or flip not supported here.', 'warning'));
+    });
+  }, {
+    style: {
+      minWidth: 'auto',
+      minHeight: '56px',
+      padding: '8px 12px',
+      fontSize: '11px',
+      fontWeight: '800',
+      backgroundColor: '#eee',
+      color: '#000080',
+      border: '2px solid',
+      borderColor: '#fff #808080 #808080 #fff',
+      borderRadius: '0',
+      boxShadow: '2px 2px 0 rgba(0,0,0,0.35)'
+    }
+  });
+  flipBtn.className = 'ss-flip-btn';
+  flipBtn.setAttribute('type', 'button');
+  flipBtn.setAttribute('aria-label', 'Flip front and back camera');
+  flipBtn.disabled = true;
+  flipHost.appendChild(flipBtn);
+
+  var shutter = coffee.button(' ', function () {
+    if (!video.videoWidth || previewMode) return;
+    triggerFlash();
+    var url = coffee.shot.capture(video, { filter: currentFilter, maxDim: 1920, format: 'png' });
+    photos.unshift(url);
+    if (photos.length > MAX_REEL) photos.length = MAX_REEL;
+    persistReel();
+    renderFilmstrip();
+    showPreview(url);
+  }, { style: {} });
+  shutter.className = 'ss-shutter';
+  shutter.setAttribute('aria-label', 'Take photo');
+  shutterHost.appendChild(shutter);
+
+  function renderFilmstrip() {
+    if (photos.length === 0) {
+      filmstrip.innerHTML = '';
+      var empty = document.createElement('div');
+      empty.className = 'ss-filmstrip-empty';
+      empty.id = 'ss-filmstrip-empty';
+      empty.textContent = 'No snaps yet…';
+      filmstrip.appendChild(empty);
+      return;
+    }
+    filmstrip.innerHTML = '';
+    photos.forEach(function (src) {
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'ss-photo-card';
+      card.innerHTML = '<img src="' + src.replace(/"/g, '&quot;') + '" alt="snap">';
+      card.onclick = function () {
+        if (previewMode && preview.src === src) return;
+        showPreview(src);
+      };
+      filmstrip.appendChild(card);
+    });
+  }
+
+  async function initCamera() {
+    try {
+      var r = await coffee.camera({ target: '#ss-video', facingMode: facingMode, audio: false });
+      activeStream = r.stream;
+      coffee.shot.applyLive(video, currentFilter);
+      flipBtn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      modeEl.textContent = 'Camera error';
+      modeEl.style.color = '#f87171';
+      flipBtn.disabled = true;
+      document.body.appendChild(coffee.msg('Allow camera access (HTTPS or localhost).', 'warning'));
+    }
+  }
+
+  window.addEventListener('beforeunload', function () {
+    if (activeStream) coffee.shot.stopStream(activeStream);
+  });
+
+  loadReel();
+  renderFilmstrip();
+  renderPills();
+  initCamera();
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LYFE - Life Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            font-family: 'Segoe UI', sans-serif;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background-color: #2c3e50;
+        }
+        .ui-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 800px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            border: 4px solid #4ade80;
+        }
+        .need-bar {
+            width: 120px;
+            height: 15px;
+            background: #ddd;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+        .need-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .action-bubble {
+            position: absolute;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            pointer-events: none;
+            transform: translate(-50%, -100%);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="action-bubble" class="action-bubble">Eating...</div>
+
+<div class="ui-panel">
+    <div class="flex flex-col items-center">
+        <span class="text-xs font-bold text-gray-700">HUNGER</span>
+        <div class="need-bar"><div id="hunger-bar" class="need-fill bg-orange-500" style="width: 80%;"></div></div>
+    </div>
+    <div class="flex flex-col items-center">
+        <span class="text-xs font-bold text-gray-700">ENERGY</span>
+        <div class="need-bar"><div id="energy-bar" class="need-fill bg-blue-500" style="width: 100%;"></div></div>
+    </div>
+    <div class="flex flex-col items-center">
+        <span class="text-xs font-bold text-gray-700">FUN</span>
+        <div class="need-bar"><div id="fun-bar" class="need-fill bg-pink-500" style="width: 60%;"></div></div>
+    </div>
+    <div class="flex flex-col items-center justify-center border-l pl-6 ml-4">
+        <span class="text-2xl font-black text-green-600">$<span id="money-val">100</span></span>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+/**
+ * LYFE1-POC — reference (inline RAF, raw click coords).
+ * Coffee stack: LYFE.html + logic/coffee-play-lyfe-game.js + shapes (see TEMPLATES/LYFE/README.md).
+ *
+ * LYFE — Life Simulator. Click objects to interact or floor to move.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const bubble = document.getElementById('action-bubble');
+
+let width, height;
+const TILE_SIZE = 64;
+
+// Character State
+const lyfer = {
+    x: 300,
+    y: 300,
+    targetX: 300,
+    targetY: 300,
+    speed: 3,
+    color: '#4ade80',
+    needs: {
+        hunger: 80,
+        energy: 100,
+        fun: 60
+    },
+    money: 100,
+    action: null,
+    actionTimer: 0
+};
+
+// World Data
+const objects = [
+    { name: 'Fridge', x: 100, y: 100, w: 50, h: 50, color: '#ecf0f1', need: 'hunger', gain: 30, cost: 5, msg: 'Eating...' },
+    { name: 'Bed', x: 600, y: 100, w: 80, h: 100, color: '#3498db', need: 'energy', gain: 50, cost: 0, msg: 'Sleeping...' },
+    { name: 'TV', x: 600, y: 450, w: 100, h: 20, color: '#2c3e50', need: 'fun', gain: 40, cost: 0, msg: 'Watching TV...' },
+    { name: 'Computer', x: 100, y: 450, w: 60, h: 40, color: '#95a5a6', need: 'fun', gain: 20, cost: 0, msg: 'Gaming...', secondary: 'money' }
+];
+
+function init() {
+    resize();
+    requestAnimationFrame(gameLoop);
+}
+
+function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+}
+
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    // Decay needs over time
+    if (!lyfer.action) {
+        lyfer.needs.hunger -= 0.01;
+        lyfer.needs.energy -= 0.005;
+        lyfer.needs.fun -= 0.015;
+    }
+
+    // Move to target
+    const dx = lyfer.targetX - lyfer.x;
+    const dy = lyfer.targetY - lyfer.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 5) {
+        lyfer.x += (dx / dist) * lyfer.speed;
+        lyfer.y += (dy / dist) * lyfer.speed;
+        bubble.style.display = 'none';
+    } else if (lyfer.action) {
+        // Perform action
+        executeAction();
+    }
+
+    // Clamp needs
+    Object.keys(lyfer.needs).forEach(k => {
+        lyfer.needs[k] = Math.max(0, Math.min(100, lyfer.needs[k]));
+    });
+
+    updateUI();
+}
+
+function executeAction() {
+    lyfer.actionTimer++;
+    
+    // Position bubble over player
+    bubble.style.display = 'block';
+    bubble.style.left = lyfer.x + 'px';
+    bubble.style.top = (lyfer.y - 40) + 'px';
+    bubble.innerText = lyfer.action.msg;
+
+    if (lyfer.actionTimer > 120) { // Action takes 2 seconds
+        lyfer.needs[lyfer.action.need] += lyfer.action.gain;
+        lyfer.money -= lyfer.action.cost;
+        
+        if (lyfer.action.name === 'Computer') lyfer.money += 10; // Earn money working
+
+        lyfer.action = null;
+        lyfer.actionTimer = 0;
+        bubble.style.display = 'none';
+    }
+}
+
+function updateUI() {
+    document.getElementById('hunger-bar').style.width = lyfer.needs.hunger + '%';
+    document.getElementById('energy-bar').style.width = lyfer.needs.energy + '%';
+    document.getElementById('fun-bar').style.width = lyfer.needs.fun + '%';
+    document.getElementById('money-val').innerText = Math.floor(lyfer.money);
+}
+
+function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw Floor Tiles
+    const cols = Math.ceil(width / TILE_SIZE);
+    const rows = Math.ceil(height / TILE_SIZE);
+    for(let i=0; i<cols; i++) {
+        for(let j=0; j<rows; j++) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.strokeRect(i * TILE_SIZE, j * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        }
+    }
+
+    // Draw Room Walls (Visual decoration)
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 5;
+    ctx.strokeRect(50, 50, width - 100, height - 200);
+
+    // Draw Objects
+    objects.forEach(obj => {
+        ctx.fillStyle = obj.color;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.fillRect(obj.x, obj.y, obj.w, obj.h);
+        ctx.shadowBlur = 0;
+
+        // Labels
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(obj.name, obj.x + obj.w/2, obj.y - 5);
+    });
+
+    // Draw Character
+    ctx.fillStyle = lyfer.color;
+    ctx.beginPath();
+    ctx.arc(lyfer.x, lyfer.y, 20, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Selection ring
+    ctx.strokeStyle = '#4ade80';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(lyfer.x, lyfer.y, 25 + Math.sin(Date.now()/200)*2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Eyes (direction awareness)
+    ctx.fillStyle = 'black';
+    const angle = Math.atan2(lyfer.targetY - lyfer.y, lyfer.targetX - lyfer.x);
+    const ex = lyfer.x + Math.cos(angle) * 10;
+    const ey = lyfer.y + Math.sin(angle) * 10;
+    ctx.beginPath();
+    ctx.arc(ex - 5, ey, 3, 0, Math.PI * 2);
+    ctx.arc(ex + 5, ey, 3, 0, Math.PI * 2);
+    ctx.fill();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Check object clicks
+    let clickedObj = null;
+    objects.forEach(obj => {
+        if (mx > obj.x && mx < obj.x + obj.w && my > obj.y && my < obj.y + obj.h) {
+            clickedObj = obj;
+        }
+    });
+
+    if (clickedObj) {
+        lyfer.targetX = clickedObj.x + clickedObj.w / 2;
+        lyfer.targetY = clickedObj.y + clickedObj.h / 2;
+        lyfer.action = clickedObj;
+        lyfer.actionTimer = 0;
+    } else {
+        lyfer.targetX = mx;
+        lyfer.targetY = my;
+        lyfer.action = null;
+    }
+});
+
+window.addEventListener('resize', resize);
+window.onload = init;
+
+</script>
+</body>
+</html>

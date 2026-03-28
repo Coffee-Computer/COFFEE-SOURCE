@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="cce:name" content="Hyper art guest">
+  <meta name="cce:id" content="hyper-guest-art-demo">
+  <meta name="cce:icon" content="◈">
+  <meta name="cce:color" content="#d4a373">
+  <meta name="cce:description" content="coffee.forge + coffee.art — preset inlined (no COIL fetch) for Hyper-Web / blob / any server root">
+  <title>Hyper art guest</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-FORGE/coffee-forge.js"></script>
+  <script src="../../../COFFEE-ART/coffee-art.js"></script>
+  <script src="./hyper-web-guest.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
+      background: #050508;
+    }
+    #shell {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    #c {
+      position: absolute;
+      left: 0;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="shell">
+    <canvas id="c" aria-label="Generative art canvas"></canvas>
+  </div>
+  <script>
+(function () {
+  coffee.injectTheme('dark');
+  /*
+   * Same shape as COIL presets/flow/default.json — inlined so we never fetch (broken when:
+   * server root ≠ COFFEE-SOURCE, blob: upload, or path resolution off by one).
+   */
+  var FLOW_PRESET_DEFAULT = {
+    engine: 'flow',
+    params: {
+      complexity: 0.005,
+      speed: 1.2,
+      hue: 30,
+      zoom: 1
+    },
+    seed: Math.random() * 1000
+  };
+
+  var shell = document.getElementById('shell');
+  var canvas = document.getElementById('c');
+  var art = coffee.art.create(canvas);
+  var runner = null;
+  try {
+    runner = coffee.forge.create(FLOW_PRESET_DEFAULT);
+  } catch (err) {
+    console.error('[Hyper art guest]', err);
+  }
+
+  function fitCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    var w = Math.max(2, Math.round(rect.width));
+    var h = Math.max(2, Math.round(rect.height));
+    if (canvas.width !== w || canvas.height !== h) {
+      art.resize(w, h);
+    }
+  }
+
+  function drawStep() {
+    if (!runner) return;
+    fitCanvas();
+    try {
+      art.draw(runner.step(canvas.width, canvas.height));
+    } catch (e) {
+      console.error('[Hyper art guest] drawStep', e);
+    }
+  }
+
+  window.addEventListener('resize', function () {
+    drawStep();
+  });
+
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(function () {
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } catch (e) {}
+    }).observe(shell);
+  }
+
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      drawStep();
+    });
+  });
+
+  var tag = document.createElement('div');
+  tag.style.cssText =
+    'position:absolute;top:8px;left:8px;z-index:6;padding:4px 10px;border-radius:8px;font:600 11px system-ui,sans-serif;color:rgba(255,255,255,0.9);background:rgba(12,10,8,0.82);backdrop-filter:blur(8px);pointer-events:none;box-sizing:border-box';
+  tag.textContent = 'coffee.art + FORGE (flow, inlined preset)';
+  shell.appendChild(tag);
+
+  /*
+   * Embedded: host ticks are sparse when the timeline is paused — easy to get a black frame if we
+   * only draw once. A short rAF bootstrap sizes the canvas and warms the flow; after that we only
+   * draw on hyper-tick so pause/scrub match the transport (rAF while paused would keep stepping
+   * the runner and make “pause” impossible).
+   */
+  if (window !== window.parent) {
+    var hostPlaying = false;
+    var embedBoot = 'wait_size'; // 'wait_size' | 'warmup' | 'done'
+    var embedWarmupLeft = 36;
+    var embedBootFrames = 0;
+    var EMBED_BOOT_CAP = 240;
+
+    function embedBootstrapFrame() {
+      if (embedBoot === 'done') return;
+      if (hostPlaying) {
+        embedBoot = 'done';
+        return;
+      }
+      embedBootFrames++;
+      fitCanvas();
+      drawStep();
+      if (embedBoot === 'wait_size') {
+        if (canvas.width >= 2 && canvas.height >= 2) embedBoot = 'warmup';
+      } else if (embedBoot === 'warmup') {
+        embedWarmupLeft--;
+        if (embedWarmupLeft <= 0) embedBoot = 'done';
+      }
+      if (embedBoot !== 'done' && embedBootFrames < EMBED_BOOT_CAP) {
+        requestAnimationFrame(embedBootstrapFrame);
+      } else if (embedBootFrames >= EMBED_BOOT_CAP) {
+        embedBoot = 'done';
+      }
+    }
+
+    hyperWebGuest.start({
+      onTick: function (timeSeconds, playing) {
+        hostPlaying = Boolean(playing);
+        drawStep();
+      },
+      onProp: function (key, value) {
+        if (key !== 'artHue' || !runner) return;
+        var v = parseFloat(value);
+        if (Number.isFinite(v)) {
+          runner.state.hue = Math.max(0, Math.min(360, v));
+        }
+      }
+    });
+    requestAnimationFrame(embedBootstrapFrame);
+    drawStep();
+  } else {
+    function loop() {
+      drawStep();
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  }
+})();
+  </script>
+</body>
+</html>

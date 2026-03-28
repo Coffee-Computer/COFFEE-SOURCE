@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="LATE">
+  <meta name="cce:id" content="late">
+  <meta name="cce:icon" content="⏳">
+  <meta name="cce:color" content="#d4a373">
+  <meta name="cce:description" content="Tasks, planner, calendar — coffee.task engine">
+  <title>LATE α — planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="LATE-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-LIST/coffee-list.js"></script>
+  <script src="../../../COFFEE-TASK/coffee-task.js"></script>
+</head>
+<body>
+  <header class="late-header">
+    <div class="late-brand">
+      <div class="late-logo">L</div>
+      <div>
+        <h1>LATE</h1>
+        <p>Planner · Calendar · Tasks</p>
+      </div>
+    </div>
+    <div class="late-month-nav">
+      <button type="button" class="late-icon-btn" id="late-prev" aria-label="Previous month">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <span class="late-month-label" id="late-month-label">—</span>
+      <button type="button" class="late-icon-btn" id="late-next" aria-label="Next month">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="late-main">
+    <section class="late-col-cal">
+      <div class="late-section-title">
+        <h2>Calendar</h2>
+        <span class="late-today-pill late-mono" id="late-today-str">—</span>
+      </div>
+      <div class="late-weekdays">
+        <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+      </div>
+      <div id="late-cal-grid" class="late-cal-grid"></div>
+
+      <div class="late-quick late-panel-form">
+        <h3>Quick add</h3>
+        <div class="late-quick-row">
+          <div class="late-field" id="late-input-mount"></div>
+          <button type="button" class="late-add-btn" id="late-add-btn">Add</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="late-col-tasks">
+      <div class="late-task-head">
+        <h2>Tasks <span class="late-count" id="late-count">0</span></h2>
+        <div class="late-filters">
+          <button type="button" class="late-filter active" data-filter="all">All</button>
+          <button type="button" class="late-filter" data-filter="active">Pending</button>
+        </div>
+      </div>
+      <div id="late-selected-label" class="late-mono" style="font-size:11px;color:var(--late-muted);margin-bottom:12px"></div>
+      <div id="late-task-mount" class="late-task-mount"></div>
+      <div id="late-empty" class="late-empty">
+        <div class="late-empty-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+        </div>
+        <p>All caught up.<br>Time for more coffee.</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+(function () {
+  const td = coffee.task.date;
+  const MONTHS = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  coffee.injectTheme('dark');
+
+  const store = coffee.task.createStore({
+    storageKey: 'late_tasks_v1',
+    useCoffeeStorage: true
+  });
+
+  let viewMonth = new Date();
+  viewMonth.setDate(1);
+  let selectedKey = td.todayKey();
+  let currentFilter = 'all';
+
+  const gridEl = document.getElementById('late-cal-grid');
+  const monthLabel = document.getElementById('late-month-label');
+  const todayStr = document.getElementById('late-today-str');
+  const taskMount = document.getElementById('late-task-mount');
+  const emptyEl = document.getElementById('late-empty');
+  const countEl = document.getElementById('late-count');
+  const selectedLabel = document.getElementById('late-selected-label');
+
+  const quickInput = coffee.input({
+    id: 'late-quick-in',
+    placeholder: 'What needs doing?',
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+  document.getElementById('late-input-mount').appendChild(quickInput);
+
+  function updateHeader() {
+    monthLabel.textContent =
+      MONTHS[viewMonth.getMonth()] + ' ' + viewMonth.getFullYear();
+    const n = new Date();
+    todayStr.textContent =
+      'TODAY: ' +
+      n.getDate() +
+      ' ' +
+      MONTHS[n.getMonth()].slice(0, 3).toUpperCase();
+  }
+
+  function renderCalendar() {
+    gridEl.innerHTML = '';
+    const y = viewMonth.getFullYear();
+    const m = viewMonth.getMonth();
+    const matrix = td.monthMatrix(y, m);
+
+    matrix.cells.forEach(function (cell) {
+      const div = document.createElement('div');
+      div.className =
+        'late-day' +
+        (cell.inMonth ? '' : ' other-month') +
+        (cell.isToday ? ' today' : '') +
+        (cell.dateKey === selectedKey ? ' selected' : '');
+
+      const num = document.createElement('span');
+      num.className = 'late-day-num';
+      num.textContent = String(cell.day);
+      div.appendChild(num);
+
+      const dayTasks = store.tasksForKeyWithDots(cell.dateKey);
+      if (dayTasks.length > 0) {
+        const dots = document.createElement('div');
+        dots.className = 'late-dots';
+        dayTasks.slice(0, 5).forEach(function (t) {
+          const dot = document.createElement('span');
+          dot.className = 'late-dot ' + (t.completed ? 'late-dot-done' : 'late-dot-pending');
+          dots.appendChild(dot);
+        });
+        div.appendChild(dots);
+      }
+
+      div.addEventListener('click', function () {
+        selectedKey = cell.dateKey;
+        renderCalendar();
+        renderTasks();
+      });
+      gridEl.appendChild(div);
+    });
+  }
+
+  function renderTaskCard(task) {
+    const card = document.createElement('div');
+    card.className = 'late-task-card' + (task.completed ? ' done' : '');
+
+    const main = document.createElement('div');
+    main.className = 'late-task-main';
+    main.onclick = function () {
+      store.toggle(task.id);
+    };
+
+    const check = document.createElement('div');
+    check.className = 'late-check';
+    if (task.completed) {
+      check.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M20 6L9 17l-5-5"/></svg>';
+    }
+
+    const text = document.createElement('span');
+    text.className = 'late-task-text';
+    text.textContent = task.text;
+
+    main.appendChild(check);
+    main.appendChild(text);
+
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'late-del';
+    del.setAttribute('aria-label', 'Delete');
+    del.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>';
+    del.onclick = function (e) {
+      e.stopPropagation();
+      store.remove(task.id);
+      coffee.toast('Removed', 'success');
+    };
+
+    card.appendChild(main);
+    card.appendChild(del);
+    return card;
+  }
+
+  function renderTasks() {
+    const list = store.listForKey(selectedKey, currentFilter === 'active' ? 'active' : undefined);
+    countEl.textContent = String(list.length);
+
+    const dk = td.fromKey(selectedKey);
+    if (dk) {
+      selectedLabel.textContent =
+        'Selected: ' +
+        MONTHS[dk.getMonth()].slice(0, 3) +
+        ' ' +
+        dk.getDate() +
+        ', ' +
+        dk.getFullYear() +
+        ' · ' +
+        selectedKey;
+    } else {
+      selectedLabel.textContent = '';
+    }
+
+    taskMount.innerHTML = '';
+    if (list.length === 0) {
+      emptyEl.classList.add('show');
+    } else {
+      emptyEl.classList.remove('show');
+      const frag = coffee.list(list, {
+        emptyMessage: '',
+        renderItem: renderTaskCard,
+        gap: '12px'
+      });
+      taskMount.appendChild(frag);
+    }
+  }
+
+  function addTask() {
+    const text = (quickInput.value || '').trim();
+    if (!text) {
+      coffee.toast('Type something first', 'warning');
+      return;
+    }
+    store.add({ text: text, dateKey: selectedKey });
+    quickInput.value = '';
+    coffee.toast('Task added', 'success');
+  }
+
+  document.getElementById('late-add-btn').onclick = addTask;
+  quickInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') addTask();
+  });
+
+  document.getElementById('late-prev').onclick = function () {
+    viewMonth.setMonth(viewMonth.getMonth() - 1);
+    updateHeader();
+    renderCalendar();
+  };
+  document.getElementById('late-next').onclick = function () {
+    viewMonth.setMonth(viewMonth.getMonth() + 1);
+    updateHeader();
+    renderCalendar();
+  };
+
+  document.querySelectorAll('.late-filter').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.late-filter').forEach(function (b) {
+        b.classList.remove('active');
+      });
+      btn.classList.add('active');
+      currentFilter = btn.getAttribute('data-filter') || 'all';
+      renderTasks();
+    });
+  });
+
+  store.subscribe(function () {
+    renderCalendar();
+    renderTasks();
+  });
+
+  updateHeader();
+  renderCalendar();
+  renderTasks();
+})();
+  </script>
+</body>
+</html>

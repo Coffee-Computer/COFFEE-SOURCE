@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Scribe // Markdown Processor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+    <script src="../../../../COFFEE-MARKDOWN/coffee-markdown.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Fira+Code:wght@400;500&display=swap');
+
+        :root {
+            --bg-editor: #0e0e10;
+            --bg-preview: #ffffff;
+            --accent: #d4a373;
+        }
+
+        body {
+            background-color: var(--bg-editor);
+            color: #e4e4e7;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #editor-container {
+            position: relative;
+            background: var(--bg-editor);
+            border-right: 1px solid #27272a;
+        }
+
+        #editor {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            color: #d4d4d8;
+            font-family: 'Fira Code', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            padding: 40px;
+            white-space: pre-wrap;
+        }
+
+        /* Slash Menu Styling */
+        #slash-menu {
+            position: absolute;
+            width: 220px;
+            background: #18181b;
+            border: 1px solid #3f3f46;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 100;
+            overflow: hidden;
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .menu-item:hover, .menu-item.selected {
+            background: var(--accent);
+            color: #000;
+        }
+
+        .menu-item i { width: 16px; height: 16px; }
+
+        /* Preview Styling */
+        #preview-frame {
+            background: var(--bg-preview);
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .resizer {
+            width: 4px;
+            cursor: col-resize;
+            background: #27272a;
+            transition: background 0.2s;
+        }
+        .resizer:hover { background: var(--accent); }
+
+        .toolbar {
+            height: 48px;
+            background: #18181b;
+            border-bottom: 1px solid #27272a;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- Top Bar -->
+    <nav class="toolbar shrink-0">
+        <div class="flex items-center gap-4">
+            <div class="w-6 h-6 bg-[#d4a373] text-black flex items-center justify-center font-bold rounded">S</div>
+            <span class="text-xs font-bold uppercase tracking-widest opacity-80 italic">Coffee.Scribe <span class="text-white/20 ml-2">POC</span> <span class="text-white/30 ml-1">+ coffee.markdown</span></span>
+        </div>
+        <div class="flex items-center gap-3">
+            <button class="text-[10px] uppercase font-bold tracking-tighter px-3 py-1 bg-white/5 rounded hover:bg-white/10">Export PDF</button>
+            <button class="text-[10px] uppercase font-bold tracking-tighter px-3 py-1 bg-[#d4a373] text-black rounded font-black">Save Draft</button>
+        </div>
+    </nav>
+
+    <!-- Main Editor Interface -->
+    <div class="flex flex-grow overflow-hidden">
+        
+        <!-- Left: Editor Pane -->
+        <div id="editor-container" class="w-1/2 flex flex-col relative">
+            <textarea id="editor" spellcheck="false" placeholder="Type '/' for commands or start writing..."></textarea>
+            
+            <!-- Slash Command Menu -->
+            <div id="slash-menu">
+                <div class="p-2 border-bottom border-white/5 bg-black/20 text-[9px] uppercase font-bold tracking-widest text-white/40">Basic Blocks</div>
+                <div class="menu-item" data-command="# ">
+                    <i data-lucide="heading-1"></i> Heading 1
+                </div>
+                <div class="menu-item" data-command="## ">
+                    <i data-lucide="heading-2"></i> Heading 2
+                </div>
+                <div class="menu-item" data-command="### ">
+                    <i data-lucide="heading-3"></i> Heading 3
+                </div>
+                <div class="menu-item" data-command="- ">
+                    <i data-lucide="list"></i> Bullet List
+                </div>
+                <div class="menu-item" data-command="> ">
+                    <i data-lucide="quote"></i> Quote Block
+                </div>
+                <div class="menu-item" data-command="```\n\n```">
+                    <i data-lucide="code"></i> Code Block
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer Bar -->
+        <div class="resizer"></div>
+
+        <!-- Right: Preview Pane (IFrame) -->
+        <div id="preview-container" class="flex-grow">
+            <iframe id="preview-frame"></iframe>
+        </div>
+    </div>
+
+    <script>
+        const editor = document.getElementById('editor');
+        const previewFrame = document.getElementById('preview-frame');
+        const slashMenu = document.getElementById('slash-menu');
+        const menuItems = document.querySelectorAll('.menu-item');
+        
+        let selectedIndex = 0;
+
+        // Preview via coffee.markdown (revokes previous blob each update)
+        function updatePreview() {
+            coffee.markdown.assignIframePreview(previewFrame, editor.value);
+        }
+
+        // Initial Content
+        const initialMarkdown = `# Welcome to Coffee.Scribe
+
+Start editing this markdown file. Try the **/ command** to add new headers or lists.
+
+## Features
+- **Real-time** IFrame preview
+- **Slash Commands** for fast formatting
+- **Coffee.OS** visual DNA
+
+> "The best way to predict the future is to create it." - Peter Drucker
+`;
+
+        editor.value = initialMarkdown;
+
+        // Slash Command Handling
+        editor.addEventListener('input', (e) => {
+            updatePreview();
+
+            const cursorPosition = editor.selectionStart;
+            const textBeforeCursor = editor.value.substring(0, cursorPosition);
+            const lastChar = textBeforeCursor.slice(-1);
+
+            if (lastChar === '/') {
+                showSlashMenu();
+            } else {
+                hideSlashMenu();
+            }
+        });
+
+        function showSlashMenu() {
+            const { top, left } = getCursorXY(editor, editor.selectionStart);
+            slashMenu.style.display = 'block';
+            slashMenu.style.top = `${top + 25}px`;
+            slashMenu.style.left = `${left}px`;
+            selectedIndex = 0;
+            updateMenuSelection();
+        }
+
+        function hideSlashMenu() {
+            slashMenu.style.display = 'none';
+        }
+
+        function updateMenuSelection() {
+            menuItems.forEach((item, idx) => {
+                if (idx === selectedIndex) item.classList.add('selected');
+                else item.classList.remove('selected');
+            });
+        }
+
+        // Insert Command
+        function insertCommand(cmd) {
+            const pos = editor.selectionStart;
+            const text = editor.value;
+            // Remove the '/' and insert command
+            editor.value = text.substring(0, pos - 1) + cmd + text.substring(pos);
+            editor.focus();
+            
+            // Set cursor after the command
+            const newPos = pos - 1 + cmd.length;
+            editor.setSelectionRange(newPos, newPos);
+            
+            hideSlashMenu();
+            updatePreview();
+        }
+
+        // Menu Interaction
+        menuItems.forEach((item, idx) => {
+            item.addEventListener('click', () => {
+                insertCommand(item.getAttribute('data-command'));
+            });
+        });
+
+        // Key Handling for Menu
+        editor.addEventListener('keydown', (e) => {
+            if (slashMenu.style.display === 'block') {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = (selectedIndex + 1) % menuItems.length;
+                    updateMenuSelection();
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = (selectedIndex - 1 + menuItems.length) % menuItems.length;
+                    updateMenuSelection();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    insertCommand(menuItems[selectedIndex].getAttribute('data-command'));
+                } else if (e.key === 'Escape') {
+                    hideSlashMenu();
+                }
+            }
+        });
+
+        // Helper: Get Cursor Coordinates for floating menu
+        function getCursorXY(textarea, selectionPoint) {
+            const { offsetLeft: left, offsetTop: top } = textarea;
+            const div = document.createElement('div');
+            const copyStyle = getComputedStyle(textarea);
+            for (const prop of copyStyle) {
+                div.style[prop] = copyStyle[prop];
+            }
+            div.style.position = 'absolute';
+            div.style.visibility = 'hidden';
+            div.style.whiteSpace = 'pre-wrap';
+            
+            const content = textarea.value.substring(0, selectionPoint);
+            div.textContent = content;
+            
+            const span = document.createElement('span');
+            span.textContent = textarea.value.substring(selectionPoint) || '.';
+            div.appendChild(span);
+            
+            document.body.appendChild(div);
+            const { offsetLeft, offsetTop } = span;
+            document.body.removeChild(div);
+            
+            return {
+                top: Math.min(offsetTop, textarea.offsetHeight - 100), // Prevent overflow
+                left: Math.min(offsetLeft, textarea.offsetWidth - 230)
+            };
+        }
+
+        // Initial Load
+        window.onload = () => {
+            lucide.createIcons();
+            updatePreview();
+        };
+
+    </script>
+</body>
+</html>

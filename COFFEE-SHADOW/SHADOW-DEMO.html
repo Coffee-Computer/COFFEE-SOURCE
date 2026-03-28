@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.shadow — preset engine</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #0a0a0a; color: #fff; font-family: system-ui, sans-serif; overflow: hidden; }
+    #gpuCanvas { width: 100%; height: 100%; display: block; }
+    .panel {
+      position: absolute; bottom: 16px; left: 16px;
+      background: rgba(0,0,0,0.6); padding: 12px 16px; border-radius: 8px;
+      font-size: 11px; font-family: monospace;
+    }
+    .panel button { margin-right: 8px; margin-top: 4px; padding: 4px 10px; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 4px; }
+    .panel button:hover { background: #444; }
+  </style>
+</head>
+<body>
+  <canvas id="gpuCanvas"></canvas>
+  <div class="panel">
+    <div style="margin-bottom:8px;opacity:0.7">coffee.shadow → shade → shader</div>
+    <div style="margin-bottom:8px">
+      <span style="opacity:0.5;font-size:10px">Layered</span><br>
+      <button onclick="applyPreset('layered','default')">Default</button>
+      <button onclick="applyPreset('layered','sunset')">Sunset</button>
+      <button onclick="applyPreset('layered','ocean')">Ocean</button>
+      <button onclick="applyPreset('layered','matrix')">Matrix</button>
+    </div>
+    <div>
+      <span style="opacity:0.5;font-size:10px">Liquid</span><br>
+      <button onclick="applyPreset('liquid','default')">Default</button>
+      <button onclick="applyPreset('liquid','ocean')">Ocean</button>
+      <button onclick="applyPreset('liquid','plasma')">Plasma</button>
+    </div>
+  </div>
+
+  <script src="../COFFEE-SHADE/coffee-shade.js"></script>
+  <script src="./coffee-shadow.js"></script>
+  <script>
+    let shade = null;
+
+    async function init() {
+      shade = await coffee.shadow.run({
+        canvas: '#gpuCanvas',
+        shader: 'layered',
+        preset: 'default',
+        baseUrl: 'presets/'
+      });
+    }
+
+    async function applyPreset(shader, preset) {
+      if (!shade) return;
+      const config = await coffee.shadow.load(shader, preset, { baseUrl: 'presets/' });
+      shade.update(config);
+    }
+
+    init();
+  </script>
+</body>
+</html>

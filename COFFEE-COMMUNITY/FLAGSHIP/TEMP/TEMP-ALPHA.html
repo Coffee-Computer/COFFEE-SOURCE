@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="TEMP">
+  <meta name="cce:id" content="temp">
+  <meta name="cce:icon" content="◆">
+  <meta name="cce:color" content="#00ff41">
+  <meta name="cce:description" content="Maintainer job board — roles from temp-jobs.json">
+  <title>TEMP α — maintainer jobs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="TEMP-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+</head>
+<body>
+  <div class="temp-scanline" aria-hidden="true"></div>
+
+  <div class="temp-wrap">
+    <header class="temp-header">
+      <div class="temp-title-row">
+        <h1 class="temp-title">TEMP</h1>
+        <div class="temp-title-line" aria-hidden="true"></div>
+        <span class="temp-mono temp-sub">Github_Maintainer_Network</span>
+      </div>
+
+      <div class="temp-search-row">
+        <div class="temp-search-cell temp-panel-form" id="temp-search-mount"></div>
+        <button type="button" class="temp-find-btn" id="temp-find-btn">Find Talent</button>
+      </div>
+    </header>
+
+    <main class="temp-board" id="temp-job-board" role="list"></main>
+    <p id="temp-empty" class="temp-empty temp-hidden" role="status">No roles match that search.</p>
+
+    <footer class="temp-footer">
+      <span class="temp-mono temp-footer-copy">© 2025 TEMP_PROTOCOL // NO RECRUITERS</span>
+      <div class="temp-footer-links">
+        <a href="#">Post a Job</a>
+        <a href="#">API</a>
+        <a href="#">Docs</a>
+      </div>
+    </footer>
+  </div>
+
+  <div id="temp-modal" class="temp-modal" role="dialog" aria-modal="true" aria-labelledby="temp-modal-title">
+    <div class="temp-modal-inner">
+      <button type="button" class="temp-modal-close" id="temp-modal-close" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+      </button>
+      <h2 id="temp-modal-title" class="temp-modal-title">APPLY</h2>
+      <p class="temp-modal-sub">Transmission Secure</p>
+
+      <form class="temp-form-stack temp-panel-form" id="temp-apply-form">
+        <div>
+          <label class="temp-field-label temp-mono" for="temp-gh">Github Handle</label>
+          <div id="temp-gh-mount"></div>
+        </div>
+        <div>
+          <label class="temp-field-label temp-mono" for="temp-portfolio">Portfolio / Repo</label>
+          <div id="temp-portfolio-mount"></div>
+        </div>
+        <button type="submit" class="temp-btn-apply" style="width:100%;margin-top:8px;padding:16px">Submit Application</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  'use strict';
+
+  coffee.injectTheme('dark');
+
+  const board = document.getElementById('temp-job-board');
+  const emptyEl = document.getElementById('temp-empty');
+  const modal = document.getElementById('temp-modal');
+  const modalTitle = document.getElementById('temp-modal-title');
+  const form = document.getElementById('temp-apply-form');
+
+  let allJobs = [];
+
+  const searchInput = coffee.input({
+    id: 'temp-search-in',
+    placeholder: 'Search roles (e.g. Vector Visionary)',
+    style: { width: '100%', boxSizing: 'border-box', maxWidth: '100%' }
+  });
+  document.getElementById('temp-search-mount').appendChild(searchInput);
+
+  const ghInput = coffee.input({
+    id: 'temp-gh',
+    placeholder: '@username',
+    style: { width: '100%', boxSizing: 'border-box', maxWidth: '100%' }
+  });
+  document.getElementById('temp-gh-mount').appendChild(ghInput);
+
+  const portfolioInput = coffee.input({
+    id: 'temp-portfolio',
+    type: 'url',
+    placeholder: 'https://github.com/...',
+    style: { width: '100%', boxSizing: 'border-box', maxWidth: '100%' }
+  });
+  document.getElementById('temp-portfolio-mount').appendChild(portfolioInput);
+
+  function openModal(title) {
+    modalTitle.textContent = 'APPLY: ' + title;
+    modal.classList.add('open');
+    ghInput.focus();
+  }
+
+  function closeModal() {
+    modal.classList.remove('open');
+  }
+
+  document.getElementById('temp-modal-close').onclick = closeModal;
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeModal();
+  });
+
+  function renderJobCard(job) {
+    const card = document.createElement('article');
+    card.className = 'temp-job-card';
+    card.setAttribute('role', 'listitem');
+
+    const main = document.createElement('div');
+    main.className = 'temp-job-main';
+
+    const titleRow = document.createElement('div');
+    titleRow.className = 'temp-job-title-row';
+    const h3 = document.createElement('h3');
+    h3.className = 'temp-job-title';
+    h3.textContent = job.title || '';
+    const sal = document.createElement('span');
+    sal.className = 'temp-mono temp-job-salary';
+    sal.textContent = job.salary || '—';
+    titleRow.appendChild(h3);
+    titleRow.appendChild(sal);
+
+    const meta = document.createElement('div');
+    meta.className = 'temp-job-meta';
+    const comp = document.createElement('span');
+    comp.className = 'temp-job-company';
+    comp.textContent = job.company || '';
+    const dot = document.createElement('span');
+    dot.className = 'temp-job-dot';
+    dot.textContent = '•';
+    const loc = document.createElement('span');
+    loc.className = 'temp-mono temp-job-loc';
+    loc.textContent = job.location || '';
+    meta.appendChild(comp);
+    meta.appendChild(dot);
+    meta.appendChild(loc);
+
+    const desc = document.createElement('p');
+    desc.className = 'temp-job-desc';
+    desc.textContent = job.desc || '';
+
+    const tags = document.createElement('div');
+    tags.className = 'temp-tags';
+    (job.tags || []).forEach(function (t) {
+      const span = document.createElement('span');
+      span.className = 'temp-mono temp-tag';
+      span.textContent = t;
+      tags.appendChild(span);
+    });
+
+    main.appendChild(titleRow);
+    main.appendChild(meta);
+    main.appendChild(desc);
+    main.appendChild(tags);
+
+    const apply = document.createElement('button');
+    apply.type = 'button';
+    apply.className = 'temp-btn-apply';
+    apply.textContent = 'Apply_Now';
+    apply.onclick = function () {
+      openModal(job.title || 'Role');
+    };
+
+    card.appendChild(main);
+    card.appendChild(apply);
+    return card;
+  }
+
+  function renderJobs(list) {
+    board.innerHTML = '';
+    if (!list.length) {
+      emptyEl.classList.remove('temp-hidden');
+      return;
+    }
+    emptyEl.classList.add('temp-hidden');
+    const frag = document.createDocumentFragment();
+    list.forEach(function (j) {
+      frag.appendChild(renderJobCard(j));
+    });
+    board.appendChild(frag);
+  }
+
+  function applyFilter() {
+    const q = (searchInput.value || '').trim().toLowerCase();
+    if (!q) {
+      renderJobs(allJobs);
+      return;
+    }
+    const filtered = allJobs.filter(function (job) {
+      const tags = (job.tags || []).join(' ');
+      const hay = [job.title, job.company, job.location, job.desc, tags].join(' ').toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    renderJobs(filtered);
+  }
+
+  document.getElementById('temp-find-btn').onclick = applyFilter;
+  searchInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') applyFilter();
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    const gh = (ghInput.value || '').trim();
+    const url = (portfolioInput.value || '').trim();
+    if (!gh || !url) {
+      coffee.toast('Fill GitHub handle and portfolio URL', 'warning');
+      return;
+    }
+    coffee.toast('Application transmitted. Signal received.', 'success');
+    ghInput.value = '';
+    portfolioInput.value = '';
+    closeModal();
+  });
+
+  async function loadJobs() {
+    try {
+      const r = await fetch('temp-jobs.json', { cache: 'no-store' });
+      if (!r.ok) throw new Error(String(r.status));
+      const data = await r.json();
+      allJobs = Array.isArray(data.jobs) ? data.jobs : [];
+      if (allJobs.length === 0) {
+        emptyEl.textContent = 'No jobs in temp-jobs.json yet.';
+        emptyEl.classList.remove('temp-hidden');
+      } else {
+        emptyEl.textContent = 'No roles match that search.';
+        renderJobs(allJobs);
+      }
+    } catch (err) {
+      console.warn(err);
+      coffee.toast('Could not load temp-jobs.json', 'error');
+      board.innerHTML = '';
+      emptyEl.textContent =
+        'Could not load temp-jobs.json. Use a local HTTP server (file:// blocks fetch).';
+      emptyEl.classList.remove('temp-hidden');
+    }
+  }
+
+  loadJobs();
+})();
+  </script>
+</body>
+</html>

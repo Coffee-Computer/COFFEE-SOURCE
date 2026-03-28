@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>myFARM // Cozy farm template (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #2d5a27; color: #fff;
+      font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; background: #4a7c44; cursor: pointer; }
+    .ui-panel { position: fixed; pointer-events: none; z-index: 10; }
+    .ui-panel.tl { top: 20px; left: 20px; }
+    .ui-panel.tr { top: 20px; right: 20px; text-align: right; max-width: min(220px, 45vw); }
+    .panel-inner {
+      background: rgba(0,0,0,0.5); padding: 14px 16px; border-radius: 12px;
+      border: 2px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px);
+    }
+    .stat-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+    .stat-label.gold { color: #facc15; margin-bottom: 6px; }
+    .stat-label.green { color: #4ade80; margin-bottom: 6px; }
+    .coins-row { font-size: clamp(1.5rem, 5vw, 2.25rem); font-weight: 900; display: flex; align-items: center; gap: 8px; }
+    #status-msg { font-size: 13px; font-weight: 600; line-height: 1.35; }
+    #inventory {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; pointer-events: auto; flex-wrap: wrap; justify-content: center;
+      max-width: calc(100vw - 24px); background: rgba(0,0,0,0.35); padding: 10px 12px;
+      border-radius: 15px; backdrop-filter: blur(6px); z-index: 15;
+    }
+    .shop-item {
+      pointer-events: auto; background: rgba(0,0,0,0.55); border: 2px solid #6b4423;
+      border-radius: 8px; padding: 10px 12px; cursor: pointer; transition: transform 0.15s ease, border-color 0.15s, box-shadow 0.15s;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-width: 68px; color: inherit; font-family: inherit;
+    }
+    .shop-item:hover { transform: translateY(-3px); background: rgba(0,0,0,0.75); }
+    .shop-item.active {
+      border-color: #facc15; background: rgba(50, 50, 0, 0.75);
+      box-shadow: 0 0 14px rgba(250, 204, 21, 0.35);
+    }
+    .shop-item .emoji { font-size: 1.75rem; line-height: 1; }
+    .shop-item .lbl { font-size: 9px; font-weight: 800; text-transform: uppercase; margin-top: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="ui-panel tl">
+  <div class="panel-inner">
+    <div class="stat-label gold">Farm Treasury</div>
+    <div class="coins-row"><span id="coins">10</span><span aria-hidden="true">🪙</span></div>
+  </div>
+</div>
+
+<div class="ui-panel tr">
+  <div class="panel-inner">
+    <div class="stat-label green">Status</div>
+    <div id="status-msg">Ready to farm!</div>
+  </div>
+</div>
+
+<div id="inventory">
+  <button type="button" class="shop-item active" id="tool-hoe" data-tool="hoe" aria-label="Hoe">
+    <span class="emoji">⛏️</span><span class="lbl">Hoe</span>
+  </button>
+  <button type="button" class="shop-item" id="tool-water" data-tool="water" aria-label="Water">
+    <span class="emoji">💧</span><span class="lbl">Water</span>
+  </button>
+  <button type="button" class="shop-item" id="seed-wheat" data-tool="seed-wheat" aria-label="Wheat seeds">
+    <span class="emoji">🌾</span><span class="lbl">Wheat (2)</span>
+  </button>
+  <button type="button" class="shop-item" id="seed-carrot" data-tool="seed-carrot" aria-label="Carrot seeds">
+    <span class="emoji">🥕</span><span class="lbl">Carrot (5)</span>
+  </button>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-farm-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var coinsEl = document.getElementById('coins');
+  var statusEl = document.getElementById('status-msg');
+  var canvasEl = document.getElementById('stage');
+
+  function syncToolUI(tool) {
+    document.querySelectorAll('.shop-item').forEach(function (el) {
+      el.classList.toggle('active', el.getAttribute('data-tool') === tool);
+    });
+  }
+
+  function canvasToLocal(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width;
+    var sy = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * sx,
+      y: (clientY - rect.top) * sy
+    };
+  }
+
+  var fg = coffee.playFarmGame.create({
+    callbacks: {
+      onCoins: function (n) { coinsEl.textContent = String(n); },
+      onStatus: function (msg) { statusEl.textContent = msg; },
+      onToolChange: syncToolUI
+    }
+  });
+
+  syncToolUI(fg.getState().currentTool);
+
+  document.querySelectorAll('.shop-item').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      fg.setTool(btn.getAttribute('data-tool'));
+    });
+  });
+
+  function pointerInteract(clientX, clientY) {
+    var p = canvasToLocal(canvasEl, clientX, clientY);
+    fg.interactCanvas(p.x, p.y, canvasEl.width, canvasEl.height, Date.now());
+  }
+
+  canvasEl.addEventListener('mousedown', function (e) {
+    if (e.button === 0) pointerInteract(e.clientX, e.clientY);
+  });
+  canvasEl.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    pointerInteract(t.clientX, t.clientY);
+  }, { passive: false });
+
+  var lastT = 0;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+      fg.step(dt, { now: Date.now() });
+    },
+    onDraw: function (ctx, game) {
+      var st = fg.getState();
+      var S = coffee.playShapes;
+      var crops = fg.crops;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+      var ts = st.tileSize;
+      var cols = st.gridCols;
+      var rows = st.gridRows;
+      var ox = (w - cols * ts) / 2;
+      var oy = (h - rows * ts) / 2;
+
+      ctx.fillStyle = '#4a7c44';
+      ctx.fillRect(0, 0, w, h);
+
+      st.grid.forEach(function (plot) {
+        var px = ox + plot.c * ts;
+        var py = oy + plot.r * ts;
+        S.drawFarmSoilTile(ctx, {
+          px: px,
+          py: py,
+          size: ts,
+          tilled: plot.tilled,
+          watered: plot.watered
+        });
+
+        if (plot.crop) {
+          var data = crops[plot.crop];
+          if (plot.growth < 1) {
+            S.drawFarmGrowingOverlay(ctx, { px: px, py: py, size: ts, growth: plot.growth });
+          } else {
+            S.drawFarmMatureOverlay(ctx, {
+              px: px,
+              py: py,
+              size: ts,
+              cx: px + ts / 2,
+              cy: py + ts / 2,
+              icon: data.icon
+            });
+          }
+        }
+      });
+    }
+  });
+})();
+  </script>
+</body>
+</html>

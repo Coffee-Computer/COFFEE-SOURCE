@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" class="coffee-flagship-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="cce:name" content="KATI Chat (Mobile)">
+  <meta name="cce:id" content="kati-chat-mobile">
+  <meta name="cce:icon" content="✦">
+  <meta name="cce:color" content="#c084fc">
+  <meta name="cce:description" content="KATI mobile chat — same threads as desktop α, softer phone UI.">
+  <title>KATI · Mobile</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <link rel="stylesheet" href="../../../COFFEE-UI/coffee-ui-flagship.css">
+  <link rel="stylesheet" href="kati-chat-mobile.css">
+  <script src="../../../COFFEE-UI/coffee-ui-flagship.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../../COFFEE-AI/coffee-ai.js"></script>
+  <script src="../../../COFFEE-CONTEXT/coffee-context.js"></script>
+  <script src="../../../COFFEE-BEE/coffee-bee.js"></script>
+  <script src="./kati-instructions.js"></script>
+  <script src="./kati-chat.js"></script>
+  <script src="./kati-chat-shell.js"></script>
+  <script src="../../tools/cce-validate.js"></script>
+</head>
+<body>
+  <div id="kati-mobile-root" class="kati-mobile">
+    <header class="kati-mobile-header">
+      <button type="button" class="kati-mobile-icon-btn" id="kati-btn-threads" aria-label="Threads and model" aria-expanded="false" aria-controls="kati-threads-sheet">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="14" y2="18"/></svg>
+      </button>
+      <div class="kati-mobile-header-mid">
+        <div class="kati-mobile-mark" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        </div>
+        <div style="min-width:0">
+          <div class="kati-mobile-title">KATI</div>
+          <div class="kati-mobile-status" id="kati-mobile-status">coffee.bee · mobile</div>
+        </div>
+      </div>
+      <div class="kati-mobile-header-actions">
+        <button type="button" class="kati-mobile-icon-btn" id="kati-btn-export" title="Export (soon)" aria-label="Export">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        </button>
+        <button type="button" class="kati-mobile-icon-btn" id="kati-btn-keys" title="API keys" aria-label="API keys">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="kati-mobile-main">
+      <div class="ff-viewport kati-mobile-viewport" id="kati-chat-viewport">
+        <div class="ff-welcome" id="kati-welcome">
+          <div class="ff-welcome-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+          </div>
+          <h2>How can we manifest today?</h2>
+          <p class="ff-welcome-sub">KATI on mobile — same threads as desktop. Tap ☰ for contexts &amp; model.</p>
+          <div class="ff-prompt-grid" id="kati-prompt-grid"></div>
+        </div>
+        <div class="ff-thread ff-hidden" id="kati-messages" aria-live="polite"></div>
+      </div>
+    </main>
+
+    <footer class="kati-mobile-composer">
+      <div class="ff-composer-wrap">
+        <div class="ff-composer-box">
+          <textarea id="kati-user-input" class="ff-composer-field" placeholder="Express yourself…" rows="1"></textarea>
+          <div class="ff-composer-actions">
+            <div class="ff-composer-tools">
+              <span style="font-size:10px;color:#71717a">CE companion</span>
+            </div>
+            <button type="button" class="ff-send-btn" id="kati-send-btn" aria-label="Send">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ff-version-tag">KATI mobile · coffee.bee</div>
+      </div>
+    </footer>
+
+    <div id="kati-threads-backdrop" aria-hidden="true"></div>
+    <aside id="kati-threads-sheet" aria-label="Threads" role="dialog" aria-hidden="true" aria-modal="false">
+      <div class="kati-threads-sheet-handle" aria-hidden="true"><span></span></div>
+      <div class="kati-threads-sheet-head">
+        <h2>Contexts</h2>
+        <button type="button" class="kati-threads-close" id="kati-threads-close" aria-label="Close">×</button>
+      </div>
+      <div class="kati-threads-sheet-actions">
+        <button type="button" class="ff-btn-soft" id="kati-new-chat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          New expression
+        </button>
+      </div>
+      <div class="kati-threads-scroll">
+        <div class="ff-rail-label">Recent</div>
+        <div id="kati-thread-list"></div>
+      </div>
+      <div class="kati-threads-tools">
+        <label for="kati-provider">Model</label>
+        <select id="kati-provider" class="ff-select" aria-label="AI provider"></select>
+        <select id="kati-model" class="ff-select" aria-label="Model"></select>
+      </div>
+      <div class="kati-threads-foot">
+        <div class="kati-threads-foot-av">CE</div>
+        <div class="kati-threads-foot-meta">
+          <div class="t1">Coffee OS CE</div>
+          <div class="t2">kati-chat · shared with α</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+    katiChatShell.boot({
+      logLabel: 'KATI Mobile',
+      applyTokens: katiChatShell.DEFAULT_TOKENS,
+      threadsSheet: {
+        rootId: 'kati-mobile-root',
+        toggleBtnId: 'kati-btn-threads',
+        backdropId: 'kati-threads-backdrop',
+        closeBtnId: 'kati-threads-close',
+        sheetId: 'kati-threads-sheet'
+      }
+    });
+  </script>
+</body>
+</html>

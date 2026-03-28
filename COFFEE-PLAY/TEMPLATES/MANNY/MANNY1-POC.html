@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- POC: standalone RAF + classes. Stack: MANNY.html — see README.md -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manny - Platformer Clone</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #5c94fc;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            touch-action: none;
+        }
+        #ui-layer {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+            color: white;
+            text-shadow: 2px 2px #000;
+            z-index: 10;
+        }
+        canvas {
+            display: block;
+            image-rendering: pixelated;
+        }
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 40px;
+            border: 4px solid #fff;
+            text-align: center;
+            display: none;
+            z-index: 20;
+            color: white;
+        }
+        button {
+            background: #ff4500;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer">
+    <div class="text-2xl font-bold">MANNY</div>
+    <div class="text-xl">SCORE: <span id="score">000000</span></div>
+</div>
+
+<div id="game-over">
+    <h1 class="text-4xl mb-4 font-bold" id="status-title">GAME OVER</h1>
+    <p>Try again, Manny!</p>
+    <button onclick="resetGame()">START NEW JOURNEY</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<div class="fixed bottom-10 left-10 right-10 flex justify-between md:hidden z-30">
+    <div class="flex gap-4">
+        <div class="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center text-white font-bold" ontouchstart="keys['ArrowLeft']=true" ontouchend="keys['ArrowLeft']=false">L</div>
+        <div class="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center text-white font-bold" ontouchstart="keys['ArrowRight']=true" ontouchend="keys['ArrowRight']=false">R</div>
+    </div>
+    <div class="w-16 h-16 bg-white/30 rounded-full flex items-center justify-center text-white font-bold" ontouchstart="keys['ArrowUp']=true" ontouchend="keys['ArrowUp']=false">JUMP</div>
+</div>
+
+<script>
+/**
+ * MANNY - Platformer
+ * Core logic:
+ * 1. Gravity and Collision Physics
+ * 2. Tile-map rendering
+ * 3. Side-scrolling camera
+ * 4. Enemy stomp logic
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const gameOverEl = document.getElementById('game-over');
+const statusTitle = document.getElementById('status-title');
+
+// Game Config
+const TILE_SIZE = 40;
+const GRAVITY = 0.6;
+const JUMP_FORCE = -12;
+const WALK_SPEED = 4;
+
+let score = 0;
+let gameRunning = true;
+let cameraX = 0;
+let keys = {};
+
+// Level Design (1 = Ground, 2 = Block, 3 = Mystery, 4 = Pipe, 5 = Goal)
+const levelData = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,2,3,2,0,0,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,5]
+];
+
+class Manny {
+    constructor() {
+        this.reset();
+    }
+
+    reset() {
+        this.x = 80;
+        this.y = 200;
+        this.vx = 0;
+        this.vy = 0;
+        this.width = 30;
+        this.height = 38;
+        this.onGround = false;
+        this.facingRight = true;
+    }
+
+    update() {
+        if (keys['ArrowLeft'] || keys['a']) {
+            this.vx = -WALK_SPEED;
+            this.facingRight = false;
+        } else if (keys['ArrowRight'] || keys['d']) {
+            this.vx = WALK_SPEED;
+            this.facingRight = true;
+        } else {
+            this.vx *= 0.8;
+        }
+
+        if ((keys['ArrowUp'] || keys['w'] || keys[' ']) && this.onGround) {
+            this.vy = JUMP_FORCE;
+            this.onGround = false;
+        }
+
+        this.vy += GRAVITY;
+        this.x += this.vx;
+        this.y += this.vy;
+
+        this.checkCollisions();
+
+        // Death check
+        if (this.y > canvas.height) endGame("FELL OFF!");
+    }
+
+    checkCollisions() {
+        const left = Math.floor(this.x / TILE_SIZE);
+        const right = Math.floor((this.x + this.width) / TILE_SIZE);
+        const top = Math.floor(this.y / TILE_SIZE);
+        const bottom = Math.floor((this.y + this.height) / TILE_SIZE);
+
+        this.onGround = false;
+
+        // Check level bounds and tiles
+        for (let r = top; r <= bottom; r++) {
+            for (let c = left; c <= right; c++) {
+                if (levelData[r] && levelData[r][c] > 0) {
+                    const tileType = levelData[r][c];
+                    const tileX = c * TILE_SIZE;
+                    const tileY = r * TILE_SIZE;
+
+                    // Simple AABB Collision
+                    if (this.x < tileX + TILE_SIZE && this.x + this.width > tileX &&
+                        this.y < tileY + TILE_SIZE && this.y + this.height > tileY) {
+                        
+                        if (tileType === 5) { // Win goal
+                            endGame("LEVEL CLEAR!");
+                            return;
+                        }
+
+                        // Resolve Y
+                        if (this.vy > 0 && this.y + this.height - this.vy <= tileY) {
+                            this.y = tileY - this.height;
+                            this.vy = 0;
+                            this.onGround = true;
+                        } else if (this.vy < 0 && this.y - this.vy >= tileY + TILE_SIZE) {
+                            this.y = tileY + TILE_SIZE;
+                            this.vy = 0;
+                            if (tileType === 3) { // Hit mystery block
+                                score += 100;
+                                scoreEl.innerText = score.toString().padStart(6, '0');
+                            }
+                        }
+
+                        // Resolve X
+                        if (this.vx > 0 && this.x + this.width - this.vx <= tileX) {
+                            this.x = tileX - this.width;
+                        } else if (this.vx < 0 && this.x - this.vx >= tileX + TILE_SIZE) {
+                            this.x = tileX + TILE_SIZE;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    draw() {
+        ctx.fillStyle = '#ff0000';
+        // Simple character shape
+        ctx.fillRect(this.x - cameraX, this.y, this.width, this.height);
+        // Eyes/Cap
+        ctx.fillStyle = '#000';
+        const eyeX = this.facingRight ? this.x - cameraX + 20 : this.x - cameraX + 5;
+        ctx.fillRect(eyeX, this.y + 8, 5, 5);
+        ctx.fillStyle = '#ffcc00'; // Button
+        ctx.fillRect(this.x - cameraX + 10, this.y + 25, 10, 5);
+    }
+}
+
+class Enemy {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.vx = -1.5;
+        this.width = 30;
+        this.height = 30;
+        this.dead = false;
+    }
+
+    update() {
+        if (this.dead) return;
+        this.x += this.vx;
+
+        // Simple turn around at gaps/walls
+        const c = Math.floor((this.vx > 0 ? this.x + this.width : this.x) / TILE_SIZE);
+        const r = Math.floor((this.y + this.height + 2) / TILE_SIZE);
+        if (!levelData[r] || levelData[r][c] === 0) {
+            this.vx *= -1;
+        }
+
+        // Collision with Manny
+        const dist = Math.hypot((this.x + 15) - (manny.x + 15), (this.y + 15) - (manny.y + 19));
+        if (dist < 28) {
+            if (manny.vy > 0 && manny.y < this.y) {
+                this.dead = true;
+                manny.vy = -8;
+                score += 200;
+                scoreEl.innerText = score.toString().padStart(6, '0');
+            } else {
+                endGame("STOMPED!");
+            }
+        }
+    }
+
+    draw() {
+        if (this.dead) return;
+        ctx.fillStyle = '#8b4513'; // Mushroom brown
+        ctx.beginPath();
+        ctx.arc(this.x - cameraX + 15, this.y + 15, 15, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'white';
+        ctx.fillRect(this.x - cameraX + 8, this.y + 10, 4, 4);
+        ctx.fillRect(this.x - cameraX + 18, this.y + 10, 4, 4);
+    }
+}
+
+let manny;
+let enemies = [];
+
+function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = levelData.length * TILE_SIZE;
+    resetGame();
+}
+
+function resetGame() {
+    manny = new Manny();
+    enemies = [
+        new Enemy(400, 320),
+        new Enemy(700, 320),
+        new Enemy(1000, 320)
+    ];
+    score = 0;
+    scoreEl.innerText = '000000';
+    cameraX = 0;
+    gameRunning = true;
+    gameOverEl.style.display = 'none';
+    requestAnimationFrame(loop);
+}
+
+function loop() {
+    if (!gameRunning) return;
+
+    // Update
+    manny.update();
+    enemies.forEach(e => e.update());
+
+    // Camera follow
+    if (manny.x > canvas.width / 2) {
+        cameraX = manny.x - canvas.width / 2;
+    }
+
+    // Draw
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Background sky
+    ctx.fillStyle = '#5c94fc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Tiles
+    for (let r = 0; r < levelData.length; r++) {
+        for (let c = 0; c < levelData[r].length; c++) {
+            const tile = levelData[r][c];
+            const tx = c * TILE_SIZE - cameraX;
+            const ty = r * TILE_SIZE;
+
+            if (tx < -TILE_SIZE || tx > canvas.width) continue;
+
+            if (tile === 1) { // Ground
+                ctx.fillStyle = '#8b4513';
+                ctx.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+                ctx.fillStyle = '#00aa00';
+                ctx.fillRect(tx, ty, TILE_SIZE, 5);
+            } else if (tile === 2) { // Brick
+                ctx.fillStyle = '#a52a2a';
+                ctx.fillRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+            } else if (tile === 3) { // Mystery
+                ctx.fillStyle = '#ffa500';
+                ctx.fillRect(tx + 1, ty + 1, TILE_SIZE - 2, TILE_SIZE - 2);
+                ctx.fillStyle = 'white';
+                ctx.font = '20px Arial';
+                ctx.fillText('?', tx + 15, ty + 25);
+            } else if (tile === 4) { // Pipe
+                ctx.fillStyle = '#00aa00';
+                ctx.fillRect(tx + 5, ty, TILE_SIZE - 10, TILE_SIZE);
+            } else if (tile === 5) { // Goal
+                ctx.fillStyle = 'white';
+                ctx.fillRect(tx + 18, ty - 100, 4, 140);
+                ctx.fillStyle = 'green';
+                ctx.fillRect(tx - 10, ty - 100, 30, 20);
+            }
+        }
+    }
+
+    enemies.forEach(e => e.draw());
+    manny.draw();
+
+    requestAnimationFrame(loop);
+}
+
+function endGame(msg) {
+    gameRunning = false;
+    statusTitle.innerText = msg;
+    gameOverEl.style.display = 'block';
+}
+
+window.addEventListener('keydown', e => keys[e.key] = true);
+window.addEventListener('keyup', e => keys[e.key] = false);
+window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+});
+
+window.onload = init;
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "updated": "2025-03-02",
+  "jobs": [
+    {
+      "id": "daw-designer",
+      "title": "DAW Designer",
+      "company": "SoundProtocol",
+      "location": "Berlin / Remote",
+      "salary": "$140k - $190k",
+      "tags": ["C++", "DSP", "UI/UX", "Github Maintainer"],
+      "desc": "Lead the aesthetic and functional evolution of an open-source digital audio workstation. Focus on brutalist signal processing visualization."
+    },
+    {
+      "id": "vector-visionary",
+      "title": "Vector Visionary",
+      "company": "Glyph Systems",
+      "location": "Tokyo / Remote",
+      "salary": "$120k - $160k",
+      "tags": ["SVG", "Canvas", "Math", "Open Source"],
+      "desc": "Reimagining coordinate systems for generative architecture. Must have a history of maintaining high-star vector libraries."
+    },
+    {
+      "id": "creative-curator",
+      "title": "Creative Curator",
+      "company": "ArtNet Node",
+      "location": "NYC / Remote",
+      "salary": "$90k - $130k",
+      "tags": ["Community", "Markdown", "JSON", "Curation"],
+      "desc": "Managing the flow of incoming contributions for the world's largest creative-coding registry. High empathy and technical vetting required."
+    },
+    {
+      "id": "shell-shaman",
+      "title": "Shell Shaman",
+      "company": "Terminal.sh",
+      "location": "Remote",
+      "salary": "$150k - $200k",
+      "tags": ["Rust", "Zsh", "Maintainer", "Performance"],
+      "desc": "Optimizing the next generation of terminal emulators. Deep knowledge of TTY and rendering pipelines needed."
+    }
+  ]
+}

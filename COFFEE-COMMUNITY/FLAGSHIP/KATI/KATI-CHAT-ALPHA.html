@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" class="coffee-flagship-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="KATI Chat">
+  <meta name="cce:id" content="kati-chat-alpha">
+  <meta name="cce:icon" content="✦">
+  <meta name="cce:color" content="#c084fc">
+  <meta name="cce:description" content="KATI flagship chat — threads via coffee.bee, BYOK keys.">
+  <title>KATI // Kinetic Alternative Telemetric Information</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <link rel="stylesheet" href="../../../COFFEE-UI/coffee-ui-flagship.css">
+  <script src="../../../COFFEE-UI/coffee-ui-flagship.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../../COFFEE-AI/coffee-ai.js"></script>
+  <script src="../../../COFFEE-CONTEXT/coffee-context.js"></script>
+  <script src="../../../COFFEE-BEE/coffee-bee.js"></script>
+  <script src="./kati-instructions.js"></script>
+  <script src="./kati-chat.js"></script>
+  <script src="./kati-chat-shell.js"></script>
+  <script src="../../tools/cce-validate.js"></script>
+  <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}</style>
+</head>
+<body>
+  <div id="kati-root" class="ff-app-shell">
+    <aside class="ff-sidebar" aria-label="Threads">
+      <div class="ff-sidebar-head">
+        <div class="ff-logo-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        </div>
+        <span class="ff-brand-title">KATI</span>
+      </div>
+
+      <div class="ff-sidebar-action-wrap">
+        <button type="button" class="ff-btn-soft" id="kati-new-chat">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          New Expression
+        </button>
+      </div>
+
+      <div class="ff-history-scroll">
+        <div class="ff-rail-label">Recent Contexts</div>
+        <div id="kati-thread-list"></div>
+      </div>
+
+      <div class="ff-sidebar-tools">
+        <label for="kati-provider">Model</label>
+        <select id="kati-provider" class="ff-select" aria-label="AI provider"></select>
+        <select id="kati-model" class="ff-select" aria-label="Model"></select>
+      </div>
+
+      <div class="ff-sidebar-foot">
+        <div class="ff-sidebar-foot-row">
+          <div class="ff-foot-avatar">CE</div>
+          <div class="ff-foot-meta">
+            <div class="ff-foot-title">Coffee OS CE</div>
+            <div class="ff-foot-sub">coffee.bee · kati-chat</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="ff-main">
+      <header class="ff-top-bar">
+        <div class="ff-top-bar-left">
+          <div class="ff-status-dot" aria-hidden="true"></div>
+          <span class="ff-status-label">Neural_Link_Active</span>
+        </div>
+        <div class="ff-top-actions">
+          <button type="button" class="ff-icon-btn" id="kati-btn-export" title="Export (soon)" aria-label="Export">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </button>
+          <button type="button" class="ff-icon-btn" id="kati-btn-keys" title="API keys" aria-label="API keys">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="ff-viewport" id="kati-chat-viewport">
+        <div class="ff-welcome" id="kati-welcome">
+          <div class="ff-welcome-icon" aria-hidden="true">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+          </div>
+          <h2>How can we manifest today?</h2>
+          <p class="ff-welcome-sub">I am KATI—Coffee OS Community Edition companion. Open source, creative tools, and helping you bring ideas to life (with KIP across the hall).</p>
+          <div class="ff-prompt-grid" id="kati-prompt-grid"></div>
+        </div>
+        <div class="ff-thread ff-hidden" id="kati-messages" aria-live="polite"></div>
+      </div>
+
+      <div class="ff-composer-wrap">
+        <div class="ff-composer-box">
+          <textarea id="kati-user-input" class="ff-composer-field" placeholder="Express yourself..." rows="1"></textarea>
+          <div class="ff-composer-actions">
+            <div class="ff-composer-tools">
+              <button type="button" title="Attach (soon)" aria-label="Attach" disabled style="opacity:0.35;cursor:default">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              </button>
+              <button type="button" title="Image (soon)" aria-label="Image" disabled style="opacity:0.35;cursor:default">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+              </button>
+            </div>
+            <button type="button" class="ff-send-btn" id="kati-send-btn" aria-label="Send">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+        <div class="ff-version-tag">KATI // Kinetic Alternative Telemetric Information // Coffee CE α</div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    katiChatShell.boot({ logLabel: 'KATI α' });
+  </script>
+</body>
+</html>

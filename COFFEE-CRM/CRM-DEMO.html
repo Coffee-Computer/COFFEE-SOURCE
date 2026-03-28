@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en" data-coffee-alpha="crm">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.CRM() | CRM-DEMO (CE)</title>
+    <!-- Local IndexedDB only. Optional vault snapshot API: Coffee Server /api/crm/vault/snapshot (no bundled UI). -->
+    <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+    <script src="../COFFEE-UI/coffee-ui.js"></script>
+    <script src="../COFFEE-DRIVE/coffee-drive.js"></script>
+    <script src="../COFFEE-WIRE/coffee-wire.js"></script>
+    <script src="../COFFEE-QUE/coffee-que.js"></script>
+    <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+    <script src="../COFFEE-BASE/coffee-base.js"></script>
+    <script src="./coffee-crm.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="styles/crm-poc1.css">
+</head>
+<body class="crm-body">
+    <div class="crm-app">
+        <aside class="crm-sidebar">
+            <div class="crm-sidebar-inner">
+                <div class="crm-brand">
+                    <div class="crm-brand-mark">C</div>
+                    <h1 class="crm-brand-title">Coffee.CRM()</h1>
+                </div>
+                <nav class="crm-nav">
+                    <button type="button" id="btn-pipeline" class="crm-nav-btn active" data-view="pipeline">
+                        <i data-lucide="trello" class="icon-16"></i> Pipeline
+                    </button>
+                    <button type="button" id="btn-contacts" class="crm-nav-btn" data-view="contacts">
+                        <i data-lucide="users" class="icon-16"></i> Contacts
+                    </button>
+                    <button type="button" id="btn-companies" class="crm-nav-btn" data-view="companies">
+                        <i data-lucide="briefcase" class="icon-16"></i> Companies
+                    </button>
+                    <button type="button" id="btn-activities" class="crm-nav-btn" data-view="activities">
+                        <i data-lucide="activity" class="icon-16"></i> Activities
+                    </button>
+                    <button type="button" class="crm-nav-btn" disabled title="Soon">
+                        <i data-lucide="bar-chart-2" class="icon-16"></i> Analytics
+                    </button>
+                </nav>
+            </div>
+            <div class="crm-sidebar-footer">
+                <div class="crm-goal-card">
+                    <p class="crm-goal-label">Quarter Goal</p>
+                    <div class="crm-goal-row">
+                        <span class="crm-goal-val">$42.5k</span>
+                        <span class="crm-goal-pct">70%</span>
+                    </div>
+                    <div class="crm-progress">
+                        <div class="crm-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="crm-main">
+            <header class="crm-header">
+                <div class="crm-header-left">
+                    <h2 id="viewTitle">Sales Pipeline</h2>
+                    <p class="crm-ce-tagline" title="Data lives in IndexedDB via coffee.base — no server">Local CRM · <code style="font-size:0.75rem;opacity:0.85">coffee.base('crm')</code></p>
+                </div>
+                <div class="crm-header-actions">
+                    <div class="crm-search-wrap">
+                        <input type="text" id="crm-search-input" class="crm-search" placeholder="Search deals..." aria-label="Search">
+                        <i data-lucide="search" class="crm-search-icon"></i>
+                    </div>
+                    <button type="button" id="btn-new-deal" class="crm-btn-primary">
+                        <i data-lucide="plus" class="icon-14"></i> New Deal
+                    </button>
+                    <button type="button" id="btn-new-contact" class="crm-btn-primary hidden">
+                        <i data-lucide="user-plus" class="icon-14"></i> New contact
+                    </button>
+                    <button type="button" id="btn-new-company" class="crm-btn-primary hidden">
+                        <i data-lucide="plus" class="icon-14"></i> New company
+                    </button>
+                    <button type="button" id="btn-new-activity" class="crm-btn-primary hidden">
+                        <i data-lucide="plus" class="icon-14"></i> Log activity
+                    </button>
+                </div>
+            </header>
+
+            <div id="content" class="crm-content">
+                <div id="view-pipeline" class="crm-board">
+                    <div class="crm-col">
+                        <div class="crm-col-head">
+                            <span class="crm-col-title">Light Roast (Leads)</span>
+                            <span id="count-lead" class="crm-col-count">0</span>
+                        </div>
+                        <div id="col-lead" class="crm-column-drop" data-crm-stage="lead" role="region" aria-label="Leads column"></div>
+                    </div>
+                    <div class="crm-col">
+                        <div class="crm-col-head">
+                            <span class="crm-col-title">Medium Roast (Contacted)</span>
+                            <span id="count-progress" class="crm-col-count">0</span>
+                        </div>
+                        <div id="col-progress" class="crm-column-drop" data-crm-stage="progress" role="region" aria-label="Contacted column"></div>
+                    </div>
+                    <div class="crm-col">
+                        <div class="crm-col-head">
+                            <span class="crm-col-title">Dark Roast (Closing)</span>
+                            <span id="count-closing" class="crm-col-count">0</span>
+                        </div>
+                        <div id="col-closing" class="crm-column-drop" data-crm-stage="closing" role="region" aria-label="Closing column"></div>
+                    </div>
+                </div>
+
+                <div id="view-contacts" class="crm-contacts hidden">
+                    <table class="crm-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Company</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Deals</th>
+                                <th>Updated</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="contactTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="view-companies" class="crm-contacts hidden">
+                    <table class="crm-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Domain</th>
+                                <th>Industry</th>
+                                <th>Deals</th>
+                                <th>Updated</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="companyTableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="view-activities" class="crm-activities hidden">
+                    <ul id="activityList" class="crm-activity-list"></ul>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-deal" class="crm-modal" aria-hidden="true">
+        <div class="crm-modal-panel">
+            <h3>New deal</h3>
+            <input id="dealName" type="text" class="crm-field" placeholder="Deal name (e.g. Acme Enterprise)" autocomplete="off">
+            <input id="dealValue" type="text" class="crm-field" placeholder="Value (e.g. $5,000)" autocomplete="off">
+            <label class="crm-field-label" for="dealContactId">Link contact</label>
+            <select id="dealContactId" class="crm-field" aria-label="Link contact">
+                <option value="">— None —</option>
+            </select>
+            <label class="crm-field-label" for="dealCompanyId">Company</label>
+            <select id="dealCompanyId" class="crm-field" aria-label="Company">
+                <option value="">— From contact / none —</option>
+            </select>
+            <div class="crm-modal-actions">
+                <button type="button" id="modal-deal-cancel" class="crm-btn-ghost">Cancel</button>
+                <button type="button" id="modal-deal-save" class="crm-btn-primary" style="flex:1;border-radius:0.75rem;">Add to pipeline</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-contact" class="crm-modal" aria-hidden="true">
+        <div class="crm-modal-panel">
+            <h3 id="contact-modal-title">New contact</h3>
+            <input id="contactName" type="text" class="crm-field" placeholder="Full name" autocomplete="name">
+            <label class="crm-field-label" for="contactCompanyId">Company (directory)</label>
+            <select id="contactCompanyId" class="crm-field" aria-label="Company from directory">
+                <option value="">— Custom name below —</option>
+            </select>
+            <input id="contactCompany" type="text" class="crm-field" placeholder="Company name (if not in directory)" autocomplete="organization">
+            <input id="contactEmail" type="email" class="crm-field" placeholder="Email" autocomplete="email">
+            <input id="contactPhone" type="tel" class="crm-field" placeholder="Phone" autocomplete="tel">
+            <textarea id="contactNotes" class="crm-field" rows="2" placeholder="Notes (optional)" style="resize:vertical;min-height:4rem;"></textarea>
+            <div class="crm-modal-actions">
+                <button type="button" id="modal-contact-cancel" class="crm-btn-ghost">Cancel</button>
+                <button type="button" id="modal-contact-save" class="crm-btn-primary" style="flex:1;border-radius:0.75rem;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-company" class="crm-modal" aria-hidden="true">
+        <div class="crm-modal-panel">
+            <h3 id="company-modal-title">New company</h3>
+            <input id="companyName" type="text" class="crm-field" placeholder="Company name" autocomplete="organization">
+            <input id="companyDomain" type="text" class="crm-field" placeholder="Domain (e.g. acme.com)" autocomplete="off">
+            <input id="companyIndustry" type="text" class="crm-field" placeholder="Industry" autocomplete="off">
+            <textarea id="companyNotes" class="crm-field" rows="2" placeholder="Notes (optional)" style="resize:vertical;min-height:4rem;"></textarea>
+            <div class="crm-modal-actions">
+                <button type="button" id="modal-company-cancel" class="crm-btn-ghost">Cancel</button>
+                <button type="button" id="modal-company-save" class="crm-btn-primary" style="flex:1;border-radius:0.75rem;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-activity" class="crm-modal" aria-hidden="true">
+        <div class="crm-modal-panel">
+            <h3>Log activity</h3>
+            <label class="crm-field-label" for="activityType">Type</label>
+            <select id="activityType" class="crm-field" aria-label="Activity type"></select>
+            <textarea id="activityBody" class="crm-field" rows="3" placeholder="What happened?" style="resize:vertical;min-height:5rem;"></textarea>
+            <label class="crm-field-label" for="activityContactId">Contact (optional)</label>
+            <select id="activityContactId" class="crm-field"><option value="">— None —</option></select>
+            <label class="crm-field-label" for="activityDealId">Deal (optional)</label>
+            <select id="activityDealId" class="crm-field"><option value="">— None —</option></select>
+            <label class="crm-field-label" for="activityCompanyId">Company (optional)</label>
+            <select id="activityCompanyId" class="crm-field"><option value="">— None —</option></select>
+            <div class="crm-modal-actions">
+                <button type="button" id="modal-activity-cancel" class="crm-btn-ghost">Cancel</button>
+                <button type="button" id="modal-activity-save" class="crm-btn-primary" style="flex:1;border-radius:0.75rem;">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .icon-16 { width: 1rem; height: 1rem; vertical-align: middle; }
+        .icon-14 { width: 0.875rem; height: 0.875rem; vertical-align: middle; }
+        .crm-activity-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+        .crm-activity-item {
+            border: 1px solid var(--coffee-border, rgba(255,255,255,0.08));
+            border-radius: 0.75rem;
+            padding: 1rem 1.1rem;
+            background: var(--coffee-surface-2, rgba(255,255,255,0.03));
+        }
+        .crm-activity-meta { font-size: 0.75rem; color: var(--coffee-muted, #888); margin-top: 0.35rem; }
+        .crm-activity-type {
+            display: inline-block;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.15rem 0.45rem;
+            border-radius: 0.35rem;
+            background: rgba(212, 163, 115, 0.2);
+            color: var(--coffee-accent, #d4a373);
+            margin-bottom: 0.35rem;
+        }
+    </style>
+
+    <script>
+        (function () {
+            var base = null;
+            /** @type {ReturnType<typeof coffee.crm.dealStore> | null} */
+            var dealStore = null;
+            /** @type {ReturnType<typeof coffee.crm.contactStore> | null} */
+            var cStore = null;
+            /** @type {ReturnType<typeof coffee.crm.companyStore> | null} */
+            var coStore = null;
+            /** @type {ReturnType<typeof coffee.crm.activityStore> | null} */
+            var aStore = null;
+            var S = coffee.crm && coffee.crm.STAGES;
+            /** @type {number|null} */
+            var contactEditingId = null;
+            /** @type {number|null} */
+            var companyEditingId = null;
+            /** When set, saving a new contact links this deal (`contactId`). */
+            var pendingDealIdForNewContact = null;
+            /** @type {'pipeline'|'contacts'|'companies'|'activities'} */
+            var currentView = 'pipeline';
+            var searchQuery = '';
+
+            function esc(s) {
+                return coffee.crm.escapeHtml(s);
+            }
+
+            function initials(name) {
+                var p = String(name || '')
+                    .trim()
+                    .split(/\s+/);
+                if (p.length >= 2 && p[0][0] && p[1][0]) {
+                    return (p[0][0] + p[1][0]).toUpperCase();
+                }
+                return (p[0] || '?').slice(0, 2).toUpperCase();
+            }
+
+            function dealsForView() {
+                var q = searchQuery.trim();
+                if (!q) return dealStore.list();
+                return coffee.crm.searchDeals(base, q);
+            }
+
+            function renderPipeline() {
+                var columns = {
+                    lead: document.getElementById('col-lead'),
+                    progress: document.getElementById('col-progress'),
+                    closing: document.getElementById('col-closing')
+                };
+                Object.values(columns).forEach(function (col) {
+                    col.innerHTML = '';
+                });
+
+                dealsForView().forEach(function (deal) {
+                    var stage = coffee.crm.normalizeStage(deal.stage);
+                    var col = columns[stage];
+                    if (!col) col = columns.lead;
+                    var linked = deal.contactId != null ? cStore.get(deal.contactId) : null;
+                    var av = linked ? initials(linked.name) : initials(deal.name);
+                    var card = document.createElement('div');
+                    card.className = 'crm-card';
+                    card.setAttribute('draggable', 'true');
+                    card.setAttribute('data-deal-id', String(deal.id));
+                    card.setAttribute('role', 'button');
+                    card.setAttribute('tabindex', '0');
+                    card.setAttribute(
+                        'aria-label',
+                        linked
+                            ? 'Deal: ' + deal.name + '. Linked contact: ' + linked.name + '. Click to edit contact.'
+                            : 'Deal: ' + deal.name + '. No linked contact. Click to add one.'
+                    );
+                    card.innerHTML =
+                        '<div class="crm-card-top">' +
+                        '<span class="crm-card-co">' + esc(deal.company) + '</span>' +
+                        '<button type="button" draggable="false" class="crm-card-more" data-del="' + deal.id + '" aria-label="Remove deal">' +
+                        '<i data-lucide="more-horizontal" class="icon-16"></i></button></div>' +
+                        '<h4 class="crm-card-title">' + esc(deal.name) + '</h4>' +
+                        (linked
+                            ? '<p class="crm-card-contact">' + esc(linked.name) + '</p>'
+                            : '') +
+                        '<div class="crm-card-foot">' +
+                        '<span class="crm-card-value">' + esc(deal.value) + '</span>' +
+                        '<div class="crm-avatar-stack"><div class="crm-avatar">' +
+                        esc(av) +
+                        '</div></div></div>';
+                    col.appendChild(card);
+
+                    card.addEventListener('dragstart', function (e) {
+                        card.setAttribute('data-crm-dragging', '1');
+                        e.dataTransfer.setData('text/plain', String(deal.id));
+                        e.dataTransfer.effectAllowed = 'move';
+                        card.classList.add('crm-card--dragging');
+                    });
+                    card.addEventListener('dragend', function () {
+                        card.classList.remove('crm-card--dragging');
+                        document.querySelectorAll('.crm-column-drop.crm-drop-hover').forEach(function (z) {
+                            z.classList.remove('crm-drop-hover');
+                        });
+                        setTimeout(function () {
+                            card.removeAttribute('data-crm-dragging');
+                        }, 200);
+                    });
+                    card.addEventListener('click', function (e) {
+                        if (card.getAttribute('data-crm-dragging')) return;
+                        if (e.target.closest('.crm-card-more')) return;
+                        e.preventDefault();
+                        if (deal.contactId != null) {
+                            openContactModal(deal.contactId, { sheet: true });
+                        } else {
+                            pendingDealIdForNewContact = deal.id;
+                            openContactModal(null, { sheet: true, dealName: deal.name });
+                        }
+                    });
+                    card.addEventListener('keydown', function (e) {
+                        if (e.key !== 'Enter' && e.key !== ' ') return;
+                        if (e.target.closest('.crm-card-more')) return;
+                        e.preventDefault();
+                        card.click();
+                    });
+                });
+
+                document.querySelectorAll('.crm-card-more').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        var id = Number(btn.getAttribute('data-del'));
+                        dealStore.removeById(id);
+                        refreshCurrentView();
+                    });
+                });
+
+                updateCounts();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function renderContacts() {
+                var tbody = document.getElementById('contactTableBody');
+                tbody.innerHTML = '';
+                var q = searchQuery.trim();
+                var list = q ? coffee.crm.searchContacts(base, q) : cStore.list();
+                if (list.length === 0) {
+                    var empty = document.createElement('tr');
+                    empty.innerHTML =
+                        '<td colspan="7" class="crm-muted" style="padding:2rem;text-align:center;">No contacts yet — use <strong>New contact</strong>.</td>';
+                    tbody.appendChild(empty);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    return;
+                }
+                list.forEach(function (c) {
+                    var linkedDeals = dealStore.forContact(c.id);
+                    var dealsCell = '—';
+                    if (linkedDeals.length > 0) {
+                        var namesJoined = linkedDeals
+                            .map(function (d) {
+                                return d.name;
+                            })
+                            .join(', ');
+                        var short = namesJoined.length > 56 ? namesJoined.slice(0, 56) + '…' : namesJoined;
+                        dealsCell =
+                            '<span class="crm-mono-val" style="font-size:0.75rem;">' +
+                            linkedDeals.length +
+                            '</span> · <span class="crm-muted" style="font-size:0.7rem;">' +
+                            esc(short) +
+                            '</span>';
+                    }
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td><div class="crm-contact-cell">' +
+                        '<div class="crm-contact-avatar">' +
+                        esc(initials(c.name)) +
+                        '</div>' +
+                        '<span style="font-size:0.875rem;font-weight:500;">' +
+                        esc(c.name) +
+                        '</span></div></td>' +
+                        '<td class="crm-muted" style="font-size:0.875rem;">' +
+                        esc(coffee.crm.companyLabel(base, c)) +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.875rem;">' +
+                        esc(c.email) +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.875rem;">' +
+                        esc(c.phone) +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.75rem;max-width:12rem;">' +
+                        dealsCell +
+                        '</td>' +
+                        '<td class="crm-muted">' +
+                        esc(c.updatedAt || '—') +
+                        '</td>' +
+                        '<td class="crm-table-actions">' +
+                        '<button type="button" class="crm-link-btn" data-edit-ct="' +
+                        c.id +
+                        '">Edit</button>' +
+                        '<button type="button" class="crm-link-btn crm-link-danger" data-del-ct="' +
+                        c.id +
+                        '">Delete</button></td>';
+                    tbody.appendChild(tr);
+                });
+                tbody.querySelectorAll('[data-edit-ct]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        openContactModal(Number(btn.getAttribute('data-edit-ct')));
+                    });
+                });
+                tbody.querySelectorAll('[data-del-ct]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        if (!confirm('Remove this contact?')) return;
+                        cStore.removeById(Number(btn.getAttribute('data-del-ct')));
+                        refreshCurrentView();
+                    });
+                });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function renderCompanies() {
+                var tbody = document.getElementById('companyTableBody');
+                if (!tbody) return;
+                tbody.innerHTML = '';
+                var q = searchQuery.trim();
+                var list = q ? coffee.crm.searchCompanies(base, q) : coStore.list();
+                if (list.length === 0) {
+                    var empty = document.createElement('tr');
+                    empty.innerHTML =
+                        '<td colspan="6" class="crm-muted" style="padding:2rem;text-align:center;">No companies — use <strong>New company</strong>.</td>';
+                    tbody.appendChild(empty);
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
+                    return;
+                }
+                list.forEach(function (co) {
+                    var linkedDeals = dealStore.forCompany(co.id);
+                    var dealsCell =
+                        linkedDeals.length === 0
+                            ? '—'
+                            : '<span class="crm-mono-val" style="font-size:0.75rem;">' +
+                              linkedDeals.length +
+                              '</span>';
+                    var tr = document.createElement('tr');
+                    tr.innerHTML =
+                        '<td style="font-size:0.875rem;font-weight:500;">' +
+                        esc(co.name) +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.875rem;">' +
+                        esc(co.domain || '—') +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.875rem;">' +
+                        esc(co.industry || '—') +
+                        '</td>' +
+                        '<td class="crm-muted" style="font-size:0.75rem;">' +
+                        dealsCell +
+                        '</td>' +
+                        '<td class="crm-muted">' +
+                        esc(co.updatedAt || '—') +
+                        '</td>' +
+                        '<td class="crm-table-actions">' +
+                        '<button type="button" class="crm-link-btn" data-edit-co="' +
+                        co.id +
+                        '">Edit</button>' +
+                        '<button type="button" class="crm-link-btn crm-link-danger" data-del-co="' +
+                        co.id +
+                        '">Delete</button></td>';
+                    tbody.appendChild(tr);
+                });
+                tbody.querySelectorAll('[data-edit-co]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        openCompanyModal(Number(btn.getAttribute('data-edit-co')));
+                    });
+                });
+                tbody.querySelectorAll('[data-del-co]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        if (!confirm('Remove this company?')) return;
+                        coStore.removeById(Number(btn.getAttribute('data-del-co')));
+                        fillAllCompanySelects();
+                        renderPipeline();
+                        renderContacts();
+                        renderCompanies();
+                        renderActivities();
+                    });
+                });
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            function renderActivities() {
+                var ul = document.getElementById('activityList');
+                if (!ul) return;
+                ul.innerHTML = '';
+                var q = searchQuery.trim();
+                var list = q ? coffee.crm.searchActivities(base, q) : aStore.list();
+                if (list.length === 0) {
+                    var li = document.createElement('li');
+                    li.className = 'crm-muted';
+                    li.style.cssText = 'padding:2rem;text-align:center;';
+                    li.textContent = 'No activities — use Log activity.';
+                    ul.appendChild(li);
+                    return;
+                }
+                list.forEach(function (a) {
+                    var parts = [];
+                    if (a.contactId != null) {
+                        var ct = cStore.get(a.contactId);
+                        if (ct) parts.push('Contact: ' + ct.name);
+                    }
+                    if (a.dealId != null) {
+                        var d = dealStore.get(a.dealId);
+                        if (d) parts.push('Deal: ' + d.name);
+                    }
+                    if (a.companyId != null) {
+                        var c = coStore.get(a.companyId);
+                        if (c) parts.push('Company: ' + c.name);
+                    }
+                    var li = document.createElement('li');
+                    li.className = 'crm-activity-item';
+                    li.innerHTML =
+                        '<div class="crm-activity-type">' +
+                        esc(String(a.type || 'note')) +
+                        '</div>' +
+                        '<div style="font-size:0.9rem;line-height:1.4;">' +
+                        esc(a.body) +
+                        '</div>' +
+                        '<div class="crm-activity-meta">' +
+                        esc(a.atLabel || '—') +
+                        (parts.length ? ' · ' + esc(parts.join(' · ')) : '') +
+                        '</div>' +
+                        '<div style="margin-top:0.5rem;">' +
+                        '<button type="button" class="crm-link-btn crm-link-danger" data-del-act="' +
+                        a.id +
+                        '">Delete</button></div>';
+                    ul.appendChild(li);
+                });
+                ul.querySelectorAll('[data-del-act]').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        aStore.removeById(Number(btn.getAttribute('data-del-act')));
+                        renderActivities();
+                    });
+                });
+            }
+
+            function refreshCurrentView() {
+                if (currentView === 'pipeline') renderPipeline();
+                else if (currentView === 'contacts') renderContacts();
+                else if (currentView === 'companies') renderCompanies();
+                else if (currentView === 'activities') renderActivities();
+            }
+
+            function updateCounts() {
+                var c = {};
+                c[S.LEAD] = 0;
+                c[S.PROGRESS] = 0;
+                c[S.CLOSING] = 0;
+                dealsForView().forEach(function (d) {
+                    var st = coffee.crm.normalizeStage(d.stage);
+                    if (c[st] !== undefined) c[st]++;
+                });
+                document.getElementById('count-lead').textContent = c[S.LEAD];
+                document.getElementById('count-progress').textContent = c[S.PROGRESS];
+                document.getElementById('count-closing').textContent = c[S.CLOSING];
+            }
+
+            /** Kanban drop targets — one-time bind on #view-pipeline */
+            function setupPipelineDragDrop() {
+                var board = document.getElementById('view-pipeline');
+                if (!board || board.getAttribute('data-crm-dnd') === '1') return;
+                board.setAttribute('data-crm-dnd', '1');
+
+                board.addEventListener('dragover', function (e) {
+                    var zone = e.target.closest('.crm-column-drop');
+                    if (!zone) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    document.querySelectorAll('.crm-column-drop.crm-drop-hover').forEach(function (z) {
+                        z.classList.remove('crm-drop-hover');
+                    });
+                    zone.classList.add('crm-drop-hover');
+                });
+
+                board.addEventListener('drop', function (e) {
+                    var zone = e.target.closest('.crm-column-drop');
+                    if (!zone) return;
+                    e.preventDefault();
+                    zone.classList.remove('crm-drop-hover');
+                    var id = Number(e.dataTransfer.getData('text/plain'));
+                    var stage = zone.getAttribute('data-crm-stage');
+                    if (!id || !stage) return;
+                    dealStore.setStage(id, stage);
+                    refreshCurrentView();
+                });
+            }
+
+            function switchView(view) {
+                currentView = view;
+                document.getElementById('view-pipeline').classList.toggle('hidden', view !== 'pipeline');
+                document.getElementById('view-contacts').classList.toggle('hidden', view !== 'contacts');
+                var vc = document.getElementById('view-companies');
+                var va = document.getElementById('view-activities');
+                if (vc) vc.classList.toggle('hidden', view !== 'companies');
+                if (va) va.classList.toggle('hidden', view !== 'activities');
+                document.getElementById('btn-pipeline').classList.toggle('active', view === 'pipeline');
+                document.getElementById('btn-contacts').classList.toggle('active', view === 'contacts');
+                var bc = document.getElementById('btn-companies');
+                var ba = document.getElementById('btn-activities');
+                if (bc) bc.classList.toggle('active', view === 'companies');
+                if (ba) ba.classList.toggle('active', view === 'activities');
+                var titles = {
+                    pipeline: 'Sales Pipeline',
+                    contacts: 'Contact directory',
+                    companies: 'Companies',
+                    activities: 'Activities'
+                };
+                document.getElementById('viewTitle').textContent = titles[view] || 'CRM';
+                document.getElementById('btn-new-deal').classList.toggle('hidden', view !== 'pipeline');
+                document.getElementById('btn-new-contact').classList.toggle('hidden', view !== 'contacts');
+                var bnc = document.getElementById('btn-new-company');
+                var bna = document.getElementById('btn-new-activity');
+                if (bnc) bnc.classList.toggle('hidden', view !== 'companies');
+                if (bna) bna.classList.toggle('hidden', view !== 'activities');
+                var si = document.getElementById('crm-search-input');
+                if (si) {
+                    var ph = {
+                        pipeline: 'Search deals…',
+                        contacts: 'Search contacts…',
+                        companies: 'Search companies…',
+                        activities: 'Search activities…'
+                    };
+                    si.placeholder = ph[view] || 'Search…';
+                }
+                refreshCurrentView();
+            }
+
+            function fillCompanyOptions(selectEl, preserveValue, includeEmptyLabel, emptyText) {
+                if (!selectEl) return;
+                var v = preserveValue ? selectEl.value : '';
+                selectEl.innerHTML = '';
+                var o0 = document.createElement('option');
+                o0.value = '';
+                o0.textContent = emptyText || '— None —';
+                selectEl.appendChild(o0);
+                coStore.list().forEach(function (co) {
+                    var opt = document.createElement('option');
+                    opt.value = String(co.id);
+                    opt.textContent = co.name;
+                    selectEl.appendChild(opt);
+                });
+                if (v && [].some.call(selectEl.options, function (o) { return o.value === v; })) {
+                    selectEl.value = v;
+                }
+            }
+
+            function fillAllCompanySelects() {
+                fillCompanyOptions(document.getElementById('dealCompanyId'), true, true, '— From contact / none —');
+                fillCompanyOptions(document.getElementById('contactCompanyId'), true, true, '— Custom name below —');
+                fillCompanyOptions(document.getElementById('activityCompanyId'), true, true, '— None —');
+            }
+
+            function fillDealContactSelect() {
+                var sel = document.getElementById('dealContactId');
+                var v = sel.value;
+                sel.innerHTML = '<option value="">— None —</option>';
+                cStore.list().forEach(function (c) {
+                    var opt = document.createElement('option');
+                    opt.value = String(c.id);
+                    opt.textContent =
+                        c.name +
+                        (coffee.crm.companyLabel(base, c) ? ' · ' + coffee.crm.companyLabel(base, c) : '');
+                    sel.appendChild(opt);
+                });
+                if (v && [].some.call(sel.options, function (o) { return o.value === v; })) {
+                    sel.value = v;
+                }
+                fillAllCompanySelects();
+            }
+
+            function fillActivityFormSelects() {
+                var types = coffee.crm.ACTIVITY_TYPES || ['note'];
+                var ts = document.getElementById('activityType');
+                var vt = ts.value;
+                ts.innerHTML = '';
+                types.forEach(function (t) {
+                    var opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = t;
+                    ts.appendChild(opt);
+                });
+                if (vt && [].some.call(ts.options, function (o) { return o.value === vt; })) ts.value = vt;
+
+                var sc = document.getElementById('activityContactId');
+                var vc = sc.value;
+                sc.innerHTML = '<option value="">— None —</option>';
+                cStore.list().forEach(function (c) {
+                    var opt = document.createElement('option');
+                    opt.value = String(c.id);
+                    opt.textContent = c.name;
+                    sc.appendChild(opt);
+                });
+                if (vc && [].some.call(sc.options, function (o) { return o.value === vc; })) sc.value = vc;
+
+                var sd = document.getElementById('activityDealId');
+                var vd = sd.value;
+                sd.innerHTML = '<option value="">— None —</option>';
+                dealStore.list().forEach(function (d) {
+                    var opt = document.createElement('option');
+                    opt.value = String(d.id);
+                    opt.textContent = d.name;
+                    sd.appendChild(opt);
+                });
+                if (vd && [].some.call(sd.options, function (o) { return o.value === vd; })) sd.value = vd;
+
+                fillCompanyOptions(document.getElementById('activityCompanyId'), true, true, '— None —');
+            }
+
+            function openDealModal() {
+                fillDealContactSelect();
+                document.getElementById('dealCompanyId').value = '';
+                document.getElementById('modal-deal').classList.add('open');
+                document.getElementById('modal-deal').setAttribute('aria-hidden', 'false');
+            }
+
+            function closeDealModal() {
+                document.getElementById('modal-deal').classList.remove('open');
+                document.getElementById('modal-deal').setAttribute('aria-hidden', 'true');
+            }
+
+            function saveDeal() {
+                var name = document.getElementById('dealName').value.trim();
+                var val = document.getElementById('dealValue').value.trim();
+                if (!name) return;
+                var cid = document.getElementById('dealContactId').value.trim();
+                var gid = document.getElementById('dealCompanyId').value.trim();
+                var payload = { name: name, value: val };
+                if (cid) payload.contactId = cid;
+                if (gid) payload.companyId = gid;
+                dealStore.add(payload);
+                refreshCurrentView();
+                closeDealModal();
+                document.getElementById('dealName').value = '';
+                document.getElementById('dealValue').value = '';
+                document.getElementById('dealContactId').value = '';
+                document.getElementById('dealCompanyId').value = '';
+            }
+
+            /**
+             * @param {number|null|undefined} editId
+             * @param {{ sheet?: boolean, dealName?: string }} [opts]
+             */
+            function openContactModal(editId, opts) {
+                opts = opts || {};
+                var useSheet = !!opts.sheet;
+                var modal = document.getElementById('modal-contact');
+                var panel = modal.querySelector('.crm-modal-panel');
+                panel.classList.remove('crm-modal-panel--in');
+                modal.classList.remove('crm-modal--sheet');
+
+                fillAllCompanySelects();
+                contactEditingId = editId == null ? null : Number(editId);
+                var title = document.getElementById('contact-modal-title');
+                var selCo = document.getElementById('contactCompanyId');
+                if (contactEditingId) {
+                    title.textContent = 'Edit contact';
+                    var c = cStore.get(contactEditingId);
+                    if (c) {
+                        document.getElementById('contactName').value = c.name || '';
+                        document.getElementById('contactCompany').value =
+                            c.companyId != null ? '' : c.company || '';
+                        if (c.companyId != null) {
+                            selCo.value = String(c.companyId);
+                        } else {
+                            selCo.value = '';
+                        }
+                        document.getElementById('contactEmail').value = c.email || '';
+                        document.getElementById('contactPhone').value = c.phone || '';
+                        document.getElementById('contactNotes').value = c.notes || '';
+                    }
+                } else {
+                    title.textContent = opts.dealName
+                        ? 'New contact · ' + opts.dealName
+                        : 'New contact';
+                    document.getElementById('contactName').value = '';
+                    document.getElementById('contactCompany').value = '';
+                    selCo.value = '';
+                    document.getElementById('contactEmail').value = '';
+                    document.getElementById('contactPhone').value = '';
+                    document.getElementById('contactNotes').value = '';
+                }
+
+                modal.classList.add('open');
+                modal.setAttribute('aria-hidden', 'false');
+                if (useSheet) {
+                    modal.classList.add('crm-modal--sheet');
+                    requestAnimationFrame(function () {
+                        requestAnimationFrame(function () {
+                            panel.classList.add('crm-modal-panel--in');
+                        });
+                    });
+                }
+            }
+
+            function closeContactModal() {
+                var modal = document.getElementById('modal-contact');
+                var panel = modal.querySelector('.crm-modal-panel');
+                pendingDealIdForNewContact = null;
+
+                function finishClose() {
+                    modal.classList.remove('open', 'crm-modal--sheet');
+                    panel.classList.remove('crm-modal-panel--in');
+                    modal.setAttribute('aria-hidden', 'true');
+                    contactEditingId = null;
+                }
+
+                if (modal.classList.contains('crm-modal--sheet')) {
+                    panel.classList.remove('crm-modal-panel--in');
+                    var done = false;
+                    var t = window.setTimeout(function () {
+                        if (!done) {
+                            done = true;
+                            finishClose();
+                        }
+                    }, 420);
+                    panel.addEventListener(
+                        'transitionend',
+                        function onTe(ev) {
+                            if (ev.target !== panel || ev.propertyName !== 'transform') return;
+                            panel.removeEventListener('transitionend', onTe);
+                            if (!done) {
+                                done = true;
+                                window.clearTimeout(t);
+                                finishClose();
+                            }
+                        }
+                    );
+                } else {
+                    finishClose();
+                }
+            }
+
+            function saveContact() {
+                var name = document.getElementById('contactName').value.trim();
+                if (!name) return;
+                var gid = document.getElementById('contactCompanyId').value.trim();
+                var payload = {
+                    name: name,
+                    company: document.getElementById('contactCompany').value.trim(),
+                    email: document.getElementById('contactEmail').value.trim(),
+                    phone: document.getElementById('contactPhone').value.trim(),
+                    notes: document.getElementById('contactNotes').value.trim()
+                };
+                if (gid) {
+                    payload.companyId = gid;
+                } else {
+                    payload.companyId = null;
+                }
+                var newContact = null;
+                var linkDealId = pendingDealIdForNewContact;
+                if (contactEditingId) {
+                    cStore.update(contactEditingId, payload);
+                } else {
+                    newContact = cStore.add(payload);
+                }
+                if (linkDealId != null && newContact && newContact.id) {
+                    dealStore.update(linkDealId, { contactId: newContact.id });
+                }
+                pendingDealIdForNewContact = null;
+                closeContactModal();
+                fillAllCompanySelects();
+                refreshCurrentView();
+            }
+
+            function openCompanyModal(editId) {
+                fillAllCompanySelects();
+                companyEditingId = editId == null ? null : Number(editId);
+                var title = document.getElementById('company-modal-title');
+                if (companyEditingId) {
+                    title.textContent = 'Edit company';
+                    var co = coStore.get(companyEditingId);
+                    if (co) {
+                        document.getElementById('companyName').value = co.name || '';
+                        document.getElementById('companyDomain').value = co.domain || '';
+                        document.getElementById('companyIndustry').value = co.industry || '';
+                        document.getElementById('companyNotes').value = co.notes || '';
+                    }
+                } else {
+                    title.textContent = 'New company';
+                    document.getElementById('companyName').value = '';
+                    document.getElementById('companyDomain').value = '';
+                    document.getElementById('companyIndustry').value = '';
+                    document.getElementById('companyNotes').value = '';
+                }
+                document.getElementById('modal-company').classList.add('open');
+                document.getElementById('modal-company').setAttribute('aria-hidden', 'false');
+            }
+
+            function closeCompanyModal() {
+                document.getElementById('modal-company').classList.remove('open');
+                document.getElementById('modal-company').setAttribute('aria-hidden', 'true');
+                companyEditingId = null;
+            }
+
+            function saveCompany() {
+                var name = document.getElementById('companyName').value.trim();
+                if (!name) return;
+                var payload = {
+                    name: name,
+                    domain: document.getElementById('companyDomain').value.trim(),
+                    industry: document.getElementById('companyIndustry').value.trim(),
+                    notes: document.getElementById('companyNotes').value.trim()
+                };
+                if (companyEditingId) {
+                    coStore.update(companyEditingId, payload);
+                } else {
+                    coStore.add(payload);
+                }
+                closeCompanyModal();
+                fillAllCompanySelects();
+                refreshCurrentView();
+            }
+
+            function openActivityModal() {
+                fillActivityFormSelects();
+                document.getElementById('activityBody').value = '';
+                document.getElementById('modal-activity').classList.add('open');
+                document.getElementById('modal-activity').setAttribute('aria-hidden', 'false');
+            }
+
+            function closeActivityModal() {
+                document.getElementById('modal-activity').classList.remove('open');
+                document.getElementById('modal-activity').setAttribute('aria-hidden', 'true');
+            }
+
+            function saveActivity() {
+                var body = document.getElementById('activityBody').value.trim();
+                if (!body) return;
+                var payload = {
+                    type: document.getElementById('activityType').value,
+                    body: body
+                };
+                var ac = document.getElementById('activityContactId').value.trim();
+                var ad = document.getElementById('activityDealId').value.trim();
+                var ag = document.getElementById('activityCompanyId').value.trim();
+                if (ac) payload.contactId = ac;
+                if (ad) payload.dealId = ad;
+                if (ag) payload.companyId = ag;
+                aStore.add(payload);
+                closeActivityModal();
+                renderActivities();
+            }
+
+            async function boot() {
+                coffee.injectTheme('dark');
+                base = coffee.base('crm');
+                if (!base || !coffee.crm) {
+                    console.error('Coffee.CRM: load coffee-base.js and coffee-crm.js after que/wire/drive.');
+                    return;
+                }
+                await base.init();
+                dealStore = coffee.crm.dealStore(base);
+                cStore = coffee.crm.contactStore(base);
+                coStore = coffee.crm.companyStore(base);
+                aStore = coffee.crm.activityStore(base);
+                coffee.crm.bootstrapCrm(base);
+                fillAllCompanySelects();
+                setupPipelineDragDrop();
+
+                document.getElementById('btn-pipeline').addEventListener('click', function () {
+                    switchView('pipeline');
+                });
+                document.getElementById('btn-contacts').addEventListener('click', function () {
+                    switchView('contacts');
+                });
+                var bcomp = document.getElementById('btn-companies');
+                if (bcomp) bcomp.addEventListener('click', function () { switchView('companies'); });
+                var bact = document.getElementById('btn-activities');
+                if (bact) bact.addEventListener('click', function () { switchView('activities'); });
+
+                document.getElementById('btn-new-deal').addEventListener('click', openDealModal);
+                document.getElementById('btn-new-contact').addEventListener('click', function () {
+                    openContactModal(null);
+                });
+                var bnco = document.getElementById('btn-new-company');
+                if (bnco) bnco.addEventListener('click', function () { openCompanyModal(null); });
+                var bnac = document.getElementById('btn-new-activity');
+                if (bnac) bnac.addEventListener('click', openActivityModal);
+
+                var searchIn = document.getElementById('crm-search-input');
+                if (searchIn) {
+                    searchIn.addEventListener('input', function () {
+                        searchQuery = searchIn.value;
+                        refreshCurrentView();
+                    });
+                }
+
+                document.getElementById('modal-deal-cancel').addEventListener('click', closeDealModal);
+                document.getElementById('modal-deal-save').addEventListener('click', saveDeal);
+                document.getElementById('modal-deal').addEventListener('click', function (e) {
+                    if (e.target.id === 'modal-deal') closeDealModal();
+                });
+                document.getElementById('modal-contact-cancel').addEventListener('click', closeContactModal);
+                document.getElementById('modal-contact-save').addEventListener('click', saveContact);
+                document.getElementById('modal-contact').addEventListener('click', function (e) {
+                    if (e.target.id === 'modal-contact') closeContactModal();
+                });
+                document.getElementById('modal-company-cancel').addEventListener('click', closeCompanyModal);
+                document.getElementById('modal-company-save').addEventListener('click', saveCompany);
+                document.getElementById('modal-company').addEventListener('click', function (e) {
+                    if (e.target.id === 'modal-company') closeCompanyModal();
+                });
+                document.getElementById('modal-activity-cancel').addEventListener('click', closeActivityModal);
+                document.getElementById('modal-activity-save').addEventListener('click', saveActivity);
+                document.getElementById('modal-activity').addEventListener('click', function (e) {
+                    if (e.target.id === 'modal-activity') closeActivityModal();
+                });
+
+                refreshCurrentView();
+                if (typeof lucide !== 'undefined') lucide.createIcons();
+            }
+
+            boot();
+        })();
+    </script>
+</body>
+</html>

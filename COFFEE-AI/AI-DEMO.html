@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.ai Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="./coffee-ai.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const STORAGE_KEYS = { github: 'ai-api-key-github', openai: 'ai-api-key-openai', gemini: 'ai-api-key-gemini' };
+    const DEFAULT_SYSTEM = 'You are a helpful assistant. Reply briefly.';
+
+    const header = coffee.heading('coffee.ai', 1);
+    const sub = coffee.para('Provider-agnostic completions. Returns full JSON response.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const msgInput = coffee.input({
+      placeholder: 'Type a message...',
+      style: { flex: 1, minWidth: '200px' }
+    });
+
+    const modelSelect = coffee.select({
+      options: coffee.ai.providers.github.models.map(m => ({ value: m, label: m })),
+      value: 'gpt-4o',
+      style: { minWidth: '180px' }
+    });
+
+    const providerSelect = coffee.select({
+      options: [
+        { value: 'github', label: 'GitHub Models' },
+        { value: 'openai', label: 'OpenAI' },
+        { value: 'gemini', label: 'Gemini' },
+        { value: 'ollama', label: 'Ollama (local)' }
+      ],
+      value: 'github',
+      style: { minWidth: '140px' }
+    });
+
+    providerSelect.onchange = () => {
+      const p = coffee.ai.providers[providerSelect.value];
+      modelSelect.innerHTML = '';
+      (p?.models || []).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modelSelect.appendChild(opt);
+      });
+      if (modelSelect.options.length) modelSelect.value = modelSelect.options[0].value;
+    };
+
+    const outEl = document.createElement('pre');
+    outEl.style.cssText = 'background:var(--coffee-bg-surface);padding:var(--coffee-space-md);border-radius:var(--coffee-radius-sm);font-size:12px;overflow:auto;min-height:200px;max-height:400px;margin-top:var(--coffee-space-md);color:var(--coffee-text-primary,#eee);white-space:pre-wrap;word-break:break-word';
+
+    function getApiKey(provider) {
+      const key = STORAGE_KEYS[provider];
+      return key ? (coffee.load(key) || '') : '';
+    }
+
+    function openSettings() {
+      const githubInput = coffee.input({
+        id: 'ai-key-github',
+        type: 'password',
+        placeholder: 'GitHub token (ghp_xxx)',
+        value: getApiKey('github'),
+        style: { width: '100%', marginBottom: '8px' }
+      });
+      const openaiInput = coffee.input({
+        id: 'ai-key-openai',
+        type: 'password',
+        placeholder: 'OpenAI key (sk-xxx)',
+        value: getApiKey('openai'),
+        style: { width: '100%', marginBottom: '8px' }
+      });
+      const geminiInput = coffee.input({
+        id: 'ai-key-gemini',
+        type: 'password',
+        placeholder: 'Gemini key (from Google AI Studio)',
+        value: getApiKey('gemini'),
+        style: { width: '100%', marginBottom: '12px' }
+      });
+      const content = coffee.card([
+        coffee.para('API keys per provider (BYOK). Stored via coffee.save.', { style: { color: 'var(--coffee-text-muted)', marginBottom: '12px' } }),
+        coffee.label('GitHub Models', githubInput),
+        githubInput,
+        coffee.label('OpenAI', openaiInput),
+        openaiInput,
+        coffee.label('Gemini', geminiInput),
+        geminiInput,
+        coffee.row([
+          coffee.button('Save', () => {
+            coffee.save(STORAGE_KEYS.github, githubInput.value);
+            coffee.save(STORAGE_KEYS.openai, openaiInput.value);
+            coffee.save(STORAGE_KEYS.gemini, geminiInput.value);
+            if (coffee.toast) coffee.toast('API keys saved', 'success');
+            modalRef.close();
+          }),
+          coffee.button('Clear all', () => {
+            coffee.remove(STORAGE_KEYS.github);
+            coffee.remove(STORAGE_KEYS.openai);
+            coffee.remove(STORAGE_KEYS.gemini);
+            githubInput.value = '';
+            openaiInput.value = '';
+            geminiInput.value = '';
+            if (coffee.toast) coffee.toast('API keys cleared', 'info');
+          }, { backgroundColor: 'var(--coffee-panel)' })
+        ], { style: { gap: '8px' } })
+      ], { style: { width: '100%' } });
+
+      const modalRef = coffee.modal(content, {
+        title: 'API Keys',
+        onClose: () => {},
+        closeOnOverlay: true
+      });
+    }
+
+    const sendBtn = coffee.button('Send', async () => {
+      const msg = msgInput.value.trim();
+      if (!msg) {
+        if (coffee.toast) coffee.toast('Enter a message', 'warning');
+        return;
+      }
+
+      const provider = providerSelect.value;
+      const apiKey = getApiKey(provider);
+      if (provider !== 'ollama' && !apiKey) {
+        if (coffee.toast) coffee.toast('Set API key first (Settings)', 'warning');
+        openSettings();
+        return;
+      }
+
+      sendBtn.disabled = true;
+      outEl.textContent = 'Loading...';
+      outEl.style.color = 'var(--coffee-text-muted)';
+
+      try {
+        const response = await coffee.ai.complete({
+          provider,
+          apiKey,
+          model: modelSelect.value,
+          messages: [{ role: 'user', content: msg }],
+          system: DEFAULT_SYSTEM,
+          temperature: 0.7,
+          maxTokens: 500
+        });
+
+        outEl.textContent = JSON.stringify(response, null, 2);
+        outEl.style.color = 'var(--coffee-text-primary,#eee)';
+        if (coffee.toast) coffee.toast('Response received', 'success');
+      } catch (e) {
+        outEl.textContent = 'Error: ' + (e.message || e) + (e.status ? ' (HTTP ' + e.status + ')' : '');
+        outEl.style.color = '#f87171';
+        if (coffee.toast) coffee.toast(e.message || 'Request failed', 'error');
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+
+    const settingsBtn = coffee.button('⚙ API Keys', openSettings, { backgroundColor: 'var(--coffee-panel)' });
+
+    const inputRow = coffee.row([msgInput, modelSelect, providerSelect, sendBtn, settingsBtn], {
+      style: { flexWrap: 'wrap', gap: '8px', width: '100%' }
+    });
+
+    const card = coffee.card([header, sub, inputRow, outEl], {
+      style: { width: '100%', maxWidth: '100%' }
+    });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

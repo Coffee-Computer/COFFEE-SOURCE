@@ -1,0 +1,89 @@
+/**
+ * Community Edition splash — title chrome (no COFFEE_HUB dependency; safe when repo moves).
+ */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+.ce-hub-coffee-title {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 5rem;
+  font-weight: bold;
+  color: var(--accent-light, #8b5e46);
+  margin: 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  animation: ceCoffeePulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes ceCoffeePulse {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.05);
+    opacity: 0.92;
+  }
+}
+
+/* MS-DOS–style blocky label + light blue glow animation */
+.ce-edition {
+  font-family: 'Press Start 2P', ui-monospace, monospace;
+  font-size: clamp(0.45rem, 2.8vw, 0.7rem);
+  font-weight: 400;
+  line-height: 1.8;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0.35rem 0 0;
+  color: #7dd3fc;
+  animation: ceEditionPulse 2.4s ease-in-out infinite;
+  text-shadow:
+    0 0 8px rgba(125, 211, 252, 0.85),
+    0 0 20px rgba(56, 189, 248, 0.45);
+}
+
+@keyframes ceEditionPulse {
+  0%,
+  100% {
+    color: #7dd3fc;
+    text-shadow:
+      0 0 8px rgba(125, 211, 252, 0.85),
+      0 0 20px rgba(56, 189, 248, 0.45);
+  }
+  50% {
+    color: #bae6fd;
+    text-shadow:
+      0 0 14px rgba(186, 230, 253, 0.95),
+      0 0 28px rgba(125, 211, 252, 0.55);
+  }
+}
+
+/* Purple → red devil button */
+.btn-anti-social {
+  background: linear-gradient(135deg, #6d28d9 0%, #a21caf 35%, #dc2626 70%, #7f1d1d 100%) !important;
+  background-size: 220% 220% !important;
+  color: #fff !important;
+  animation: btnAntiSocialMove 5s ease infinite;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.btn-anti-social:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+@keyframes btnAntiSocialMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .ce-hub-coffee-title {
+    font-size: 2.5rem;
+  }
+}

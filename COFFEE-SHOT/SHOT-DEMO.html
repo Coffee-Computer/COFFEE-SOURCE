@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.shot — demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-FILTER/coffee-filter.js"></script>
+  <script src="./coffee-shot.js"></script>
+  <style>
+    html, body { margin: 0; min-height: 100%; font-family: system-ui, sans-serif; }
+    #app { max-width: 28rem; margin: 0 auto; padding: 16px; }
+    #demo-video {
+      width: 100%;
+      max-height: 240px;
+      background: #111;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+    #out {
+      max-width: 100%;
+      margin-top: 12px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+    var app = document.getElementById('app');
+    app.appendChild(coffee.heading('coffee.shot', 1));
+    app.appendChild(coffee.para('Camera + filterCss object + capture. Serve over HTTP.', {
+      style: { color: 'var(--coffee-text-muted)', fontSize: '13px' }
+    }));
+
+    var video = document.createElement('video');
+    video.id = 'demo-video';
+    video.setAttribute('autoplay', '');
+    video.setAttribute('playsinline', '');
+    video.setAttribute('muted', '');
+    app.appendChild(video);
+
+    var preview = document.createElement('img');
+    preview.id = 'out';
+    preview.alt = 'last capture';
+    app.appendChild(preview);
+
+    var filterOn = false;
+    var streamRef = null;
+    var facingMode = 'user';
+
+    var row = coffee.row({ gap: '8px', style: { flexWrap: 'wrap', marginTop: '12px' } });
+    var flipDemo = coffee.button('Flip cam', function () {
+      if (!streamRef) return;
+      var next = facingMode === 'user' ? 'environment' : 'user';
+      coffee.switchCamera({
+        target: '#demo-video',
+        currentStream: streamRef,
+        facingMode: next,
+        audio: false
+      }).then(function (r) {
+        facingMode = next;
+        streamRef = r.stream;
+        coffee.shot.applyLive(video, filterOn ? { grayscale: 100 } : 'none');
+      }).catch(function () {
+        app.appendChild(coffee.msg('Flip not available.', 'info'));
+      });
+    }, { style: { fontSize: '12px' } });
+    row.appendChild(flipDemo);
+    row.appendChild(coffee.button('Snap', function () {
+      if (!video.videoWidth) {
+        app.appendChild(coffee.msg('Wait for camera…', 'info'));
+        return;
+      }
+      var f = filterOn ? { grayscale: 100 } : 'none';
+      var url = coffee.shot.capture(video, { filter: f, maxDim: 1280, format: 'png' });
+      preview.src = url;
+    }, { style: { fontWeight: '700' } }));
+
+    var noirBtn = coffee.button('Noir on', function () {
+      filterOn = !filterOn;
+      coffee.shot.applyLive(video, filterOn ? { grayscale: 100 } : 'none');
+      noirBtn.textContent = filterOn ? 'Noir off' : 'Noir on';
+    }, { style: { backgroundColor: 'var(--coffee-bg-surface)', color: 'var(--coffee-text-primary)', border: '1px solid var(--coffee-panel)' } });
+    row.appendChild(noirBtn);
+    app.appendChild(row);
+
+    window.addEventListener('beforeunload', function () {
+      if (streamRef) coffee.shot.stopStream(streamRef);
+    });
+
+    coffee.camera({ target: '#demo-video', facingMode: 'user', audio: false })
+      .then(function (r) {
+        streamRef = r.stream;
+      })
+      .catch(function () {
+        app.appendChild(coffee.msg('Camera needs HTTPS or localhost.', 'warning'));
+      });
+  </script>
+</body>
+</html>

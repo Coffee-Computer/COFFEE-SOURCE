@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POSIX1-POC — coffee-posix smoke</title>
+  <style>
+    body { font-family: ui-monospace, monospace; margin: 1rem; background: #111; color: #e8e8e8; }
+    pre { white-space: pre-wrap; word-break: break-all; background: #1a1a1a; padding: 1rem; border-radius: 8px; }
+    h1 { font-size: 1rem; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>COFFEE-POSIX smoke (module import)</h1>
+  <pre id="log"></pre>
+  <script type="module">
+    import {
+      resolvePath,
+      parsePosixLine,
+      posixIntentFromParse,
+      createPathSession,
+      intentToCashStep
+    } from '../coffee-posix.js';
+
+    const log = document.getElementById('log');
+    const lines = [];
+
+    function out(s) {
+      lines.push(s);
+      log.textContent = lines.join('\n');
+    }
+
+    out('resolvePath("", "a/b") → ' + JSON.stringify(resolvePath('', 'a/b')));
+    out('resolvePath("x", "../y") → ' + JSON.stringify(resolvePath('x', '../y')));
+
+    const s = createPathSession({ initialCwd: 'media' });
+    out('session pwd → ' + s.pwdDisplay());
+    out('apply ls → ' + JSON.stringify(s.applyLine('ls')));
+    out('cwd after ls → ' + s.getCwd());
+    out('apply cd .. → ' + JSON.stringify(s.applyLine('cd ..')));
+    out('cwd → ' + s.getCwd() + ' display ' + s.pwdDisplay());
+
+    const p = parsePosixLine('cat ./readme.txt');
+    if (p.ok) {
+      const i = posixIntentFromParse('docs', p);
+      out('intent cat from docs → ' + JSON.stringify(i));
+      if (i.ok) out('cash step → ' + JSON.stringify(intentToCashStep(i)));
+    }
+
+    out('--- OK ---');
+  </script>
+</body>
+</html>

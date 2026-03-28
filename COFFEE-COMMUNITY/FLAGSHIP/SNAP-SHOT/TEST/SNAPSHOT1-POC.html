@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snapshot - Y2K Photobooth</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&family=Space+Grotesk:wght@500;700&display=swap');
+
+        :root {
+            --hot-pink: #ff00ff;
+            --neon-blue: #00f2ff;
+            --retro-gray: #c0c0c0;
+            --win-bg: #008080;
+        }
+
+        body {
+            background-color: var(--win-bg);
+            font-family: 'Space Grotesk', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .win-border {
+            border: 3px solid;
+            border-color: #ffffff #808080 #808080 #ffffff;
+            background: var(--retro-gray);
+            padding: 4px;
+        }
+
+        .win-titlebar {
+            background: linear-gradient(90deg, #000080, #1084d0);
+            color: white;
+            padding: 3px 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .main-stage {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .camera-box {
+            position: relative;
+            background: black;
+            border: 5px solid #000;
+            box-shadow: 10px 10px 0px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 640px;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        video, #captured-preview {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .shutter-flash {
+            position: absolute;
+            inset: 0;
+            background: white;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .flash-anim {
+            animation: flash 0.4s ease-out;
+        }
+
+        @keyframes flash {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .snap-btn {
+            background: #ff4d4d;
+            border: 4px solid #990000;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #660000;
+            transition: all 0.1s;
+            margin-top: 20px;
+        }
+
+        .snap-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #660000;
+        }
+
+        .filmstrip {
+            height: 140px;
+            background: #222;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 0 20px;
+            overflow-x: auto;
+            border-top: 4px solid #444;
+        }
+
+        .photo-card {
+            min-width: 100px;
+            height: 100px;
+            background: white;
+            padding: 4px 4px 15px 4px;
+            transform: rotate(-2deg);
+            cursor: pointer;
+            transition: transform 0.2s;
+            box-shadow: 3px 3px 10px rgba(0,0,0,0.5);
+        }
+
+        .photo-card:hover {
+            transform: scale(1.1) rotate(0deg);
+            z-index: 10;
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+        }
+
+        .photo-card.active {
+            outline: 3px solid var(--neon-blue);
+            transform: scale(1.05) rotate(0deg);
+        }
+
+        .sidebar {
+            width: 200px;
+            background: var(--retro-gray);
+            border-left: 2px solid #808080;
+            padding: 15px;
+        }
+
+        .filter-btn {
+            width: 100%;
+            margin-bottom: 8px;
+            background: #eee;
+            border: 2px solid;
+            border-color: #fff #808080 #808080 #fff;
+            padding: 5px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .filter-btn:active {
+            border-color: #808080 #fff #fff #808080;
+        }
+
+        .filter-btn.active {
+            background: #000080;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="win-border m-1">
+        <div class="win-titlebar">
+            <div class="flex items-center gap-2">
+                <span class="text-lg">📸</span>
+                <span>SNAPSHOT_V1.EXE</span>
+            </div>
+            <div class="flex gap-1">
+                <button class="win-border px-2 py-0 bg-[#c0c0c0] text-black text-xs">_</button>
+                <button class="win-border px-2 py-0 bg-[#c0c0c0] text-black text-xs">X</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-grow overflow-hidden">
+        <!-- Main Area -->
+        <main class="main-stage">
+            <div class="camera-box win-border" id="container">
+                <div id="flash" class="shutter-flash"></div>
+                <video id="video" autoplay playsinline></video>
+                <img id="captured-preview" class="hidden">
+            </div>
+            
+            <div class="flex flex-col items-center">
+                <button id="snap" class="snap-btn"></button>
+                <span class="text-white mt-2 font-bold text-sm uppercase tracking-tighter" id="mode-text">Live Feed</span>
+            </div>
+        </main>
+
+        <!-- Filters Sidebar -->
+        <aside class="sidebar win-border m-1">
+            <h3 class="font-bold border-b border-black mb-4 text-sm">IMAGE_EFFECTS</h3>
+            <div id="filter-list">
+                <button class="filter-btn active" data-filter="none">NORMAL.JPG</button>
+                <button class="filter-btn" data-filter="grayscale(100%)">NOIR.RAW</button>
+                <button class="filter-btn" data-filter="sepia(100%)">RETRO.FILM</button>
+                <button class="filter-btn" data-filter="hue-rotate(90deg) saturate(200%)">CYBER.PUNK</button>
+                <button class="filter-btn" data-filter="invert(100%)">XRAY.OBJ</button>
+                <button class="filter-btn" data-filter="contrast(200%) brightness(150%)">POP_ART.FX</button>
+                <button class="filter-btn" data-filter="blur(5px)">DREAM.DLL</button>
+            </div>
+            
+            <div class="mt-8">
+                <button id="download" class="filter-btn bg-green-200 hidden">SAVE_TO_DISK</button>
+                <button id="back-to-cam" class="filter-btn bg-blue-200 hidden">RETRY_CAM</button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Filmstrip -->
+    <div class="filmstrip" id="filmstrip">
+        <!-- Photos will appear here -->
+        <div class="text-zinc-500 text-xs italic">Capture some snapshots...</div>
+    </div>
+
+    <canvas id="canvas" width="640" height="480" class="hidden"></canvas>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const snapBtn = document.getElementById('snap');
+        const flash = document.getElementById('flash');
+        const filmstrip = document.getElementById('filmstrip');
+        const preview = document.getElementById('captured-preview');
+        const modeText = document.getElementById('mode-text');
+        const saveBtn = document.getElementById('download');
+        const retryBtn = document.getElementById('back-to-cam');
+
+        let capturedPhotos = [];
+        let currentFilter = 'none';
+
+        // Initialize Camera
+        async function initCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                video.srcObject = stream;
+            } catch (err) {
+                console.error("Camera error: ", err);
+                modeText.innerText = "CAMERA_NOT_FOUND";
+                modeText.style.color = "red";
+            }
+        }
+
+        // Snap Photo
+        snapBtn.onclick = () => {
+            // Flash effect
+            flash.classList.remove('flash-anim');
+            void flash.offsetWidth; // trigger reflow
+            flash.classList.add('flash-anim');
+
+            const context = canvas.getContext('2d');
+            context.filter = currentFilter;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/png');
+            capturedPhotos.unshift(dataUrl); // Newest first
+            
+            updateFilmstrip();
+            showPreview(dataUrl);
+        };
+
+        function updateFilmstrip() {
+            if (capturedPhotos.length > 0) filmstrip.innerHTML = '';
+            
+            capturedPhotos.forEach((src, idx) => {
+                const card = document.createElement('div');
+                card.className = "photo-card";
+                card.innerHTML = `<img src="${src}" alt="snap">`;
+                card.onclick = () => showPreview(src);
+                filmstrip.appendChild(card);
+            });
+        }
+
+        function showPreview(src) {
+            video.classList.add('hidden');
+            preview.src = src;
+            preview.classList.remove('hidden');
+            preview.style.filter = 'none'; // Filters already baked into capture
+            modeText.innerText = "PREVIEW_MODE";
+            saveBtn.classList.remove('hidden');
+            retryBtn.classList.remove('hidden');
+            snapBtn.style.opacity = '0.3';
+            snapBtn.disabled = true;
+        }
+
+        retryBtn.onclick = () => {
+            video.classList.remove('hidden');
+            preview.classList.add('hidden');
+            modeText.innerText = "LIVE_FEED";
+            saveBtn.classList.add('hidden');
+            retryBtn.classList.add('hidden');
+            snapBtn.style.opacity = '1';
+            snapBtn.disabled = false;
+        };
+
+        saveBtn.onclick = () => {
+            const link = document.createElement('a');
+            link.download = `snapshot-${Date.now()}.png`;
+            link.href = preview.src;
+            link.click();
+        };
+
+        // Filter Logic
+        document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                video.style.filter = currentFilter;
+            };
+        });
+
+        window.onload = initCamera;
+    </script>
+</body>
+</html>

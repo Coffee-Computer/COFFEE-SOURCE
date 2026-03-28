@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="cce:name" content="Notes">
+  <meta name="cce:id" content="notes">
+  <meta name="cce:icon" content="📝">
+  <meta name="cce:color" content="#eab308">
+  <meta name="cce:description" content="Quick notes with save">
+  <title>Notes</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <style>body{margin:0;padding:16px;background:var(--coffee-bg-surface);min-height:100%;box-sizing:border-box}</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+    const ta = coffee.textarea({ placeholder: 'Start typing...', id: 'notes-content', rows: 12 });
+    const saveBtn = coffee.button('Save', () => {
+      coffee.save('notes_content', ta.value);
+      if (coffee.msg) document.body.appendChild(coffee.msg('Saved.', 'success'));
+    });
+    const loaded = coffee.load('notes_content');
+    if (loaded) ta.value = loaded;
+    document.getElementById('app').appendChild(coffee.stack([ta, coffee.row([saveBtn])]));
+  </script>
+</body>
+</html>

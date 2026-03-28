@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.svg</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    .svg-workspace {
+      background-color: #f5f5f5;
+      background-image: radial-gradient(#d1d5db 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+    .svg-tool-btn {
+      width: 44px; height: 44px; padding: 0; display: flex; align-items: center; justify-content: center;
+      border: 2px solid transparent; border-radius: var(--coffee-radius-sm); cursor: pointer;
+      background: var(--coffee-bg-elev); color: var(--coffee-text-primary);
+    }
+    .svg-tool-btn:hover { background: var(--coffee-bg-surface); }
+    .svg-tool-btn.active { border-color: var(--coffee-accent); background: rgba(76, 154, 255, 0.15); color: var(--coffee-accent); }
+    #svg-artboard { background: white; box-shadow: var(--coffee-shadow-soft); cursor: crosshair; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-svg.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+
+    const inspectorEl = document.createElement('div');
+    inspectorEl.id = 'svg-inspector';
+    inspectorEl.style.cssText = 'min-height:120px';
+
+    const svg = coffee.svg({
+      width: 800,
+      height: 600,
+      onSelect: (el) => updateInspector(el)
+    });
+    const artboard = svg.getSVG();
+    artboard.id = 'svg-artboard';
+
+    function updateInspector(el) {
+      inspectorEl.innerHTML = '';
+      if (!el) {
+        const empty = coffee.para('Select an element to inspect', {
+          style: { textAlign: 'center', padding: '24px', color: 'var(--coffee-text-muted)', border: '2px dashed var(--coffee-panel)', borderRadius: 'var(--coffee-radius-sm)' }
+        });
+        inspectorEl.appendChild(empty);
+        return;
+      }
+
+      const isText = el.tagName === 'text';
+      const props = coffee.col([], { style: { gap: '12px' } });
+
+      if (isText) {
+        const textInput = coffee.input({ type: 'text', placeholder: 'Text', value: el.textContent || '' });
+        textInput.oninput = () => svg.updateSelected('text', textInput.value);
+        props.appendChild(coffee.col([
+          coffee.para('Text', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+          textInput
+        ], { style: { gap: '4px' } }));
+
+        const fontSizeSlider = coffee.slider({
+          min: 10, max: 200, step: 1, value: parseInt(el.getAttribute('font-size') || 40, 10),
+          onInput: (v) => svg.updateSelected('fontSize', v)
+        });
+        props.appendChild(coffee.col([
+          coffee.para('Font size', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+          fontSizeSlider
+        ], { style: { gap: '4px' } }));
+      }
+
+      const fillColorInput = document.createElement('input');
+      fillColorInput.type = 'color';
+      fillColorInput.value = el.getAttribute('fill') || '#10b981';
+      fillColorInput.style.cssText = 'width:100%;height:36px;border:1px solid var(--coffee-panel);border-radius:var(--coffee-radius-sm);cursor:pointer;padding:2px';
+      fillColorInput.oninput = () => svg.updateSelected('fill', fillColorInput.value);
+      props.appendChild(coffee.col([
+        coffee.para('Fill', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+        fillColorInput
+      ], { style: { gap: '4px' } }));
+
+      const opacitySlider = coffee.slider({
+        min: 0, max: 1, step: 0.1, value: parseFloat(el.getAttribute('fill-opacity') || 1),
+        onInput: (v) => svg.updateSelected('opacity', v)
+      });
+      props.appendChild(coffee.col([
+        coffee.para('Opacity', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+        opacitySlider
+      ], { style: { gap: '4px' } }));
+
+      const deleteBtn = coffee.button('Delete', () => svg.deleteSelected(), {
+        style: { color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent' }
+      });
+      props.appendChild(deleteBtn);
+
+      inspectorEl.appendChild(props);
+    }
+
+    function setTool(tool) {
+      svg.setTool(tool);
+      document.querySelectorAll('.svg-tool-btn').forEach(btn => btn.classList.remove('active'));
+      const btn = document.getElementById('tool-' + tool);
+      if (btn) btn.classList.add('active');
+    }
+
+    const toolRect = document.createElement('button');
+    toolRect.className = 'svg-tool-btn active';
+    toolRect.id = 'tool-rect';
+    toolRect.title = 'Rectangle';
+    toolRect.innerHTML = '<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg>';
+    toolRect.onclick = () => setTool('rect');
+
+    const toolCircle = document.createElement('button');
+    toolCircle.className = 'svg-tool-btn';
+    toolCircle.id = 'tool-circle';
+    toolCircle.title = 'Circle';
+    toolCircle.innerHTML = '<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>';
+    toolCircle.onclick = () => setTool('circle');
+
+    const toolText = document.createElement('button');
+    toolText.className = 'svg-tool-btn';
+    toolText.id = 'tool-text';
+    toolText.title = 'Text';
+    toolText.innerHTML = '<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11h4M8 15h8"/></svg>';
+    toolText.onclick = () => setTool('text');
+
+    const toolSelect = document.createElement('button');
+    toolSelect.className = 'svg-tool-btn';
+    toolSelect.id = 'tool-select';
+    toolSelect.title = 'Select';
+    toolSelect.innerHTML = '<svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>';
+    toolSelect.onclick = () => setTool('select');
+
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = '#10b981';
+    colorInput.style.cssText = 'width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;padding:0';
+    colorInput.oninput = () => svg.setFillColor(colorInput.value);
+
+    const clearBtn = coffee.button('Clear', () => svg.clear(), {
+      style: { color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent' }
+    });
+
+    const toolbar = document.createElement('aside');
+    toolbar.style.cssText = 'width:72px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--coffee-bg-surface)';
+    toolbar.appendChild(coffee.para('☕', { style: { fontSize: '24px', marginBottom: '8px' } }));
+    toolbar.appendChild(toolRect);
+    toolbar.appendChild(toolCircle);
+    toolbar.appendChild(toolText);
+    toolbar.appendChild(toolSelect);
+    toolbar.appendChild(document.createElement('div')); // spacer
+    toolbar.appendChild(colorInput);
+    toolbar.appendChild(clearBtn);
+
+    const workspace = document.createElement('main');
+    workspace.className = 'svg-workspace';
+    workspace.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:var(--coffee-space-lg);overflow:auto';
+    workspace.appendChild(artboard);
+
+    const header = coffee.heading('coffee.svg', 1);
+    const sub = coffee.para('Vector graphics. Draw rect, circle, text. Select to edit.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const exportBtn = coffee.button('Export SVG', () => svg.export());
+
+    const panel = document.createElement('aside');
+    panel.style.cssText = 'width:240px;flex-shrink:0;padding:var(--coffee-space-md);border-left:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px;background:var(--coffee-bg-surface);overflow-y:auto';
+    panel.appendChild(header);
+    panel.appendChild(sub);
+    panel.appendChild(inspectorEl);
+    panel.appendChild(document.createElement('div')); // spacer
+    panel.appendChild(exportBtn);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(toolbar);
+    layout.appendChild(workspace);
+    layout.appendChild(panel);
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'width:100%;height:100%';
+    app.appendChild(layout);
+
+    updateInspector(null);
+  </script>
+</body>
+</html>

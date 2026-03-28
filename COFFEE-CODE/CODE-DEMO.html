@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COFFEE-CODE demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-FRAME/coffee-frame.js"></script>
+  <script src="../COFFEE-MONACO/coffee-monaco.js"></script>
+  <script src="coffee-code.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="../COFFEE-MARKDOWN/coffee-markdown.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      background: var(--coffee-bg-surface);
+      color: var(--coffee-text-primary);
+    }
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    #demo-split {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+    #editor-col {
+      flex: 1;
+      min-width: 0;
+      border-right: 1px solid var(--coffee-panel);
+    }
+    #preview-col {
+      flex: 1;
+      min-width: 0;
+      background: #fff;
+    }
+    #preview-col iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="demo-header"></header>
+    <div id="demo-split">
+      <div id="editor-col"></div>
+      <div id="preview-col">
+        <iframe id="pv" title="Preview"></iframe>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const title = coffee.heading('coffee.code + coffee.markdown', 3, {
+        style: { margin: 0, fontSize: '14px', fontWeight: '600' }
+      });
+      const hint = coffee.text('Left: Monaco via coffee.code · Right: live markdown preview', {
+        style: {
+          display: 'block',
+          fontSize: '11px',
+          color: 'var(--coffee-text-muted)',
+          marginTop: '4px'
+        }
+      });
+      const headInner = coffee.stack([title, hint], {
+        style: {
+          gap: '0',
+          padding: 'var(--coffee-space-md)',
+          borderBottom: '1px solid var(--coffee-panel)',
+          background: 'var(--coffee-bg-elev)'
+        }
+      });
+      document.getElementById('demo-header').appendChild(headInner);
+    })();
+
+    var preview = coffee.markdown.createPreviewSession();
+    var iframe = document.getElementById('pv');
+    var t;
+
+    function debouncePreview(md) {
+      clearTimeout(t);
+      t = setTimeout(function () {
+        preview.update(iframe, md);
+      }, 120);
+    }
+
+    coffee.code.create(document.getElementById('editor-col'), {
+      value: '# coffee.code\n\n**Monaco** + **frame** + **coffee-ui** + defaults.\n',
+      language: 'markdown',
+      theme: 'vs-dark'
+    }).then(function (api) {
+      api.getValue().then(function (v) { debouncePreview(v); });
+      api.onChange(function (payload) {
+        var v = payload && payload.value != null ? payload.value : '';
+        debouncePreview(v);
+      });
+      window.addEventListener('beforeunload', function () { preview.revoke(); });
+      window.addEventListener('resize', function () { api.layout(); });
+    }).catch(function (e) {
+      var col = document.getElementById('editor-col');
+      col.textContent = '';
+      col.appendChild(coffee.msg('Error: ' + e.message, 'error', { style: { margin: 'var(--coffee-space-md)' } }));
+    });
+  </script>
+</body>
+</html>

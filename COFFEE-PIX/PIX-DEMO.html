@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.pix</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    .pix-canvas-wrap {
+      background-color: #f5f5f5;
+      background-image:
+        linear-gradient(45deg, #e8e8e8 25%, transparent 25%),
+        linear-gradient(-45deg, #e8e8e8 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #e8e8e8 75%),
+        linear-gradient(-45deg, transparent 75%, #e8e8e8 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+    }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-pix.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+
+    const header = coffee.heading('coffee.pix', 1);
+    const sub = coffee.para('Image manipulation. Brightness, contrast, saturation, presets.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const canvas = document.createElement('canvas');
+    canvas.id = 'pix-canvas';
+    canvas.style.cssText = 'max-width:100%;max-height:80vh;display:block;border-radius:var(--coffee-radius-sm)';
+
+    const pix = coffee.pix({ canvas });
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+
+    const dropZone = document.createElement('div');
+    dropZone.style.cssText = 'position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border:4px dashed var(--coffee-panel);background:var(--coffee-bg-surface);opacity:0.9;pointer-events:none;transition:opacity 0.2s;border-radius:var(--coffee-radius-sm)';
+    dropZone.innerHTML = '<span style="font-size:48px;margin-bottom:12px">📸</span><p style="color:var(--coffee-text-muted);font-weight:600">Drop an image or click Load</p>';
+
+    const viewport = document.createElement('div');
+    viewport.style.cssText = 'flex:1;min-height:300px;position:relative;display:flex;align-items:center;justify-content:center;padding:var(--coffee-space-md)';
+    viewport.className = 'pix-canvas-wrap';
+    const canvasWrap = document.createElement('div');
+    canvasWrap.style.cssText = 'position:relative;max-width:100%;max-height:100%;background:var(--coffee-bg-surface);border-radius:var(--coffee-radius-sm);overflow:hidden;box-shadow:var(--coffee-shadow-soft)';
+    canvasWrap.appendChild(canvas);
+    canvasWrap.appendChild(dropZone);
+    viewport.appendChild(canvasWrap);
+
+    const adjustments = { brightness: 0, contrast: 0, saturation: 0 };
+
+    const brightnessSlider = coffee.slider({
+      id: 'pix-brightness',
+      min: -100, max: 100, step: 1, value: 0,
+      onInput: (v) => {
+        adjustments.brightness = parseInt(v, 10);
+        pix.adjust(adjustments);
+      }
+    });
+    const contrastSlider = coffee.slider({
+      id: 'pix-contrast',
+      min: -100, max: 100, step: 1, value: 0,
+      onInput: (v) => {
+        adjustments.contrast = parseInt(v, 10);
+        pix.adjust(adjustments);
+      }
+    });
+    const saturationSlider = coffee.slider({
+      id: 'pix-saturation',
+      min: -100, max: 100, step: 1, value: 0,
+      onInput: (v) => {
+        adjustments.saturation = parseInt(v, 10);
+        pix.adjust(adjustments);
+      }
+    });
+
+    function resetSliders() {
+      adjustments.brightness = 0;
+      adjustments.contrast = 0;
+      adjustments.saturation = 0;
+      brightnessSlider.value = '0';
+      contrastSlider.value = '0';
+      saturationSlider.value = '0';
+    }
+
+    function loadImage(img) {
+      pix.load(img);
+      dropZone.style.opacity = '0';
+      dropZone.style.pointerEvents = 'none';
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          resetSliders();
+          loadImage(img);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    canvasWrap.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    canvasWrap.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const file = e.dataTransfer?.files?.[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          resetSliders();
+          loadImage(img);
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const loadBtn = coffee.button('Load Photo', () => fileInput.click());
+
+    const presetBtns = [
+      coffee.button('B&W', () => pix.preset('grayscale')),
+      coffee.button('Sepia', () => pix.preset('sepia')),
+      coffee.button('Invert', () => pix.preset('invert')),
+      coffee.button('Vintage', () => pix.preset('vintage'))
+    ];
+
+    const resetBtn = coffee.button('Reset All', () => {
+      resetSliders();
+      pix.reset();
+      if (pix.hasImage) dropZone.style.opacity = '0';
+      else dropZone.style.opacity = '0.9';
+    }, { style: { color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent' } });
+
+    const controls = coffee.col([
+      coffee.para('Brightness', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+      brightnessSlider,
+      coffee.para('Contrast', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px', marginTop: '12px' } }),
+      contrastSlider,
+      coffee.para('Saturation', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px', marginTop: '12px' } }),
+      saturationSlider,
+      coffee.para('Presets', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px', marginTop: '12px' } }),
+      coffee.row(presetBtns, { style: { gap: '8px', flexWrap: 'wrap' } }),
+      resetBtn
+    ], { style: { gap: '4px' } });
+
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:220px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px';
+    sidebar.appendChild(header);
+    sidebar.appendChild(sub);
+    sidebar.appendChild(loadBtn);
+    sidebar.appendChild(controls);
+
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:column;min-width:0';
+    main.appendChild(viewport);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'width:100%;height:100%';
+    app.appendChild(layout);
+    app.appendChild(fileInput);
+  </script>
+</body>
+</html>

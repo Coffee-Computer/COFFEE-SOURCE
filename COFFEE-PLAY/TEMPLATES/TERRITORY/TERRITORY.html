@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Territory // Tile sandbox (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #87CEEB; color: #fff;
+      font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none;
+    }
+    canvas {
+      display: block; width: 100vw; height: 100vh;
+      image-rendering: pixelated; cursor: crosshair;
+    }
+    .ui-overlay {
+      position: fixed; top: 20px; left: 20px; pointer-events: none; z-index: 100;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .inventory-slot {
+      width: 50px; height: 50px; background: rgba(0, 0, 0, 0.7);
+      border: 3px solid #444; display: flex; align-items: center; justify-content: center;
+      font-size: 24px; pointer-events: auto; cursor: pointer; transition: all 0.1s;
+    }
+    .inventory-slot.active {
+      border-color: #00ffff; background: rgba(0, 255, 255, 0.2); transform: scale(1.1);
+    }
+    .hotbar-row { display: flex; gap: 8px; pointer-events: auto; }
+    .build-stock {
+      background: rgba(0,0,0,0.6); padding: 8px 12px; border-radius: 8px;
+      font-size: 14px; border: 1px solid rgba(255,255,255,0.2); display: inline-block;
+    }
+    .build-stock .n { font-weight: 800; color: #22d3ee; }
+    .controls-hint {
+      position: fixed; bottom: 20px; left: 20px; color: #fff;
+      background: rgba(0,0,0,0.6); padding: 12px; border-radius: 8px;
+      font-size: 14px; pointer-events: none; border: 1px solid rgba(255,255,255,0.2);
+      max-width: min(420px, 92vw);
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui-overlay">
+  <div class="hotbar-row" id="hotbar"></div>
+  <div class="build-stock">BUILD STOCK: <span id="block-count" class="n">0</span></div>
+</div>
+
+<div class="controls-hint">
+  <b>WASD / Arrows</b>: move &amp; jump · <b>Hold click</b>: mine / place · <b>1–3</b>: hotbar
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-territory-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var hotbarEl = document.getElementById('hotbar');
+  var countEl = document.getElementById('block-count');
+  var canvasEl = document.getElementById('stage');
+
+  function canvasToLocal(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width;
+    var sy = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * sx,
+      y: (clientY - rect.top) * sy
+    };
+  }
+
+  var tg = coffee.playTerritoryGame.create({
+    callbacks: {
+      onInventory: function (inv, selectedSlot, bd) {
+        bd = bd || (tg && tg.blockData);
+        hotbarEl.innerHTML = '';
+        inv.forEach(function (item, index) {
+          var slot = document.createElement('button');
+          slot.type = 'button';
+          slot.className = 'inventory-slot' + (index === selectedSlot ? ' active' : '');
+          slot.setAttribute('aria-label', (bd[item.type] && bd[item.type].name) || 'slot');
+          slot.textContent = bd[item.type] ? bd[item.type].emoji : '?';
+          slot.addEventListener('click', function () {
+            tg.setSelectedSlot(index);
+          });
+          hotbarEl.appendChild(slot);
+        });
+        var cur = inv[selectedSlot];
+        countEl.textContent = cur ? String(cur.count) : '0';
+      }
+    }
+  });
+
+  var lastT = 0;
+  var prevKeys = {};
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+
+      var p = canvasToLocal(game.canvas, game.mouse.x, game.mouse.y);
+      tg.step(dt, {
+        keys: game.keys,
+        mouseCanvasX: p.x,
+        mouseCanvasY: p.y,
+        mouseDown: game.mouse.down,
+        viewW: game.canvas.width,
+        viewH: game.canvas.height
+      });
+
+      if (game.keys['1'] && !prevKeys['1']) tg.setSelectedSlot(0);
+      if (game.keys['2'] && !prevKeys['2']) tg.setSelectedSlot(1);
+      if (game.keys['3'] && !prevKeys['3']) tg.setSelectedSlot(2);
+
+      prevKeys = {
+        '1': !!game.keys['1'],
+        '2': !!game.keys['2'],
+        '3': !!game.keys['3']
+      };
+    },
+    onDraw: function (ctx, game) {
+      var st = tg.getState();
+      var S = coffee.playShapes;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+      var ts = st.tileSize;
+      var world = st.world;
+      var cam = st.camera;
+      var player = st.player;
+      var BLOCKS = tg.BLOCKS;
+      var bd = tg.blockData;
+
+      ctx.clearRect(0, 0, w, h);
+      S.drawTerritorySky(ctx, { w: w, h: h });
+
+      var camX = Math.floor(cam.x);
+      var camY = Math.floor(cam.y);
+      ctx.save();
+      ctx.translate(-camX, -camY);
+
+      var startX = Math.max(0, Math.floor(cam.x / ts));
+      var endX = Math.min(st.worldWidth, Math.ceil((cam.x + w) / ts));
+      var startY = Math.max(0, Math.floor(cam.y / ts));
+      var endY = Math.min(st.worldHeight, Math.ceil((cam.y + h) / ts));
+
+      for (var x = startX; x < endX; x++) {
+        for (var y = startY; y < endY; y++) {
+          var block = world[x][y];
+          if (block !== BLOCKS.AIR) {
+            var data = bd[block];
+            if (data) {
+              S.drawTerritoryBlock(ctx, {
+                x: x * ts,
+                y: y * ts,
+                size: ts,
+                color: data.color
+              });
+            }
+          }
+        }
+      }
+
+      S.drawTerritoryPlayer(ctx, {
+        x: player.x,
+        y: player.y,
+        w: player.width,
+        h: player.height,
+        vx: player.vx
+      });
+
+      var mp = canvasToLocal(game.canvas, game.mouse.x, game.mouse.y);
+      var cell = tg.mouseWorldCell(mp.x, mp.y);
+      S.drawTerritoryCursorTile(ctx, {
+        x: cell.tx * ts,
+        y: cell.ty * ts,
+        size: ts
+      });
+
+      ctx.restore();
+    }
+  });
+})();
+</script>
+</body>
+</html>

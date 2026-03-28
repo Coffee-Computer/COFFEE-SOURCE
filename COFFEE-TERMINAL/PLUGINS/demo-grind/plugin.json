@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "demo-grind",
+  "description": "Example plugin: commands live in JSON, behavior in plugin.js (same folder).",
+  "commands": [
+    {
+      "id": "grind",
+      "label": "Grind — loaded from PLUGINS/demo-grind/",
+      "insert": "grind ",
+      "cat": "Extension",
+      "handler": "ext:grind"
+    }
+  ]
+}

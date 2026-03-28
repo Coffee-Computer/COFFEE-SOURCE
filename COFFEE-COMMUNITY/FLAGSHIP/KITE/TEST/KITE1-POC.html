@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Krita Lite - Digital Painting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --ui-bg: #2b2b2b;
+            --ui-border: #3f3f3f;
+            --accent: #00aaff;
+            --canvas-bg: #1a1a1a;
+        }
+
+        body {
+            background-color: var(--canvas-bg);
+            color: #e0e0e0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            touch-action: none; /* Prevents scrolling while drawing */
+        }
+
+        #drawing-canvas {
+            cursor: crosshair;
+            background-color: white;
+            touch-action: none;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .tool-bar {
+            background-color: var(--ui-bg);
+            border-top: 1px solid var(--ui-border);
+            z-index: 50;
+        }
+
+        .brush-pill {
+            flex-shrink: 0;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid transparent;
+            transition: all 0.2s;
+            background: #333;
+        }
+
+        .brush-pill.active {
+            border-color: var(--accent);
+            background: #444;
+            transform: translateY(-4px);
+        }
+
+        .floating-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 40;
+        }
+
+        .control-group {
+            background: rgba(43, 43, 43, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--ui-border);
+            padding: 12px;
+            border-radius: 16px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent);
+        }
+
+        /* Custom Scrollbar for Brush List */
+        .brush-scroll::-webkit-scrollbar {
+            display: none;
+        }
+        .brush-scroll {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+        }
+
+        @media (max-width: 640px) {
+            .canvas-container {
+                padding: 10px;
+                padding-bottom: 120px;
+            }
+            .floating-controls {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Floating Controls -->
+    <div class="floating-controls">
+        <div class="control-group flex gap-3 items-center">
+            <input type="color" id="color-picker" value="#000000" class="w-8 h-8 rounded-full border-0 bg-transparent cursor-pointer">
+            <button id="undo-btn" class="p-2 hover:bg-zinc-700 rounded-lg">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"></path></svg>
+            </button>
+            <button onclick="clearCanvas()" class="p-2 hover:bg-red-900/30 text-red-400 rounded-lg">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+            </button>
+        </div>
+
+        <div class="control-group hidden sm:flex flex-col gap-4 min-w-[160px]">
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Size</label>
+                <input type="range" id="size-slider" min="1" max="100" value="10" class="w-full">
+            </div>
+            <div>
+                <label class="text-[10px] uppercase font-bold text-gray-400 mb-1 block">Opacity</label>
+                <input type="range" id="opacity-slider" min="1" max="100" value="100" class="w-full">
+            </div>
+        </div>
+        
+        <button onclick="saveCanvas()" class="control-group bg-blue-600 text-white font-bold text-sm px-6 hover:bg-blue-500">
+            SAVE
+        </button>
+    </div>
+
+    <!-- Workspace -->
+    <div class="canvas-container">
+        <canvas id="drawing-canvas"></canvas>
+    </div>
+
+    <!-- Bottom Brush Selection -->
+    <div class="tool-bar fixed bottom-0 left-0 right-0 h-24 flex flex-col justify-center">
+        <div class="brush-scroll flex gap-4 px-6 overflow-x-auto pb-2">
+            <!-- Brush Types -->
+            <button class="brush-pill active" data-brush="pen" title="Hard Pen">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8"></circle></svg>
+            </button>
+            <button class="brush-pill" data-brush="brush" title="Soft Brush">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="8" opacity="0.4"></circle></svg>
+            </button>
+            <button class="brush-pill" data-brush="sketch" title="Pencil">
+                <path d="M12 2L2 22h20L12 2z" fill="currentColor"></path>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L15.5 3.5z"></path></svg>
+            </button>
+            <button class="brush-pill" data-brush="marker" title="Copic Marker">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="12" height="16" rx="2"></rect></svg>
+            </button>
+            <button class="brush-pill" data-brush="eraser" title="Eraser">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 11l-8-8-9 9 8 8 9-9z"></path><path d="M5 19l14-14"></path></svg>
+            </button>
+        </div>
+        <div class="sm:hidden px-6 flex gap-4 items-center mb-1">
+             <input type="range" id="size-slider-mobile" min="1" max="100" value="10" class="flex-grow h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+             <span class="text-[10px] text-gray-500 font-mono">SIZE</span>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('drawing-canvas');
+        const ctx = canvas.getContext('2d');
+        const colorPicker = document.getElementById('color-picker');
+        const sizeSlider = document.getElementById('size-slider');
+        const sizeSliderMobile = document.getElementById('size-slider-mobile');
+        const opacitySlider = document.getElementById('opacity-slider');
+        const undoBtn = document.getElementById('undo-btn');
+        const brushPills = document.querySelectorAll('.brush-pill');
+
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentBrush = 'pen';
+        let history = [];
+        
+        // Initialize
+        function init() {
+            // Set canvas size based on window
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth > 1200 ? 1200 : container.clientWidth;
+            canvas.height = container.clientHeight > 800 ? 800 : container.clientHeight;
+            
+            // Background color
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            saveHistory();
+
+            // Sync sliders
+            sizeSliderMobile.oninput = (e) => sizeSlider.value = e.target.value;
+            sizeSlider.oninput = (e) => sizeSliderMobile.value = e.target.value;
+        }
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const pos = getPos(e);
+            [lastX, lastY] = [pos.x, pos.y];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            
+            ctx.beginPath();
+            ctx.moveTo(lastX, lastY);
+            ctx.lineTo(pos.x, pos.y);
+
+            // Brush Engine
+            const color = colorPicker.value;
+            const size = sizeSlider.value;
+            const opacity = opacitySlider.value / 100;
+
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.globalAlpha = opacity;
+
+            if (currentBrush === 'pen') {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = size;
+                ctx.shadowBlur = 0;
+            } else if (currentBrush === 'brush') {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = size;
+                ctx.shadowBlur = size / 2;
+                ctx.shadowColor = color;
+            } else if (currentBrush === 'sketch') {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = size / 4;
+                ctx.globalAlpha = opacity * 0.5;
+            } else if (currentBrush === 'marker') {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = size;
+                ctx.lineCap = 'square';
+                ctx.globalAlpha = opacity * 0.6;
+            } else if (currentBrush === 'eraser') {
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = size;
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.stroke();
+            [lastX, lastY] = [pos.x, pos.y];
+        }
+
+        function stopDrawing() {
+            if (isDrawing) {
+                saveHistory();
+            }
+            isDrawing = false;
+        }
+
+        function saveHistory() {
+            if (history.length > 20) history.shift();
+            history.push(canvas.toDataURL());
+        }
+
+        undoBtn.onclick = () => {
+            if (history.length > 1) {
+                history.pop();
+                const img = new Image();
+                img.src = history[history.length - 1];
+                img.onload = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                };
+            }
+        };
+
+        function clearCanvas() {
+            if (confirm("Clear your masterpiece?")) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                saveHistory();
+            }
+        }
+
+        function saveCanvas() {
+            const link = document.createElement('a');
+            link.download = `krita-lite-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // Event Listeners
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); }, {passive: false});
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
+        window.addEventListener('touchend', stopDrawing);
+
+        brushPills.forEach(pill => {
+            pill.onclick = () => {
+                brushPills.forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                currentBrush = pill.dataset.brush;
+            };
+        });
+
+        window.onload = init;
+        window.onresize = () => {
+            // Preservation of artwork on resize would require a temp buffer
+            // For this simple version we keep it static
+        };
+    </script>
+</body>
+</html>

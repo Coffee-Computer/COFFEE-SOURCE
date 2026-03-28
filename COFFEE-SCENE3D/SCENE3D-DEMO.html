@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.scene3d() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-scene3d.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.scene3d()', 1);
+    const sub = coffee.para('Declarative 3D. Drag to orbit. Box, sphere, plane, cylinder, torus, cone. custom() escape hatch.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const scene = coffee.scene3d({
+      shapes: [
+        { type: 'box', scale: 2, position: [0, 1, 0], color: '#4c9aff' },
+        { type: 'sphere', radius: 0.8, position: [-2, 0.8, 0], color: '#ef4444' },
+        { type: 'cylinder', radiusTop: 0.5, radiusBottom: 1, height: 1.5, position: [2, 0.75, 0], color: '#22c55e' },
+        { type: 'torus', radius: 0.6, tube: 0.2, position: [0, 1.5, 1.5], color: '#f59e0b' },
+        { type: 'cone', radius: 0.6, height: 1.2, position: [-2, 0.6, -1.5], color: '#8b5cf6' },
+        { type: 'plane', width: 10, height: 10, position: [0, 0, 0], rotation: [-90, 0, 0], color: '#ffffff' }
+      ],
+      camera: { position: [0, 5, 10], lookAt: [0, 0, 0] },
+      background: 'skyblue',
+      controls: 'orbit',
+      custom: (ctx) => {
+        const grid = new ctx.THREE.GridHelper(10, 10, 0x888888, 0xcccccc);
+        grid.position.y = -0.01;
+        ctx.scene.add(grid);
+      },
+      width: 800,
+      height: 300
+    });
+
+    const card = coffee.card([header, sub, scene], { style: { width: '100%', maxWidth: '860px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "apps": [
+    {
+      "id": "coffee-hub",
+      "label": "HUB.EXE",
+      "icon": "🏠",
+      "title": "Coffee.Hub",
+      "src": "../COMMUNITY-HUB/COMMUNITY-HUB.html"
+    },
+    {
+      "id": "store",
+      "label": "STORE.EXE",
+      "icon": "🛒",
+      "title": "Community Store",
+      "src": "../apps/store.html"
+    },
+    {
+      "id": "scribe",
+      "label": "SCRIBE.EXE",
+      "icon": "📝",
+      "title": "Scribe",
+      "src": "../FLAGSHIP/SCRIBE/SCRIBE-ALPHA.html"
+    },
+    {
+      "id": "snow-shoes",
+      "label": "SHOES.EXE",
+      "icon": "🎛️",
+      "title": "Snow Shoes",
+      "src": "../FLAGSHIP/SNOW-SHOES/SNOW-SHOES-ALPHA.html"
+    },
+    {
+      "id": "frugal",
+      "label": "FRUGAL.EXE",
+      "icon": "🧡",
+      "title": "Frugal",
+      "src": "../FLAGSHIP/FRUGAL/FRUGAL-ALPHA.html"
+    },
+    {
+      "id": "speak",
+      "label": "SPEAK.EXE",
+      "icon": "🎙️",
+      "title": "Speak",
+      "src": "../FLAGSHIP/SPEAK/SPEAK-ALPHA.html"
+    },
+    {
+      "id": "bright-house",
+      "label": "BRIGHT.EXE",
+      "icon": "🖼️",
+      "title": "Bright House",
+      "src": "../FLAGSHIP/BRIGHT-HOUSE/BRIGHT-HOUSE-ALPHA.html"
+    },
+    {
+      "id": "snap-shot",
+      "label": "SNAP.EXE",
+      "icon": "📸",
+      "title": "Snap Shot",
+      "src": "../FLAGSHIP/SNAP-SHOT/SNAP-SHOT-ALPHA.html"
+    },
+    {
+      "id": "vector",
+      "label": "VECTOR.EXE",
+      "icon": "◈",
+      "title": "Vector",
+      "src": "../FLAGSHIP/VECTOR/VECTOR-ALPHA.html"
+    },
+    {
+      "id": "kite",
+      "label": "KITE.EXE",
+      "icon": "🪁",
+      "title": "Kite",
+      "src": "../FLAGSHIP/KITE/KITE-ALPHA.html"
+    },
+    {
+      "id": "hyper-web",
+      "label": "HYPER.EXE",
+      "icon": "◇",
+      "title": "Hyper-Web",
+      "src": "../FLAGSHIP/HYPER-WEB/HYPER-WEB-ALPHA.html"
+    },
+    {
+      "id": "anti-social",
+      "label": "ANTISOCL.EXE",
+      "icon": "😈",
+      "title": "Anti-Social + DnD",
+      "src": "../FLAGSHIP/ANTI-SOCIAL/ANTI-SOCIAL-SWITCHER.html"
+    },
+    {
+      "id": "friendz",
+      "label": "FRIENDZ.EXE",
+      "icon": "🤝",
+      "title": "Friendz",
+      "src": "../FLAGSHIP/FRIENDZ/FRIENDZ-ALPHA.html"
+    },
+    {
+      "id": "coffee-terminal",
+      "label": "TERM.EXE",
+      "icon": "⌘",
+      "title": "Coffee.Terminal",
+      "src": "../../COFFEE-TERMINAL/COFFEE-TERMINAL-ALPHA.html"
+    },
+    {
+      "id": "duck-ide",
+      "label": "DUCK.EXE",
+      "icon": "🦆",
+      "title": "DUCK IDE",
+      "src": "../FLAGSHIP/DUCK-IDE/DUCK-IDE-ALPHA.html"
+    },
+    {
+      "id": "helix",
+      "label": "HELIX.EXE",
+      "icon": "🧬",
+      "title": "Helix",
+      "src": "../FLAGSHIP/HELIX/HELIX-ALPHA.html"
+    },
+    {
+      "id": "yay-3d",
+      "label": "YAY.EXE",
+      "icon": "🧊",
+      "title": "YAY-3D",
+      "src": "../FLAGSHIP/YAY-3D/YAY-ALPHA.html"
+    },
+    {
+      "id": "late",
+      "label": "LATE.EXE",
+      "icon": "⏳",
+      "title": "LATE",
+      "src": "../FLAGSHIP/LATE/LATE-ALPHA.html"
+    },
+    {
+      "id": "canopy",
+      "label": "CANOPY.EXE",
+      "icon": "🌿",
+      "title": "Canopy",
+      "src": "../FLAGSHIP/CANOPY/CANOPY-ALPHA.html"
+    },
+    {
+      "id": "kati-chat",
+      "label": "KATI.EXE",
+      "icon": "✦",
+      "title": "KATI",
+      "src": "../FLAGSHIP/KATI/KATI-CHAT-ALPHA.html"
+    }
+  ]
+}

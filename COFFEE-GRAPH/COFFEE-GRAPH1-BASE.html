@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoffeeGraph.js - Brewing Data</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #faf7f2;
+            color: #3e2723;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+            background: #fff;
+            border-radius: 12px;
+            cursor: crosshair;
+        }
+        .coffee-card {
+            background: white;
+            border-top: 4px solid #6f4e37;
+        }
+    </style>
+</head>
+<body class="p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-4xl font-bold text-stone-800">☕ CoffeeGraph.js</h1>
+                <p class="text-stone-500 italic">"The finest grounds for your data."</p>
+            </div>
+            <div class="bg-stone-200 p-3 rounded-lg text-sm">
+                <code>coffee.graph(args)</code>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div class="coffee-card p-6 rounded-xl shadow-sm">
+                <h3 class="font-bold mb-4">Dark Roast (Bar Chart)</h3>
+                <canvas id="barChart" width="400" height="300"></canvas>
+            </div>
+            <div class="coffee-card p-6 rounded-xl shadow-sm">
+                <h3 class="font-bold mb-4">Mild Brew (Line Chart)</h3>
+                <canvas id="lineChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+
+        <div class="bg-stone-800 text-stone-100 p-6 rounded-xl overflow-hidden">
+            <h3 class="text-amber-200 font-mono mb-2">// How to brew:</h3>
+            <pre class="text-sm"><code>coffee.graph({
+  target: 'canvasId',
+  type: 'bar', // or 'line'
+  roast: 'medium',
+  data: [10, 45, 30, 70, 55]
+});</code></pre>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CoffeeGraph.js Core
+         * The main 'coffee' object for brewing charts.
+         */
+        const coffee = {
+            // Roast palette definitions
+            palettes: {
+                light:  { fill: '#d7ccc8', stroke: '#a1887f', accent: '#8d6e63' },
+                medium: { fill: '#a1887f', stroke: '#6d4c41', accent: '#5d4037' },
+                dark:   { fill: '#5d4037', stroke: '#3e2723', accent: '#263238' },
+                espresso: { fill: '#3e2723', stroke: '#1b0000', accent: '#000000' }
+            },
+
+            graph: function(args) {
+                const canvas = document.getElementById(args.target);
+                if (!canvas) return console.error("Missing coffee mug (canvas)!");
+                
+                const ctx = canvas.getContext('2d');
+                const data = args.data || [];
+                const type = args.type || 'bar';
+                const roast = this.palettes[args.roast] || this.palettes.medium;
+                
+                // Clear the mug
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const padding = 40;
+                const chartWidth = canvas.width - (padding * 2);
+                const chartHeight = canvas.height - (padding * 2);
+                const maxVal = Math.max(...data, 1);
+                
+                // Draw Grid/Steam
+                ctx.strokeStyle = '#eee';
+                ctx.lineWidth = 1;
+                for(let i=0; i<=5; i++) {
+                    const y = padding + (chartHeight / 5) * i;
+                    ctx.beginPath();
+                    ctx.moveTo(padding, y);
+                    ctx.lineTo(padding + chartWidth, y);
+                    ctx.stroke();
+                }
+
+                if (type === 'bar') {
+                    this._brewBar(ctx, data, padding, chartWidth, chartHeight, maxVal, roast);
+                } else if (type === 'line') {
+                    this._brewLine(ctx, data, padding, chartWidth, chartHeight, maxVal, roast);
+                }
+            },
+
+            _brewBar: function(ctx, data, padding, width, height, max, roast) {
+                const barWidth = (width / data.length) * 0.8;
+                const spacing = (width / data.length) * 0.2;
+
+                data.forEach((val, i) => {
+                    const barHeight = (val / max) * height;
+                    const x = padding + (i * (barWidth + spacing)) + (spacing/2);
+                    const y = padding + height - barHeight;
+
+                    // Draw the bar
+                    ctx.fillStyle = roast.fill;
+                    ctx.fillRect(x, y, barWidth, barHeight);
+                    
+                    // Draw the crema (border)
+                    ctx.strokeStyle = roast.stroke;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, barWidth, barHeight);
+
+                    // Label
+                    ctx.fillStyle = '#777';
+                    ctx.font = '10px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(val, x + barWidth/2, y - 5);
+                });
+            },
+
+            _brewLine: function(ctx, data, padding, width, height, max, roast) {
+                ctx.beginPath();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = roast.accent;
+                ctx.lineJoin = 'round';
+
+                data.forEach((val, i) => {
+                    const x = padding + (i * (width / (data.length - 1)));
+                    const y = padding + height - ((val / max) * height);
+                    
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.stroke();
+
+                // Beans (Data points)
+                data.forEach((val, i) => {
+                    const x = padding + (i * (width / (data.length - 1)));
+                    const y = padding + height - ((val / max) * height);
+                    
+                    ctx.fillStyle = roast.stroke;
+                    ctx.beginPath();
+                    ctx.ellipse(x, y, 5, 7, 0, 0, Math.PI * 2); // Bean shape
+                    ctx.fill();
+                });
+            }
+        };
+
+        // Initialize our "Brews"
+        window.onload = () => {
+            coffee.graph({
+                target: 'barChart',
+                type: 'bar',
+                roast: 'dark',
+                data: [12, 19, 3, 5, 2, 3, 15]
+            });
+
+            coffee.graph({
+                target: 'lineChart',
+                type: 'line',
+                roast: 'medium',
+                data: [5, 10, 8, 25, 18, 30, 22]
+            });
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,295 @@
+/**
+ * Helix α — layout + preview chrome (depends on coffee-ui-flagship.css tokens).
+ * @see HELIX-ALPHA.html
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* —— Sliding build-threads drawer (hamburger) —— */
+#helix-root.ff-app-shell {
+  position: relative;
+  /* New stacking context so z-index on drawer/backdrop/main is predictable (Chrome). */
+  isolation: isolate;
+}
+
+/*
+ * Fixed top bar on all breakpoints: Chrome often stacks the whole `.ff-main` subtree
+ * under the fixed drawer (z 400+), so a non-fixed header can lose hit-testing. Keeping
+ * the bar fixed + above the drawer fixes hamburger taps everywhere.
+ */
+#helix-root .ff-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 600;
+  box-sizing: border-box;
+}
+
+#helix-root .ff-main {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding-top: 64px;
+  box-sizing: border-box;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+#helix-root .helix-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 340;
+  background: rgba(0, 0, 0, 0.55);
+  /* backdrop-filter can break hit-testing order vs transformed siblings in Chrome */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.28s ease;
+}
+
+#helix-root.helix-drawer-open .helix-drawer-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#helix-root .ff-sidebar#helix-sidebar {
+  position: fixed;
+  top: 64px;
+  left: 0;
+  height: calc(100vh - 64px);
+  height: calc(100dvh - 64px);
+  width: 280px;
+  max-width: min(280px, 90vw);
+  z-index: 520;
+  transform: translate3d(-100%, 0, 0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+  border-right: 1px solid var(--flagship-border);
+  pointer-events: auto;
+}
+
+#helix-root.helix-drawer-open .ff-sidebar#helix-sidebar {
+  transform: translate3d(0, 0, 0);
+  box-shadow: 14px 0 48px rgba(0, 0, 0, 0.5);
+  will-change: transform;
+}
+
+/* Wide screens: no modal backdrop — keep working in chat/preview while threads are open */
+@media (min-width: 901px) {
+  #helix-root.helix-drawer-open .helix-drawer-backdrop {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+}
+
+#helix-root .ff-sidebar-head {
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+#helix-root .helix-sidebar-head-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+#helix-root .helix-drawer-close {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#helix-root .helix-drawer-close:hover {
+  color: var(--flagship-text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#helix-root .helix-menu-btn {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Flagship uses width:100% on .ff-sidebar ≤640px — keep Helix drawer a panel, not full-screen */
+@media (max-width: 640px) {
+  #helix-root aside.ff-sidebar#helix-sidebar {
+    width: min(280px, 88vw) !important;
+    max-width: 88vw !important;
+  }
+}
+
+.helix-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  gap: 0;
+}
+
+/* KATI builder POC–style split: fixed chat rail, preview eats the rest */
+.helix-chat-col {
+  width: min(420px, 100%);
+  max-width: 420px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--flagship-border);
+}
+
+.helix-body.helix-body--chat-only .helix-chat-col {
+  width: 100%;
+  max-width: none;
+  flex: 1;
+  border-right: none;
+}
+
+#helix-chat-viewport {
+  flex: 1;
+  min-height: 0;
+}
+
+.helix-preview-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a1f;
+}
+
+.helix-browser-toolbar {
+  height: 44px;
+  flex-shrink: 0;
+  background: #121217;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 12px;
+}
+
+.helix-browser-dots {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.helix-browser-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.helix-browser-dots span:nth-child(1) {
+  background: rgba(239, 68, 68, 0.25);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.helix-browser-dots span:nth-child(2) {
+  background: rgba(234, 179, 8, 0.25);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+}
+
+.helix-browser-dots span:nth-child(3) {
+  background: rgba(34, 197, 94, 0.25);
+  border: 1px solid rgba(34, 197, 94, 0.45);
+}
+
+.helix-url-bar {
+  flex: 1;
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  font-size: 11px;
+  color: #71717a;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#helix-preview {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: none;
+  background: #fff;
+}
+
+@media (max-width: 900px) {
+  .helix-body:not(.helix-body--chat-only) {
+    flex-direction: column;
+  }
+
+  .helix-body:not(.helix-body--chat-only) .helix-chat-col {
+    width: 100%;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--flagship-border);
+    max-height: 45vh;
+  }
+
+  .helix-body:not(.helix-body--chat-only) .helix-preview-pane {
+    min-height: 42vh;
+    flex: 1;
+  }
+}
+
+.helix-mode-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 12px;
+}
+
+.helix-mode-btn {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--flagship-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: #71717a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.helix-mode-btn:hover {
+  color: var(--flagship-text);
+}
+
+.helix-mode-btn.helix-mode-active {
+  background: var(--flagship-accent-muted);
+  color: var(--flagship-accent);
+  border-color: rgba(34, 211, 238, 0.35);
+}

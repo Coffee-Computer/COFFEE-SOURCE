@@ -1,0 +1,135 @@
+/* Vector α — flagship layout (CCE: no Tailwind) */
+
+.vec-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  background: var(--coffee-bg-surface, #f4f4f5);
+  color: var(--coffee-text-primary, #18181b);
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+.vec-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--coffee-text-muted, #e4e4e7);
+  background: var(--coffee-bg-elev, #fff);
+  flex-wrap: wrap;
+}
+
+.vec-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.vec-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vec-fill-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--coffee-text-muted, #71717a);
+}
+
+.vec-fill-row input[type="color"] {
+  width: 36px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--coffee-text-muted, #d4d4d8);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vec-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 56px 1fr minmax(260px, 300px);
+  min-height: 0;
+}
+
+.vec-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--coffee-text-muted, #e4e4e7);
+  background: var(--coffee-bg-elev, #fff);
+}
+
+.vec-tool-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.vec-tool-wrap button {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 18px;
+}
+
+.vec-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  background: var(--coffee-bg-surface, #fafafa);
+}
+
+.vec-canvas-wrap {
+  border-radius: 10px;
+  box-shadow: var(--coffee-shadow-soft, 0 4px 24px rgba(0, 0, 0, 0.08));
+  background: #fff;
+  line-height: 0;
+}
+
+.vec-canvas-wrap svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.vec-inspector {
+  border-left: 1px solid var(--coffee-text-muted, #e4e4e7);
+  background: var(--coffee-bg-elev, #fff);
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.vec-hint {
+  font-size: 11px;
+  color: var(--coffee-text-muted, #71717a);
+  padding: 8px 14px;
+  border-top: 1px solid var(--coffee-text-muted, #e4e4e7);
+  background: var(--coffee-bg-elev, #fff);
+}
+
+@media (max-width: 720px) {
+  .vec-body {
+    grid-template-columns: 48px 1fr;
+    grid-template-rows: 1fr auto;
+  }
+
+  .vec-inspector {
+    grid-column: 1 / -1;
+    border-left: none;
+    border-top: 1px solid var(--coffee-text-muted, #e4e4e7);
+    max-height: 40vh;
+  }
+}

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.dot — Render Engine Demo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;700;900&display=swap');
+    body { margin: 0; background: #050505; color: white; font-family: 'Inter', sans-serif; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .hud { position: fixed; top: 1rem; left: 1rem; z-index: 10; font-size: 11px; opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div class="hud">
+    <strong>coffee.dot</strong> — 2D render engine<br>
+    Mock state (no CUP). Entities + projectiles.
+  </div>
+  <script src="./coffee-dot.js"></script>
+  <script>
+    const canvas = document.getElementById('stage');
+    const dot = coffee.dot.create(canvas);
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Mock state — simulates what CUP would output
+    let t = 0;
+    const mockState = () => {
+      t += 0.02;
+      const w = canvas.width;
+      const h = canvas.height;
+      return {
+        width: w,
+        height: h,
+        entities: [
+          { id: 'p1', x: w/2 + Math.sin(t) * 80, y: h/2 + Math.cos(t*0.7) * 60, radius: 25, color: '#00ff88', name: 'Player' },
+          { id: 'e1', x: w/2 + 150 + Math.sin(t*1.2) * 40, y: h/2 - 50, radius: 15, color: '#ff3366', name: 'Bot 1' },
+          { id: 'e2', x: w/2 - 120, y: h/2 + 80 + Math.cos(t) * 30, radius: 18, color: '#ffaa00', name: 'Bot 2' }
+        ],
+        projectiles: [
+          { x: w/2 + Math.sin(t*3) * 100, y: h/2 - 30, color: '#00ff88', owner: 'p1', life: 50 },
+          { x: w/2 + 80, y: h/2 + Math.cos(t*2) * 50, color: '#ff3366', owner: 'e1', life: 50 }
+        ]
+      };
+    };
+
+    function loop() {
+      dot.draw(mockState());
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Nebula - Knowledge Roast</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee-dark: #2c1810;
+            --coffee-medium: #6f4e37;
+            --coffee-light: #fdfaf6;
+            --coffee-accent: #d4a373;
+        }
+        body {
+            background-color: var(--coffee-light);
+            color: var(--coffee-dark);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .search-bar {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid #e7d8c9;
+        }
+        .search-bar:focus-within {
+            border-color: var(--coffee-medium);
+            box-shadow: 0 4px 20px rgba(111, 78, 55, 0.15);
+        }
+        .result-card {
+            background: white;
+            border-radius: 1rem;
+            border: 1px solid #eee;
+        }
+        .image-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        .gallery-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: #eee;
+            transition: transform 0.2s;
+        }
+        .gallery-img:hover {
+            transform: scale(1.05);
+            z-index: 10;
+        }
+        .loading-steam {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--coffee-medium);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <header class="py-12 px-4 text-center">
+        <h1 class="text-6xl font-black text-stone-800 mb-2">☕ Nebula<span class="text-amber-700">.js</span></h1>
+        <p class="text-stone-500 font-medium">Brewing the web's knowledge into one cup.</p>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4">
+        <div class="search-bar flex items-center bg-white rounded-full px-6 py-4 mb-12">
+            <span class="text-2xl mr-4">🔍</span>
+            <input type="text" id="searchInput" placeholder="Search for a topic..." 
+                class="w-full outline-none text-xl bg-transparent"
+                onkeypress="if(event.key === 'Enter') coffee.nebula(this.value)">
+            <button onclick="coffee.nebula(document.getElementById('searchInput').value)" 
+                class="ml-4 bg-stone-800 text-white px-8 py-2 rounded-full font-bold hover:bg-stone-700 transition">
+                Brew
+            </button>
+        </div>
+
+        <div class="flex justify-center mb-8">
+            <div id="loader" class="loading-steam"></div>
+        </div>
+
+        <div id="resultsGrid" class="space-y-8 pb-20">
+            <div class="text-center text-stone-400 mt-20">
+                <p class="text-lg">Enter a query to start roasting data.</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const coffee = (() => {
+            const apiKey = ""; // Built-in environment key
+
+            const showLoader = (show) => {
+                document.getElementById('loader').style.display = show ? 'block' : 'none';
+            };
+
+            const renderError = (msg) => {
+                document.getElementById('resultsGrid').innerHTML = `<div class="p-8 text-center bg-red-50 text-red-800 rounded-xl border border-red-100">${msg}</div>`;
+            };
+
+            const generateImage = async (prompt) => {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            instances: { prompt: prompt },
+                            parameters: { sampleCount: 1 }
+                        })
+                    });
+                    const result = await response.json();
+                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const renderCard = (title, content, source, image = null, tags = [], gallery = []) => {
+                const tagHtml = tags.map(t => `<span class="bg-stone-100 text-stone-600 px-2 py-1 rounded text-xs font-bold">${t}</span>`).join(' ');
+                const mainImg = image || 'https://via.placeholder.com/600x400?text=No+Main+Image+Found';
+                
+                let galleryHtml = '';
+                if (gallery.length > 0) {
+                    galleryHtml = `
+                        <div class="mt-6 pt-6 border-t border-stone-100">
+                            <h4 class="text-xs font-bold uppercase text-stone-400 mb-3 tracking-widest">Image Gallery (The Grounds)</h4>
+                            <div class="image-strip">
+                                ${gallery.map(img => `<img src="${img}" class="gallery-img" alt="Gallery item" onerror="this.style.display='none'">`).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="result-card p-6 shadow-sm">
+                        <div class="flex flex-col md:flex-row gap-6">
+                            <img src="${mainImg}" id="mainImg-${title.replace(/\s+/g, '')}" class="w-full md:w-48 h-48 object-cover rounded-lg shadow-inner bg-stone-100">
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h3 class="text-2xl font-bold text-stone-800">${title}</h3>
+                                    <span class="text-xs text-amber-800 font-mono font-bold bg-amber-50 px-2 py-1 rounded">Source: ${source}</span>
+                                </div>
+                                <p class="text-stone-600 leading-relaxed mb-4">${content}</p>
+                                <div class="flex items-center gap-2">${tagHtml}</div>
+                            </div>
+                        </div>
+                        ${galleryHtml}
+                    </div>
+                `;
+            };
+
+            const fetchWikiImages = async (query) => {
+                try {
+                    // Fetch images from Wikimedia Commons directly related to the topic
+                    const url = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&generator=images&titles=${encodeURIComponent(query)}&gimlimit=8&iiprop=url`;
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    
+                    if (!data.query || !data.query.pages) return [];
+
+                    return Object.values(data.query.pages)
+                        .map(page => page.imageinfo?.[0]?.url)
+                        .filter(url => url && (url.endsWith('.jpg') || url.endsWith('.png') || url.endsWith('.jpeg')));
+                } catch (e) { return []; }
+            };
+
+            const nebula = async (query) => {
+                if (!query.trim()) return;
+                showLoader(true);
+                const resultsGrid = document.getElementById('resultsGrid');
+                resultsGrid.innerHTML = '';
+
+                try {
+                    const ddgPromise = fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&pretty=1`).then(res => res.json());
+                    const wikiPromise = fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`).then(res => res.ok ? res.json() : null);
+                    const galleryPromise = fetchWikiImages(query);
+
+                    const [ddgData, wikiData, galleryImages] = await Promise.all([ddgPromise, wikiPromise, galleryPromise]);
+
+                    let mainTitle = query;
+                    let mainImage = null;
+
+                    if (wikiData && wikiData.type !== 'no-outbound-proxy') {
+                        mainTitle = wikiData.title;
+                        mainImage = wikiData.originalimage ? wikiData.originalimage.source : null;
+                        
+                        resultsGrid.innerHTML += renderCard(
+                            wikiData.title,
+                            wikiData.extract,
+                            "Wikipedia",
+                            mainImage,
+                            ["Encyclopedia", wikiData.description || "General Knowledge"],
+                            galleryImages
+                        );
+                    } else if (ddgData && ddgData.AbstractText) {
+                        mainTitle = ddgData.Heading || query;
+                        mainImage = ddgData.Image;
+                        resultsGrid.innerHTML += renderCard(
+                            mainTitle,
+                            ddgData.AbstractText,
+                            "DuckDuckGo",
+                            mainImage,
+                            ["Instant Answer"],
+                            galleryImages
+                        );
+                    } else {
+                        renderError("The pot is empty. Try a broader roast.");
+                        showLoader(false);
+                        return;
+                    }
+
+                    // Fallback Image Generation if no source image found
+                    if (!mainImage) {
+                        const imgId = `mainImg-${mainTitle.replace(/\s+/g, '')}`;
+                        const generatedUrl = await generateImage(`A professional, high-quality photograph of ${mainTitle}`);
+                        if (generatedUrl) {
+                            const imgElement = document.getElementById(imgId);
+                            if (imgElement) imgElement.src = generatedUrl;
+                        }
+                    }
+
+                } catch (error) {
+                    renderError("Brewing failed. Check connection.");
+                } finally {
+                    showLoader(false);
+                }
+            };
+
+            return { nebula };
+        })();
+    </script>
+</body>
+</html>

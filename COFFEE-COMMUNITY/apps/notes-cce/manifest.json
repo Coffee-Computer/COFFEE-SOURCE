@@ -1,0 +1,14 @@
+{
+  "name": "Notes",
+  "id": "notes",
+  "version": "1.0.0",
+  "entry": "index.html",
+  "icon": "📝",
+  "color": "#eab308",
+  "description": "Quick notes with save",
+  "permissions": [
+    "storage"
+  ],
+  "coffee-signature": "cce-v1",
+  "packaged-at": "2026-03-18T17:37:50.819Z"
+}

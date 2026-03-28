@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.context Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="./coffee-context.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    let ctx = coffee.context('context-demo');
+    const driveInput = coffee.input({ id: 'drive-name', placeholder: 'Drive name', value: 'context-demo', style: { width: '160px' } });
+
+    const header = coffee.heading('coffee.context', 1);
+    const sub = coffee.para('AI conversation storage. Lists threads from drive, view message history.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const listEl = document.createElement('div');
+    listEl.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:var(--coffee-space-md);max-height:200px;overflow-y:auto';
+
+    const detailEl = document.createElement('pre');
+    detailEl.style.cssText = 'background:var(--coffee-bg-surface);padding:var(--coffee-space-md);border-radius:var(--coffee-radius-sm);font-size:12px;overflow:auto;min-height:120px;margin-top:var(--coffee-space-md);color:var(--coffee-text-primary,#eee);white-space:pre-wrap;word-break:break-word';
+
+    async function refreshList() {
+      const threads = await ctx.list();
+      listEl.innerHTML = '';
+      if (threads.length === 0) {
+        listEl.appendChild(coffee.para('No threads yet. Create one below.', { style: { color: 'var(--coffee-text-muted)' } }));
+        return;
+      }
+      for (const t of threads) {
+        const row = coffee.row([
+          coffee.para((t.title || t.id || 'Untitled').slice(0, 40) + (t.messages?.length ? ' (' + t.messages.length + ' msgs)' : ''), { style: { flex: 1, margin: 0, fontSize: '13px' } }),
+          coffee.button('View', () => showThread(t.id), { style: { padding: '4px 12px', minHeight: '32px' } }),
+          coffee.button('×', () => removeThread(t.id), { style: { padding: '4px 10px', minHeight: '32px', backgroundColor: 'var(--coffee-panel)' } })
+        ], { style: { width: '100%', padding: '8px 12px', background: 'var(--coffee-bg-elev)', borderRadius: 'var(--coffee-radius-sm)', alignItems: 'center' } });
+        listEl.appendChild(row);
+      }
+    }
+
+    async function showThread(id) {
+      const thread = await ctx.load(id);
+      if (!thread) {
+        detailEl.textContent = 'Thread not found';
+        return;
+      }
+      const lines = [
+        'id: ' + thread.id,
+        'provider: ' + thread.provider,
+        'model: ' + thread.model,
+        'title: ' + (thread.title || '(none)'),
+        'updated: ' + (thread.updatedAt ? new Date(thread.updatedAt).toLocaleString() : ''),
+        '',
+        '--- messages ---'
+      ];
+      (thread.messages || []).forEach((m, i) => {
+        lines.push('[' + m.role + '] ' + String(m.content || '').slice(0, 200) + (String(m.content || '').length > 200 ? '...' : ''));
+      });
+      detailEl.textContent = lines.join('\n');
+    }
+
+    async function removeThread(id) {
+      await ctx.remove(id);
+      detailEl.textContent = '';
+      await refreshList();
+      if (coffee.toast) coffee.toast('Thread removed', 'info');
+    }
+
+    const createBtn = coffee.button('New thread', async () => {
+      const thread = await ctx.create({ provider: 'github', model: 'gpt-4o', system: 'You are helpful.', title: 'New chat' });
+      await ctx.append(thread.id, { role: 'user', content: 'Hello!' }, { role: 'assistant', content: 'Hi! How can I help?' });
+      await refreshList();
+      showThread(thread.id);
+      if (coffee.toast) coffee.toast('Thread created', 'success');
+    });
+
+    const refreshBtn = coffee.button('Refresh', () => refreshList(), { backgroundColor: 'var(--coffee-panel)' });
+    const switchDriveBtn = coffee.button('Switch drive', () => {
+      ctx = coffee.context(driveInput.value.trim() || 'context-demo');
+      refreshList();
+      detailEl.textContent = '';
+      if (coffee.toast) coffee.toast('Switched to drive: ' + (driveInput.value.trim() || 'context-demo'), 'info');
+    }, { backgroundColor: 'var(--coffee-panel)' });
+
+    const row = coffee.row([
+      coffee.label('Drive', driveInput),
+      driveInput,
+      switchDriveBtn,
+      createBtn,
+      refreshBtn
+    ], { style: { gap: '8px', marginTop: '8px', flexWrap: 'wrap', alignItems: 'center' } });
+
+    const card = coffee.card([header, sub, listEl, row, detailEl], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+
+    refreshList();
+  </script>
+</body>
+</html>

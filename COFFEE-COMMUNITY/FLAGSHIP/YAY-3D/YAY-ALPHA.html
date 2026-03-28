@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="YAY-3D">
+  <meta name="cce:id" content="yay-3d">
+  <meta name="cce:icon" content="🧊">
+  <meta name="cce:color" content="#ff3e00">
+  <meta name="cce:description" content="Spatial 3D builder — coffee.yay + Three.js">
+  <title>YAY-3D α — spatial builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="YAY-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script src="../../../COFFEE-YAY/coffee-yay.js"></script>
+</head>
+<body>
+  <div class="yay-layout">
+    <aside class="yay-sidebar">
+      <header class="yay-pane-head">
+        <div class="yay-brand">
+          <div class="yay-logo" aria-hidden="true">Y3</div>
+          <h1 class="yay-title">YAY3D_EXPLORER</h1>
+        </div>
+      </header>
+      <p class="yay-hint yay-mono">Hierarchy</p>
+      <div id="yay-scene-list" class="yay-scene-list yay-mono"></div>
+      <p class="yay-hint yay-mono">Add primitives</p>
+      <div class="yay-primitive-grid" id="yay-primitive-btns"></div>
+      <div class="yay-primitive-grid" style="padding-top:0;border-top:none">
+        <button type="button" class="yay-prim-btn" id="yay-save">Save</button>
+        <button type="button" class="yay-prim-btn" id="yay-load">Load</button>
+      </div>
+    </aside>
+
+    <main class="yay-viewport" id="yay-viewport" aria-label="3D viewport">
+      <div class="yay-toolbar">
+        <button type="button" class="yay-tool-btn" id="yay-tool-select" title="Drag to orbit" aria-label="Orbit camera">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="m13 13 6 6"></path></svg>
+        </button>
+        <div class="yay-tool-sep" aria-hidden="true"></div>
+        <button type="button" class="yay-tool-btn" id="yay-add-html-light" title="Add light HTML card" aria-label="Add light card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+        </button>
+        <button type="button" class="yay-tool-btn" id="yay-add-html-dark" title="Add dark HTML card" aria-label="Add dark card">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </main>
+
+    <aside class="yay-inspector">
+      <header class="yay-pane-head">
+        <span class="yay-mono" style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;opacity:0.5">Object_Inspector</span>
+      </header>
+      <div id="yay-inspector" class="yay-inspector-body"></div>
+    </aside>
+  </div>
+
+  <script>
+(function () {
+  'use strict';
+
+  coffee.injectTheme('dark');
+
+  const STORAGE_KEY = 'yay3d_scene_v1';
+  let yay = null;
+
+  function refreshList() {
+    if (!yay) return;
+    const list = document.getElementById('yay-scene-list');
+    list.innerHTML = '';
+    const sel = yay.getSelected();
+
+    yay.getMeshes().forEach(function (mesh) {
+      const row = document.createElement('div');
+      row.className = 'yay-scene-item yay-mono' + (sel === mesh ? ' yay-active' : '');
+      row.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg><span>' +
+        mesh.name +
+        '</span>';
+      row.addEventListener('click', function () {
+        yay.select(mesh);
+      });
+      list.appendChild(row);
+    });
+
+    yay.getHtmlNodes().forEach(function (node) {
+      const row = document.createElement('div');
+      const active = sel && sel.isNode && sel.id === node.id;
+      row.className = 'yay-scene-item yay-mono' + (active ? ' yay-active' : '');
+      row.innerHTML =
+        '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg><span>[Node] ' +
+        node.title +
+        '</span>';
+      row.addEventListener('click', function () {
+        yay.selectHtmlNodeById(node.id);
+      });
+      list.appendChild(row);
+    });
+  }
+
+  function mountInspector() {
+    const mount = document.getElementById('yay-inspector');
+    mount.innerHTML = '';
+    if (!yay) return;
+
+    const sel = yay.getSelected();
+    if (!sel) {
+      const empty = document.createElement('div');
+      empty.className = 'yay-inspector-empty yay-mono';
+      empty.textContent = 'Select an object';
+      mount.appendChild(empty);
+      return;
+    }
+
+    const isNode = !!sel.isNode;
+
+    const idGroup = document.createElement('div');
+    idGroup.className = 'yay-ctrl-group';
+    idGroup.appendChild(coffee.label('Identity', null, { style: { marginBottom: '6px' } }));
+    const nameEl = document.createElement('div');
+    nameEl.className = 'yay-mono';
+    nameEl.style.cssText = 'font-size:12px;font-weight:700';
+    nameEl.textContent = sel.name;
+    idGroup.appendChild(nameEl);
+    mount.appendChild(idGroup);
+
+    if (!isNode && sel.material && sel.material.color) {
+      const colGroup = document.createElement('div');
+      colGroup.className = 'yay-ctrl-group';
+      colGroup.appendChild(coffee.label('Material color', null));
+      const colorInp = document.createElement('input');
+      colorInp.type = 'color';
+      colorInp.className = 'yay-color-input';
+      colorInp.value = '#' + sel.material.color.getHexString();
+      colorInp.addEventListener('input', function () {
+        yay.setMeshColor(sel, colorInp.value);
+      });
+      colGroup.appendChild(colorInp);
+      mount.appendChild(colGroup);
+    }
+
+    const posGroup = document.createElement('div');
+    posGroup.className = 'yay-ctrl-group';
+    posGroup.appendChild(coffee.label('Position X', null));
+    posGroup.appendChild(
+      coffee.slider({
+        min: -8,
+        max: 8,
+        step: 0.1,
+        value: sel.position.x,
+        onInput: function (v) {
+          yay.applyTransform(yay.getSelected(), 'px', v);
+        }
+      })
+    );
+    posGroup.appendChild(coffee.label('Position Y', null, { style: { marginTop: '10px' } }));
+    posGroup.appendChild(
+      coffee.slider({
+        min: -8,
+        max: 8,
+        step: 0.1,
+        value: sel.position.y,
+        onInput: function (v) {
+          yay.applyTransform(yay.getSelected(), 'py', v);
+        }
+      })
+    );
+    posGroup.appendChild(coffee.label('Position Z', null, { style: { marginTop: '10px' } }));
+    posGroup.appendChild(
+      coffee.slider({
+        min: -8,
+        max: 8,
+        step: 0.1,
+        value: sel.position.z,
+        onInput: function (v) {
+          yay.applyTransform(yay.getSelected(), 'pz', v);
+        }
+      })
+    );
+    mount.appendChild(posGroup);
+
+    const rotGroup = document.createElement('div');
+    rotGroup.className = 'yay-ctrl-group';
+    rotGroup.appendChild(coffee.label('Rotation Y', null));
+    const ry = sel.rotation && typeof sel.rotation.y === 'number' ? sel.rotation.y : 0;
+    rotGroup.appendChild(
+      coffee.slider({
+        min: 0,
+        max: Math.PI * 2,
+        step: 0.05,
+        value: ry,
+        onInput: function (v) {
+          yay.applyTransform(yay.getSelected(), 'ry', v);
+        }
+      })
+    );
+    mount.appendChild(rotGroup);
+
+    if (isNode) {
+      const copyGroup = document.createElement('div');
+      copyGroup.className = 'yay-ctrl-group';
+      copyGroup.appendChild(coffee.label('Node title', null));
+      const titleInp = coffee.input({
+        value: sel.title || '',
+        style: { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
+      });
+      titleInp.addEventListener('input', function () {
+        const s = yay.getSelected();
+        if (s && s.isNode) yay.setNodeContent(s.id, 'title', titleInp.value);
+      });
+      copyGroup.appendChild(titleInp);
+      copyGroup.appendChild(coffee.label('Body', null, { style: { marginTop: '10px' } }));
+      const bodyTa = coffee.textarea({
+        value: sel.body || '',
+        rows: 4,
+        style: { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
+      });
+      bodyTa.addEventListener('input', function () {
+        const s = yay.getSelected();
+        if (s && s.isNode) yay.setNodeContent(s.id, 'body', bodyTa.value);
+      });
+      copyGroup.appendChild(bodyTa);
+      mount.appendChild(copyGroup);
+    }
+
+    const delWrap = document.createElement('div');
+    delWrap.className = 'yay-ctrl-group';
+    delWrap.style.borderBottom = 'none';
+    const delBtn = coffee.button(
+      'Delete',
+      function () {
+        yay.removeSelected();
+      },
+      {
+        style: {
+          width: '100%',
+          backgroundColor: 'rgba(239,68,68,0.15)',
+          color: '#fecaca',
+          border: '1px solid rgba(239,68,68,0.35)'
+        }
+      }
+    );
+    delWrap.appendChild(delBtn);
+    mount.appendChild(delWrap);
+  }
+
+  function onUi() {
+    refreshList();
+    mountInspector();
+  }
+
+  function boot() {
+    if (!window.THREE) {
+      coffee.toast('Three.js failed to load', 'error');
+      return;
+    }
+
+    yay = coffee.yay({
+      viewport: document.getElementById('yay-viewport'),
+      accent: 0xff3e00,
+      background: 0x080808,
+      addInitialBox: true,
+      onSelectionChange: onUi,
+      onSceneChange: refreshList
+    });
+
+    if (!yay) {
+      coffee.toast('coffee.yay failed', 'error');
+      return;
+    }
+
+    const types = coffee.yayPrimitives || ['box', 'sphere', 'cylinder', 'torus'];
+    const grid = document.getElementById('yay-primitive-btns');
+    types.forEach(function (t) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'yay-prim-btn';
+      b.textContent = t.charAt(0).toUpperCase() + t.slice(1);
+      b.addEventListener('click', function () {
+        yay.addPrimitive(t);
+        coffee.toast('Added ' + t, 'info', 1200);
+      });
+      grid.appendChild(b);
+    });
+
+    document.getElementById('yay-add-html-light').addEventListener('click', function () {
+      yay.addHtmlNode('light');
+      coffee.toast('HTML node (light)', 'info', 1200);
+    });
+    document.getElementById('yay-add-html-dark').addEventListener('click', function () {
+      yay.addHtmlNode('dark');
+      coffee.toast('HTML node (dark)', 'info', 1200);
+    });
+
+    document.getElementById('yay-save').addEventListener('click', function () {
+      try {
+        coffee.save(STORAGE_KEY, yay.toJSON());
+        coffee.toast('Scene saved locally', 'success');
+      } catch (e) {
+        coffee.toast('Save failed', 'error');
+      }
+    });
+
+    document.getElementById('yay-load').addEventListener('click', function () {
+      const data = coffee.load(STORAGE_KEY);
+      if (!data || !data.version) {
+        coffee.toast('Nothing saved yet', 'warning');
+        return;
+      }
+      try {
+        yay.fromJSON(data);
+        coffee.toast('Scene loaded', 'success');
+        onUi();
+      } catch (e) {
+        coffee.toast('Load failed', 'error');
+      }
+    });
+
+    onUi();
+  }
+
+  boot();
+})();
+  </script>
+</body>
+</html>

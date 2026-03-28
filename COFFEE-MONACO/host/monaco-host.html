@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monaco host</title>
+  <style>
+    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #1e1e1e; }
+    #host { width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="host"></div>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+  <script>
+    (function () {
+      var CF = 1;
+      var editor = null;
+
+      function sendRes(source, id, ok, result, err) {
+        source.postMessage(
+          { cf: CF, t: 'res', id: id, ok: ok, result: result, err: err ? String(err) : undefined },
+          '*'
+        );
+      }
+
+      function emit(name, payload) {
+        if (window.parent) {
+          window.parent.postMessage({ cf: CF, t: 'evt', name: name, payload: payload }, '*');
+        }
+      }
+
+      function handleReq(source, id, method, args) {
+        args = args || [];
+        try {
+          if (!editor && method !== 'ping') {
+            sendRes(source, id, false, null, 'editor not ready');
+            return;
+          }
+          switch (method) {
+            case 'ping':
+              sendRes(source, id, true, 'pong');
+              return;
+            case 'configure': {
+              var o = args[0] || {};
+              if (typeof o.value === 'string') editor.setValue(o.value);
+              if (o.language && editor.getModel()) {
+                monaco.editor.setModelLanguage(editor.getModel(), o.language);
+              }
+              if (o.theme) monaco.editor.setTheme(o.theme);
+              editor.updateOptions({
+                readOnly: !!o.readOnly,
+                minimap: { enabled: o.minimap === true }
+              });
+              sendRes(source, id, true, null);
+              return;
+            }
+            case 'getValue':
+              sendRes(source, id, true, editor.getValue());
+              return;
+            case 'setValue':
+              editor.setValue(args[0] != null ? String(args[0]) : '');
+              sendRes(source, id, true, null);
+              return;
+            case 'layout':
+              editor.layout();
+              sendRes(source, id, true, null);
+              return;
+            case 'focus':
+              editor.focus();
+              sendRes(source, id, true, null);
+              return;
+            case 'setTheme':
+              monaco.editor.setTheme(args[0] || 'vs-dark');
+              sendRes(source, id, true, null);
+              return;
+            case 'setLanguage':
+              if (editor.getModel()) monaco.editor.setModelLanguage(editor.getModel(), args[0] || 'plaintext');
+              sendRes(source, id, true, null);
+              return;
+            case 'getSelectionOffsets': {
+              var model = editor.getModel();
+              if (!model) {
+                sendRes(source, id, true, { start: 0, end: 0 });
+                return;
+              }
+              var sel = editor.getSelection();
+              sendRes(source, id, true, {
+                start: model.getOffsetAt(sel.getStartPosition()),
+                end: model.getOffsetAt(sel.getEndPosition())
+              });
+              return;
+            }
+            case 'replaceRange': {
+              var model = editor.getModel();
+              if (!model) {
+                sendRes(source, id, false, null, 'no model');
+                return;
+              }
+              var startOff = args[0] | 0;
+              var endOff = args[1] | 0;
+              var newText = args[2] != null ? String(args[2]) : '';
+              var startPos = model.getPositionAt(startOff);
+              var endPos = model.getPositionAt(endOff);
+              var range = monaco.Range.fromPositions(startPos, endPos);
+              editor.executeEdits('coffee-slash', [
+                { range: range, text: newText, forceMoveMarkers: true }
+              ]);
+              sendRes(source, id, true, null);
+              return;
+            }
+            case 'getCursorScreenPosition': {
+              var pos = editor.getPosition();
+              var layout = editor.getScrolledVisiblePosition(pos);
+              var domNode = editor.getDomNode();
+              if (!layout || !domNode) {
+                sendRes(source, id, true, null);
+                return;
+              }
+              var rect = domNode.getBoundingClientRect();
+              sendRes(source, id, true, {
+                top: rect.top + layout.top + layout.height,
+                left: rect.left + layout.left
+              });
+              return;
+            }
+            default:
+              sendRes(source, id, false, null, 'unknown method: ' + method);
+          }
+        } catch (err) {
+          sendRes(source, id, false, null, err);
+        }
+      }
+
+      window.addEventListener('message', function (e) {
+        var d = e.data;
+        if (!d || d.cf !== CF || d.t !== 'req') return;
+        handleReq(e.source, d.id, d.method, d.args);
+      });
+
+      require.config({
+        paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs' }
+      });
+
+      require(['vs/editor/editor.main'], function () {
+        editor = monaco.editor.create(document.getElementById('host'), {
+          value: '',
+          language: 'markdown',
+          theme: 'vs-dark',
+          automaticLayout: true,
+          minimap: { enabled: false },
+          fontSize: 14,
+          scrollBeyondLastLine: false,
+          wordWrap: 'on'
+        });
+
+        editor.onDidChangeModelContent(function () {
+          var model = editor.getModel();
+          var pos = editor.getPosition();
+          var offset = model && pos ? model.getOffsetAt(pos) : 0;
+          emit('change', { value: editor.getValue(), offset: offset });
+        });
+
+        window.parent.postMessage({ cf: CF, t: 'ready' }, '*');
+      });
+    })();
+  </script>
+</body>
+</html>

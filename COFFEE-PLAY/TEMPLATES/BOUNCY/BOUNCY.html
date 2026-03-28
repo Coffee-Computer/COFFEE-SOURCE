@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>BOUNCY // Free-form stacker (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #0f172a; color: #fff;
+      font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; cursor: pointer; }
+    .ui-layer {
+      position: fixed; top: 20px; left: 0; width: 100%; pointer-events: none;
+      display: flex; flex-direction: column; align-items: center;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5); z-index: 50;
+    }
+    .status-pill {
+      background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(8px);
+      padding: 8px 20px; border-radius: 50px;
+      border: 1px solid rgba(255,255,255,0.2); font-weight: 600; letter-spacing: 0.05em;
+      font-size: 14px;
+    }
+    #msg {
+      margin-top: 16px; background: rgba(16, 185, 129, 0.85); padding: 6px 16px;
+      border-radius: 999px; font-size: 13px; font-weight: 700; opacity: 0.95;
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui-layer">
+  <div class="status-pill">FREE PLAY MODE</div>
+  <div id="msg">CLICK TO DROP BLOCKS</div>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-bouncy-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var canvasEl = document.getElementById('stage');
+
+  function canvasToLocal(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width;
+    var sy = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * sx,
+      y: (clientY - rect.top) * sy
+    };
+  }
+
+  var bg = coffee.playBouncyGame.create({});
+
+  window.addEventListener('mousedown', function () {
+    bg.tryDrop();
+  });
+
+  canvasEl.addEventListener('touchmove', function (e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    var p = canvasToLocal(canvasEl, t.clientX, t.clientY);
+    bg.setPreviewX(p.x);
+  }, { passive: false });
+
+  canvasEl.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    var p = canvasToLocal(canvasEl, t.clientX, t.clientY);
+    bg.setPreviewX(p.x);
+    bg.tryDrop();
+  }, { passive: false });
+
+  var lastT = 0;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var p = canvasToLocal(game.canvas, game.mouse.x, game.mouse.y);
+      bg.setPreviewX(p.x);
+
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+
+      bg.step(dt, {
+        viewW: game.canvas.width,
+        viewH: game.canvas.height,
+        now: t
+      });
+    },
+    onDraw: function (ctx, game) {
+      var st = bg.getState();
+      var S = coffee.playShapes;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+      var cam = st.cameraY;
+      var gy = st.groundY;
+
+      S.drawBouncySkyGradient(ctx, { w: w, h: h });
+      S.drawBouncyGround(ctx, { w: w, h: h, groundY: gy, cameraY: cam });
+
+      st.shapes.forEach(function (sh) {
+        S.drawBouncyStackBlock(ctx, {
+          cx: sh.x,
+          cy: sh.y - cam,
+          w: sh.w,
+          h: sh.h,
+          color: sh.color
+        });
+      });
+
+      if (st.preview) {
+        var pr = st.preview;
+        var pcy = pr.y - cam;
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        S.drawBouncyStackBlock(ctx, {
+          cx: pr.x,
+          cy: pcy,
+          w: pr.w,
+          h: pr.h,
+          color: pr.color
+        });
+        ctx.globalAlpha = 1;
+        S.drawBouncyDropGuide(ctx, {
+          x: pr.x,
+          yTop: pcy,
+          yTo: h
+        });
+        ctx.restore();
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

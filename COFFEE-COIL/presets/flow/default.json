@@ -1,0 +1,8 @@
+{
+  "params": {
+    "complexity": 0.005,
+    "speed": 1.2,
+    "hue": 30,
+    "zoom": 1
+  }
+}

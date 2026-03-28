@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.Synth Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-synth.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.Synth', 1);
+    const sub = coffee.para('Web Audio synthesizer. Polyphonic, note names (A4), ADSR.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const unlockNote = coffee.para('Click any button to start AudioContext (user gesture required).', {
+      style: { color: 'var(--coffee-text-muted)', fontSize: '12px', marginBottom: '12px' }
+    });
+
+    const types = [
+      { value: 'sine', label: 'Sine' },
+      { value: 'square', label: 'Square' },
+      { value: 'sawtooth', label: 'Saw' },
+      { value: 'triangle', label: 'Triangle' }
+    ];
+
+    const notes = ['C4', 'E4', 'G4', 'C5'];
+
+    let vizStarted = false;
+    function startVisualizer() {
+      if (vizStarted) return;
+      vizStarted = true;
+      const canvas = document.getElementById('synth-viz');
+      const ctx = canvas.getContext('2d');
+      const analyzer = coffee.synth.analyzer;
+      analyzer.fftSize = 2048;
+      const bufferLength = analyzer.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--coffee-bg-surface').trim() || '#1a1a1a';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--coffee-accent').trim() || '#4c9aff';
+      function draw() {
+        requestAnimationFrame(draw);
+        analyzer.getByteTimeDomainData(dataArray);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = accent;
+        ctx.beginPath();
+        const sliceWidth = canvas.width / bufferLength;
+        let x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const v = (dataArray[i] - 128) / 128; // -1 to 1, center at 128
+          const y = canvas.height / 2 + v * (canvas.height / 2);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+          x += sliceWidth;
+        }
+        ctx.lineTo(canvas.width, canvas.height / 2);
+        ctx.stroke();
+      }
+      draw();
+    }
+
+    const adsr = { attack: 0.05, decay: 0.1, sustain: 0.7, release: 0.3 };
+
+    function playNote(type) {
+      coffee.synth.init();
+      startVisualizer();
+      const noteName = notes[Math.floor(Math.random() * notes.length)];
+      const synth = new coffee.Synth(type);
+      const note = synth.play(noteName, adsr);
+      setTimeout(() => note.stop(adsr.release), 800);
+      const opts = `{ attack: ${adsr.attack}, decay: ${adsr.decay}, sustain: ${adsr.sustain}, release: ${adsr.release} }`;
+      const call = `new coffee.Synth('${type}').play('${noteName}', ${opts})`;
+      if (coffee.toast) coffee.toast(call, 'info', 2500);
+    }
+
+    function playChord(type) {
+      coffee.synth.init();
+      startVisualizer();
+      const synth = new coffee.Synth(type);
+      const chord = ['C4', 'E4', 'G4'].map(n => synth.play(n, adsr));
+      setTimeout(() => chord.forEach(n => n.stop(adsr.release)), 1200);
+      if (coffee.toast) coffee.toast(`Chord: C4 E4 G4`, 'info', 2500);
+    }
+
+    const waveBtns = types.map(t => coffee.button(t.label, () => playNote(t.value)));
+    const chordBtn = coffee.button('Chord (C-E-G)', () => playChord('sine'));
+
+    const volSlider = coffee.slider({
+      min: 0, max: 1, step: 0.1, value: 0.5,
+      id: 'synth-volume',
+      onInput: (v) => { coffee.synth.volume = v; }
+    });
+
+    const aSlider = coffee.slider({ id: 'adsr-a', min: 0.001, max: 0.5, step: 0.01, value: 0.05, onInput: (v) => { adsr.attack = v; } });
+    const dSlider = coffee.slider({ id: 'adsr-d', min: 0.001, max: 0.5, step: 0.01, value: 0.1, onInput: (v) => { adsr.decay = v; } });
+    const sSlider = coffee.slider({ id: 'adsr-s', min: 0, max: 1, step: 0.1, value: 0.7, onInput: (v) => { adsr.sustain = v; } });
+    const rSlider = coffee.slider({ id: 'adsr-r', min: 0.05, max: 1, step: 0.05, value: 0.3, onInput: (v) => { adsr.release = v; } });
+
+    const vizCanvas = document.createElement('canvas');
+    vizCanvas.id = 'synth-viz';
+    vizCanvas.width = 400;
+    vizCanvas.height = 100;
+    vizCanvas.style.cssText = 'width:100%;max-width:400px;height:100px;background:var(--coffee-bg-surface);border-radius:var(--coffee-radius-sm)';
+
+    const waveRow = coffee.row([...waveBtns, chordBtn], { style: { flexWrap: 'wrap', gap: '8px' } });
+    const volRow = coffee.row([
+      coffee.label('Volume', volSlider),
+      volSlider
+    ], { style: { alignItems: 'center', width: '100%' } });
+
+    const adsrRow = coffee.col([
+      coffee.para('ADSR', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+      coffee.row([coffee.label('Attack', aSlider), aSlider], { style: { alignItems: 'center', width: '100%' } }),
+      coffee.row([coffee.label('Decay', dSlider), dSlider], { style: { alignItems: 'center', width: '100%' } }),
+      coffee.row([coffee.label('Sustain', sSlider), sSlider], { style: { alignItems: 'center', width: '100%' } }),
+      coffee.row([coffee.label('Release', rSlider), rSlider], { style: { alignItems: 'center', width: '100%' } })
+    ], { style: { gap: '4px', width: '100%' } });
+
+    const vizLabel = coffee.para('Oscilloscope', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } });
+
+    const card = coffee.card([
+      header,
+      sub,
+      unlockNote,
+      waveRow,
+      volRow,
+      adsrRow,
+      vizLabel,
+      vizCanvas
+    ], { style: { width: '100%', maxWidth: '440px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

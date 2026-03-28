@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Anti-Social">
+  <meta name="cce:id" content="anti-social">
+  <meta name="cce:icon" content="🪞">
+  <meta name="cce:color" content="#7c3aed">
+  <meta name="cce:description" content="Fediverse client — coffee.masto + POC layout">
+  <!--
+    Coffee stack: coffee.save/load (Control) for vault + local signals; coffee.drive for instance/token.
+    coffee.injectTheme + input/textarea/select/label/button/row/list/toast for forms & lists.
+    Nav, feed cards, profile/vault panels = custom HTML + ANTI-SOCIAL-ALPHA.css (.as-*), not coffee.card/appShell.
+  -->
+  <title>Anti-Social α — feed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="ANTI-SOCIAL-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-LIST/coffee-list.js"></script>
+  <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../../../COFFEE-GIT/coffee-git.js"></script>
+  <script src="../../../COFFEE-MASTO/coffee-masto.js"></script>
+</head>
+<body>
+  <div id="app-root"></div>
+  <script>
+(function () {
+  const DRIVE_ID = 'anti-social';
+  const SETTINGS_KEY = 'settings';
+  /** Same as POC: public tag API works with no token */
+  const DEFAULT_INSTANCE = 'https://mastodon.social';
+  /** Same hashtag row as ANTI-SOCIAL4-POST.html */
+  const TAGS = ['pixelart', 'webdev', 'lofi', 'coding', 'linux', 'gamedev'];
+  /** coffee.save/load keys → stored as coffee_<key> in localStorage */
+  const CTRL_CREATED = 'anti_social_created';
+  const CTRL_VAULT = 'anti_social_vault';
+  /** one-time migrate from pre-Control raw keys */
+  const LEGACY_CREATED = 'anti-social-created';
+  const LEGACY_VAULT = 'anti-social-vault';
+  let cachedMe = null;
+  /** Community Edition profile.json (optional) — see as-ce-profile.json */
+  let communityProfile = null;
+  /** Resolved raw.githubusercontent.com URL — persisted in coffee.drive settings */
+  let ceProfileJsonUrlState = null;
+  const CE_PROFILE_FALLBACK = '../../COMMUNITY-PROFILE/profile.json';
+  const CE_PROFILE_TRY_PATHS = [
+    'COMMUNITY-PROFILE/profile.json',
+    'profile.json',
+    'COFFEE-SOURCE/COFFEE-COMMUNITY/COMMUNITY-PROFILE/profile.json'
+  ];
+  const BIOS_DEFAULT_HTML =
+    'Curating the decentralized web for high-fidelity aesthetics. Interest in compiled languages, vaporwave hardware, and low-res graphics.<span class="as-tagline">// no algorithms here.</span>';
+
+  coffee.injectTheme('dark');
+
+  function stripHtml(html) {
+    const d = document.createElement('div');
+    d.innerHTML = html || '';
+    return (d.textContent || d.innerText || '').trim();
+  }
+
+  function loadLocalCreated() {
+    const fromCtrl = coffee.load(CTRL_CREATED);
+    if (Array.isArray(fromCtrl)) return fromCtrl;
+    try {
+      const raw = localStorage.getItem(LEGACY_CREATED);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          coffee.save(CTRL_CREATED, arr);
+          localStorage.removeItem(LEGACY_CREATED);
+          return arr;
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+  function saveLocalCreated(arr) {
+    try {
+      coffee.save(CTRL_CREATED, arr);
+    } catch (_) {}
+  }
+
+  let api = coffee.masto({ instanceUrl: DEFAULT_INSTANCE, token: '' });
+  /** Default tag = pixelart (POC) */
+  let currentTag = 'pixelart';
+
+  function syncApiFromInputs() {
+    let inst = (instanceInput.value || '').trim();
+    if (!inst) inst = DEFAULT_INSTANCE;
+    const tok = (tokenInput.value || '').trim();
+    api.setInstanceUrl(inst);
+    api.setToken(tok);
+    return { inst, tok };
+  }
+
+  function hasToken() {
+    return !!(tokenInput.value || '').trim();
+  }
+
+  function loadVault() {
+    const fromCtrl = coffee.load(CTRL_VAULT);
+    if (Array.isArray(fromCtrl)) return fromCtrl;
+    try {
+      const raw = localStorage.getItem(LEGACY_VAULT);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) {
+          coffee.save(CTRL_VAULT, arr);
+          localStorage.removeItem(LEGACY_VAULT);
+          return arr;
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+  function saveVaultArr(arr) {
+    try {
+      coffee.save(CTRL_VAULT, arr);
+    } catch (_) {}
+  }
+  function isInVault(id) {
+    return loadVault().some(function (p) {
+      return String(p.id) === String(id);
+    });
+  }
+  function toggleVaultPost(post) {
+    const id = post.id;
+    const v = loadVault();
+    const i = v.findIndex(function (p) {
+      return String(p.id) === String(id);
+    });
+    if (i === -1) v.push(JSON.parse(JSON.stringify(post)));
+    else v.splice(i, 1);
+    saveVaultArr(v);
+    coffee.toast(i === -1 ? 'Saved to vault' : 'Removed from vault', 'success');
+  }
+
+  const DEFAULT_AVATAR =
+    'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=NerdUser';
+
+  function ceDicebearUrl(avatar) {
+    if (!avatar || typeof avatar !== 'object') return DEFAULT_AVATAR;
+    if (avatar.imageUrl && String(avatar.imageUrl).trim()) return String(avatar.imageUrl).trim();
+    const style = avatar.style || 'adventurer';
+    const seed = avatar.seed || 'Coffee';
+    const bg = avatar.backgroundColor || 'b6e3f4,c0aede,d1d4f9';
+    return (
+      'https://api.dicebear.com/7.x/' +
+      encodeURIComponent(style) +
+      '/svg?seed=' +
+      encodeURIComponent(seed) +
+      '&backgroundColor=' +
+      encodeURIComponent(bg)
+    );
+  }
+
+  function localPostAccountFromCeProfile() {
+    if (!communityProfile || !communityProfile.name) return null;
+    const h = String(communityProfile.handle || '').replace(/^@/, '') || 'community_edition';
+    const av = ceDicebearUrl(communityProfile.avatar);
+    return {
+      display_name: communityProfile.name + ' (You)',
+      username: h,
+      acct: h,
+      avatar: av,
+      avatar_static: av
+    };
+  }
+
+  function applyBiosBox() {
+    const biosBox = document.getElementById('as-bios-box');
+    if (!biosBox) return;
+    if (cachedMe) {
+      biosBox.innerHTML = BIOS_DEFAULT_HTML;
+      return;
+    }
+    if (communityProfile && communityProfile.about && communityProfile.about.body) {
+      biosBox.textContent = '';
+      biosBox.appendChild(document.createTextNode(communityProfile.about.body));
+      const tag = document.createElement('span');
+      tag.className = 'as-tagline';
+      tag.textContent = ' // community profile';
+      biosBox.appendChild(tag);
+    } else {
+      biosBox.innerHTML = BIOS_DEFAULT_HTML;
+    }
+  }
+
+  function syncProfileUI() {
+    const av = document.getElementById('as-profile-panel-avatar');
+    const nm = document.getElementById('as-profile-name');
+    const hd = document.getElementById('as-profile-handle');
+    const a = document.getElementById('as-stat-a');
+    const b = document.getElementById('as-stat-b');
+    const c = document.getElementById('as-stat-c');
+    const la = document.getElementById('as-stat-a-lbl');
+    const lb = document.getElementById('as-stat-b-lbl');
+    const lc = document.getElementById('as-stat-c-lbl');
+    if (!av || !nm) return;
+    if (cachedMe) {
+      av.src = cachedMe.avatar_static || cachedMe.avatar || DEFAULT_AVATAR;
+      nm.textContent = stripHtml(cachedMe.display_name) || cachedMe.username || '—';
+      hd.textContent = '@' + (cachedMe.acct || cachedMe.username || '');
+      a.textContent = String(
+        cachedMe.statuses_count != null ? cachedMe.statuses_count : '—'
+      );
+      b.textContent = String(
+        cachedMe.followers_count != null ? cachedMe.followers_count : '—'
+      );
+      c.textContent = String(
+        cachedMe.following_count != null ? cachedMe.following_count : '—'
+      );
+      la.textContent = 'Signals';
+      lb.textContent = 'Followers';
+      lc.textContent = 'Following';
+      applyBiosBox();
+    } else if (communityProfile && communityProfile.name) {
+      av.src = ceDicebearUrl(communityProfile.avatar);
+      nm.textContent = communityProfile.name;
+      const raw = communityProfile.handle || '';
+      hd.textContent = raw.charAt(0) === '@' ? raw : '@' + String(raw).replace(/^@/, '');
+      a.textContent = '—';
+      b.textContent = '—';
+      c.textContent = '—';
+      la.textContent = 'Signals';
+      lb.textContent = 'Followers';
+      lc.textContent = 'Following';
+      applyBiosBox();
+    } else {
+      av.src = DEFAULT_AVATAR;
+      nm.textContent = 'NERD_NULL';
+      hd.textContent = '@anonymous_signal';
+      a.textContent = '1.2k';
+      b.textContent = '404';
+      c.textContent = '99%';
+      la.textContent = 'Signals';
+      lb.textContent = 'Followers';
+      lc.textContent = 'Uptime';
+      applyBiosBox();
+    }
+  }
+
+  const instanceInput = coffee.input({
+    id: 'as-instance',
+    placeholder: 'https://mastodon.social',
+    value: DEFAULT_INSTANCE,
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+  const tokenInput = coffee.input({
+    id: 'as-token',
+    type: 'password',
+    placeholder: 'OAuth access token',
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+
+  const ceGithubProfileInput = coffee.input({
+    id: 'as-ce-github-profile',
+    placeholder: 'owner/repo or owner/repo/.../profile.json',
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+
+  const NAV_AVATAR_DEFAULT_DATA_URI =
+    'data:image/svg+xml,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="%237c3aed"><circle cx="16" cy="12" r="6"/><path d="M6 28c0-6 4-10 10-10s10 4 10 10" fill="none" stroke="%237c3aed" stroke-width="2"/></svg>'
+    );
+
+  function updateCeProfileStatusUI() {
+    const st = document.getElementById('as-ce-profile-status');
+    if (!st) return;
+    if (ceProfileJsonUrlState) {
+      const u = String(ceProfileJsonUrlState);
+      st.textContent =
+        'Drive-linked: ' + (u.length > 80 ? u.slice(0, 78) + '…' : u);
+    } else if (communityProfile && communityProfile.name) {
+      st.textContent = 'Using ?ceProfile / as-ce-profile.json / monorepo path (not in Drive)';
+    } else {
+      st.textContent = '// coffee.git · public raw · Save locally stores ceProfileJsonUrl';
+    }
+  }
+
+  async function searchGithubCeProfile(ev) {
+    if (!coffee.git || typeof coffee.git.fetchFromInput !== 'function') {
+      coffee.toast('coffee.git not loaded', 'error');
+      return;
+    }
+    const q = (ceGithubProfileInput.value || '').trim();
+    if (!q) {
+      coffee.toast('Enter owner/repo or path to profile.json', 'warning');
+      return;
+    }
+    const simple = q.match(/^([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/);
+    const candidates = [];
+    if (simple) {
+      const b = simple[1] + '/' + simple[2];
+      CE_PROFILE_TRY_PATHS.forEach(function (p) {
+        candidates.push(b + '/' + p);
+      });
+    } else {
+      candidates.push(q);
+    }
+    const btn = ev && ev.currentTarget;
+    if (btn) btn.disabled = true;
+    let lastErr = '';
+    try {
+      for (let i = 0; i < candidates.length; i++) {
+        const r = await coffee.git.fetchFromInput(candidates[i]);
+        if (!r.ok) {
+          lastErr = r.error || 'HTTP error';
+          continue;
+        }
+        try {
+          const data = JSON.parse(r.text);
+          if (data && typeof data === 'object' && data.name) {
+            communityProfile = data;
+            ceProfileJsonUrlState = r.url || null;
+            syncProfileUI();
+            const navAv = document.getElementById('as-nav-avatar');
+            if (navAv && !cachedMe && communityProfile.name) {
+              navAv.src = ceDicebearUrl(communityProfile.avatar);
+              navAv.referrerPolicy = 'no-referrer';
+            }
+            updateCeProfileStatusUI();
+            coffee.toast('Linked profile.json — Save locally to persist URL in Drive', 'success');
+            return;
+          }
+        } catch (_) {
+          lastErr = 'Invalid JSON';
+        }
+      }
+      coffee.toast(lastErr || 'No profile.json with name field found', 'error');
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function unlinkGithubCeProfile() {
+    ceProfileJsonUrlState = null;
+    ceGithubProfileInput.value = '';
+    await loadCommunityProfileJson();
+    syncProfileUI();
+    const navAv = document.getElementById('as-nav-avatar');
+    if (navAv && !cachedMe) {
+      if (communityProfile && communityProfile.name) {
+        navAv.src = ceDicebearUrl(communityProfile.avatar);
+      } else {
+        navAv.src = NAV_AVATAR_DEFAULT_DATA_URI;
+      }
+    }
+    updateCeProfileStatusUI();
+    coffee.toast('Unlinked — Save locally to clear URL from Drive', 'info');
+  }
+
+  const composeArea = coffee.textarea({
+    id: 'as-compose',
+    rows: 5,
+    placeholder: '// broadcast to timeline…',
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+  const visSelect = coffee.select({
+    id: 'as-vis',
+    value: 'public',
+    options: [
+      { value: 'public', label: 'Public' },
+      { value: 'unlisted', label: 'Unlisted' },
+      { value: 'private', label: 'Followers' },
+      { value: 'direct', label: 'Direct' }
+    ],
+    style: { width: '100%' }
+  });
+
+  const overlay = document.createElement('div');
+  overlay.className = 'as-overlay';
+  overlay.id = 'as-overlay';
+  overlay.addEventListener('click', closePanels);
+
+  function closePanels() {
+    overlay.classList.remove('as-open');
+    panelUser.classList.remove('as-open');
+    panelVault.classList.remove('as-open');
+    panelCompose.classList.remove('as-open');
+  }
+
+  function switchUserTab(which) {
+    const isP = which === 'profile';
+    const bp = document.getElementById('as-tab-profile');
+    const bs = document.getElementById('as-tab-system');
+    if (bp) bp.classList.toggle('as-active', isP);
+    if (bs) bs.classList.toggle('as-active', !isP);
+    const pp = document.getElementById('as-pane-profile');
+    const ps = document.getElementById('as-pane-system');
+    if (pp) pp.style.display = isP ? 'flex' : 'none';
+    if (ps) ps.style.display = isP ? 'none' : 'block';
+  }
+
+  function openUserPanel(tab) {
+    overlay.classList.add('as-open');
+    panelUser.classList.add('as-open');
+    panelVault.classList.remove('as-open');
+    panelCompose.classList.remove('as-open');
+    switchUserTab(tab === 'system' ? 'system' : 'profile');
+    syncProfileUI();
+  }
+
+  function openVaultPanel() {
+    overlay.classList.add('as-open');
+    panelVault.classList.add('as-open');
+    panelUser.classList.remove('as-open');
+    panelCompose.classList.remove('as-open');
+    renderVault();
+  }
+
+  function openComposePanel() {
+    overlay.classList.add('as-open');
+    panelCompose.classList.add('as-open');
+    panelUser.classList.remove('as-open');
+    panelVault.classList.remove('as-open');
+  }
+
+  const panelUser = document.createElement('div');
+  panelUser.className = 'as-bottom-panel';
+  panelUser.id = 'as-panel-user';
+
+  const panelVault = document.createElement('div');
+  panelVault.className = 'as-bottom-panel';
+  panelVault.id = 'as-panel-vault';
+
+  const panelCompose = document.createElement('div');
+  panelCompose.className = 'as-bottom-panel';
+  panelCompose.id = 'as-panel-compose';
+
+  const btnSave = coffee.button('Save locally', async function () {
+    const { inst, tok } = syncApiFromInputs();
+    const drive = coffee.drive(DRIVE_ID);
+    if (!drive) return coffee.toast('Drive unavailable', 'error');
+    try {
+      await drive.save({
+        id: SETTINGS_KEY,
+        instanceUrl: inst,
+        token: tok,
+        ceProfileJsonUrl: ceProfileJsonUrlState ? String(ceProfileJsonUrlState) : '',
+        updatedAt: Date.now()
+      });
+      coffee.toast('Saved (instance, token, CE profile URL)', 'success');
+    } catch (e) {
+      coffee.toast(e.message || 'Save failed', 'error');
+    }
+  });
+  const btnVerify = coffee.button('Verify', async function () {
+    syncApiFromInputs();
+    try {
+      const me = await api.verifyCredentials();
+      cachedMe = me;
+      syncProfileUI();
+      navAvatar.src = me.avatar_static || me.avatar || navAvatar.src;
+      feedStatus.textContent = '@' + (me.acct || me.username) + ' · pull to refresh timeline';
+      coffee.toast('Signed in @' + (me.acct || me.username), 'success');
+    } catch (e) {
+      coffee.toast(e.message || 'Verify failed', 'error');
+    }
+  });
+
+  const btnPost = coffee.button('SEND SIGNAL', async function () {
+    const text = (composeArea.value || '').trim();
+    if (!text) return coffee.toast('Write something', 'warning');
+    syncApiFromInputs();
+    if (hasToken()) {
+      try {
+        const tagLine = '#' + currentTag;
+        const status =
+          text.indexOf('#' + currentTag) >= 0 ? text : text + '\n\n' + tagLine;
+        await api.postStatus({ status: status, visibility: visSelect.value || 'public' });
+        composeArea.value = '';
+        closePanels();
+        coffee.toast('Posted to instance', 'success');
+        fetchPosts();
+      } catch (e) {
+        coffee.toast(e.message || 'Post failed', 'error');
+      }
+      return;
+    }
+    /** POC: local-only signal (no token) */
+    const acc =
+      localPostAccountFromCeProfile() || {
+        display_name: 'NERD_NULL (You)',
+        username: 'anonymous_signal',
+        acct: 'local_host',
+        avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=NerdUser',
+        avatar_static: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=NerdUser'
+      };
+    const newPost = {
+      id: 'local-' + Date.now(),
+      created_at: new Date().toISOString(),
+      content: '<p>' + text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '</p><p>') + '</p>',
+      account: acc,
+      media_attachments: [],
+      favourites_count: 0,
+      reblogs_count: 0,
+      favourited: false,
+      reblogged: false,
+      url: '#'
+    };
+    const arr = loadLocalCreated();
+    arr.unshift(newPost);
+    saveLocalCreated(arr);
+    composeArea.value = '';
+    closePanels();
+    coffee.toast('Local signal saved', 'success');
+    fetchPosts();
+  });
+
+  const btnCloseProfile = document.createElement('button');
+  btnCloseProfile.className = 'as-btn-close-panel';
+  btnCloseProfile.type = 'button';
+  btnCloseProfile.textContent = 'RETURN TO FEED';
+  btnCloseProfile.onclick = closePanels;
+
+  const btnCloseCompose = document.createElement('button');
+  btnCloseCompose.className = 'as-btn-close-panel';
+  btnCloseCompose.type = 'button';
+  btnCloseCompose.textContent = 'CLOSE';
+  btnCloseCompose.onclick = closePanels;
+
+  const grabUser = document.createElement('div');
+  grabUser.className = 'as-panel-grab';
+  const tabRow = document.createElement('div');
+  tabRow.className = 'as-panel-tabs';
+  const btnTabProfile = document.createElement('button');
+  btnTabProfile.type = 'button';
+  btnTabProfile.id = 'as-tab-profile';
+  btnTabProfile.className = 'as-tab-btn as-active';
+  btnTabProfile.textContent = 'PROFILE';
+  btnTabProfile.onclick = function () {
+    switchUserTab('profile');
+  };
+  const btnTabSystem = document.createElement('button');
+  btnTabSystem.type = 'button';
+  btnTabSystem.id = 'as-tab-system';
+  btnTabSystem.className = 'as-tab-btn';
+  btnTabSystem.textContent = 'SYSTEM';
+  btnTabSystem.onclick = function () {
+    switchUserTab('system');
+  };
+  tabRow.appendChild(btnTabProfile);
+  tabRow.appendChild(btnTabSystem);
+
+  const paneProfile = document.createElement('div');
+  paneProfile.className = 'as-pane-profile';
+  paneProfile.id = 'as-pane-profile';
+
+  const avWrap = document.createElement('div');
+  avWrap.className = 'as-profile-avatar-wrap';
+  const avBox = document.createElement('div');
+  avBox.className = 'as-profile-avatar-box';
+  const profileBigAvatar = document.createElement('img');
+  profileBigAvatar.id = 'as-profile-panel-avatar';
+  profileBigAvatar.alt = 'User';
+  avBox.appendChild(profileBigAvatar);
+  avWrap.appendChild(avBox);
+  const onlineDot = document.createElement('div');
+  onlineDot.className = 'as-profile-online';
+  avWrap.appendChild(onlineDot);
+
+  const elProfileName = document.createElement('h2');
+  elProfileName.className = 'as-profile-name';
+  elProfileName.id = 'as-profile-name';
+
+  const elProfileHandle = document.createElement('p');
+  elProfileHandle.className = 'as-profile-handle as-mono';
+  elProfileHandle.id = 'as-profile-handle';
+
+  function makeStatCell(valId, lblId, lblText) {
+    const cell = document.createElement('div');
+    cell.className = 'as-stat-cell';
+    const v = document.createElement('div');
+    v.className = 'as-stat-val as-mono';
+    v.id = valId;
+    const l = document.createElement('div');
+    l.className = 'as-stat-label';
+    l.id = lblId;
+    l.textContent = lblText;
+    cell.appendChild(v);
+    cell.appendChild(l);
+    return cell;
+  }
+  const statsGrid = document.createElement('div');
+  statsGrid.className = 'as-stats-grid';
+  statsGrid.appendChild(makeStatCell('as-stat-a', 'as-stat-a-lbl', 'Signals'));
+  statsGrid.appendChild(makeStatCell('as-stat-b', 'as-stat-b-lbl', 'Followers'));
+  statsGrid.appendChild(makeStatCell('as-stat-c', 'as-stat-c-lbl', 'Uptime'));
+
+  const biosLabel = document.createElement('div');
+  biosLabel.className = 'as-bios-label';
+  biosLabel.textContent = 'SYSTEM_BIOS';
+  const biosBox = document.createElement('div');
+  biosBox.className = 'as-bios-box';
+  biosBox.id = 'as-bios-box';
+  biosBox.innerHTML = BIOS_DEFAULT_HTML;
+
+  const btnGotoSystem = document.createElement('button');
+  btnGotoSystem.type = 'button';
+  btnGotoSystem.className = 'as-btn-close-panel';
+  btnGotoSystem.style.marginTop = '0';
+  btnGotoSystem.style.background = 'rgba(255,255,255,0.1)';
+  btnGotoSystem.style.color = 'var(--as-text)';
+  btnGotoSystem.textContent = 'INSTANCE & TOKEN →';
+  btnGotoSystem.onclick = function () {
+    switchUserTab('system');
+  };
+
+  paneProfile.appendChild(avWrap);
+  paneProfile.appendChild(elProfileName);
+  paneProfile.appendChild(elProfileHandle);
+  paneProfile.appendChild(statsGrid);
+  paneProfile.appendChild(biosLabel);
+  paneProfile.appendChild(biosBox);
+  paneProfile.appendChild(btnGotoSystem);
+  paneProfile.appendChild(btnCloseProfile);
+
+  const paneSystem = document.createElement('div');
+  paneSystem.className = 'as-pane-system as-panel-form';
+  paneSystem.id = 'as-pane-system';
+  paneSystem.style.display = 'none';
+
+  const tSys = document.createElement('h2');
+  tSys.className = 'as-panel-title';
+  tSys.textContent = 'SYSTEM_LINK';
+  const sSys = document.createElement('p');
+  sSys.className = 'as-panel-sub as-mono';
+  sSys.textContent = '// default mastodon.social · token optional for fav/boost/API post';
+  paneSystem.appendChild(tSys);
+  paneSystem.appendChild(sSys);
+  paneSystem.appendChild(coffee.label('Instance', instanceInput));
+  paneSystem.appendChild(instanceInput);
+  paneSystem.appendChild(coffee.label('Access token', tokenInput));
+  paneSystem.appendChild(tokenInput);
+
+  const tCeGit = document.createElement('h2');
+  tCeGit.className = 'as-panel-title';
+  tCeGit.style.marginTop = '18px';
+  tCeGit.textContent = 'CE_PROFILE (GitHub)';
+  const sCeGit = document.createElement('p');
+  sCeGit.className = 'as-panel-sub as-mono';
+  sCeGit.textContent =
+    '// coffee.git — public raw only (main/master). Stores raw URL in coffee.drive with Save locally.';
+  paneSystem.appendChild(tCeGit);
+  paneSystem.appendChild(sCeGit);
+  paneSystem.appendChild(
+    coffee.label('GitHub owner/repo or path to profile.json', ceGithubProfileInput)
+  );
+  paneSystem.appendChild(ceGithubProfileInput);
+  const ceProfileStatusEl = document.createElement('p');
+  ceProfileStatusEl.className = 'as-panel-sub as-mono';
+  ceProfileStatusEl.id = 'as-ce-profile-status';
+  ceProfileStatusEl.style.cssText = 'font-size:11px;line-height:1.45;opacity:0.9;margin:8px 0 10px';
+  ceProfileStatusEl.textContent = '// …';
+  paneSystem.appendChild(ceProfileStatusEl);
+  const btnSearchCeProfile = coffee.button('Find profile.json', searchGithubCeProfile, {
+    style: { flex: '1', minWidth: '120px' }
+  });
+  const btnUnlinkCeProfile = coffee.button('Unlink CE profile', unlinkGithubCeProfile, {
+    style: {
+      flex: '1',
+      minWidth: '120px',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+      color: 'var(--as-text)'
+    }
+  });
+  paneSystem.appendChild(
+    coffee.row([btnSearchCeProfile, btnUnlinkCeProfile], { style: { gap: '8px', flexWrap: 'wrap' } })
+  );
+
+  paneSystem.appendChild(
+    coffee.row([btnSave, btnVerify], { style: { gap: '8px', flexWrap: 'wrap' } })
+  );
+  const btnBackProfile = document.createElement('button');
+  btnBackProfile.type = 'button';
+  btnBackProfile.className = 'as-btn-close-panel';
+  btnBackProfile.style.background = 'rgba(255,255,255,0.1)';
+  btnBackProfile.style.color = 'var(--as-text)';
+  btnBackProfile.textContent = '← BACK TO PROFILE';
+  btnBackProfile.onclick = function () {
+    switchUserTab('profile');
+  };
+  paneSystem.appendChild(btnBackProfile);
+
+  panelUser.appendChild(grabUser);
+  panelUser.appendChild(tabRow);
+  panelUser.appendChild(paneProfile);
+  panelUser.appendChild(paneSystem);
+
+  const grabVault = document.createElement('div');
+  grabVault.className = 'as-panel-grab';
+  const tVault = document.createElement('h2');
+  tVault.className = 'as-panel-title';
+  tVault.textContent = 'DATA_VAULT';
+  const sVault = document.createElement('p');
+  sVault.className = 'as-panel-sub as-mono';
+  sVault.textContent = '// locally stored signals';
+  const vaultMount = document.createElement('div');
+  vaultMount.id = 'as-vault-mount';
+  const btnVaultClose = document.createElement('button');
+  btnVaultClose.className = 'as-btn-close-panel';
+  btnVaultClose.type = 'button';
+  btnVaultClose.textContent = 'CLOSE VAULT';
+  btnVaultClose.onclick = closePanels;
+  panelVault.appendChild(grabVault);
+  panelVault.appendChild(tVault);
+  panelVault.appendChild(sVault);
+  panelVault.appendChild(vaultMount);
+  panelVault.appendChild(btnVaultClose);
+
+  const formCompose = document.createElement('div');
+  formCompose.className = 'as-panel-form';
+  formCompose.appendChild(document.createElement('div')).className = 'as-panel-grab';
+  const tComp = document.createElement('h2');
+  tComp.className = 'as-panel-title';
+  tComp.textContent = 'NEW_SIGNAL';
+  const sComp = document.createElement('p');
+  sComp.className = 'as-panel-sub as-mono';
+  sComp.textContent = '// token → post to instance (tags #) · no token → local signal on device';
+  formCompose.appendChild(tComp);
+  formCompose.appendChild(sComp);
+  formCompose.appendChild(composeArea);
+  formCompose.appendChild(coffee.label('Visibility', visSelect));
+  formCompose.appendChild(visSelect);
+  formCompose.appendChild(btnPost);
+  formCompose.appendChild(btnCloseCompose);
+  panelCompose.appendChild(formCompose);
+
+  function renderStatusCard(s, opts) {
+    opts = opts || {};
+    const boosted = !!(s.reblog && s.account);
+    const inner = s.reblog || s;
+    const acct = inner.account || {};
+    const card = document.createElement('div');
+    card.className = 'as-post-card';
+
+    const head = document.createElement('div');
+    head.className = 'as-post-head';
+
+    const headMain = document.createElement('div');
+    headMain.className = 'as-post-head-main';
+
+    const img = document.createElement('img');
+    img.className = 'as-avatar';
+    img.alt = '';
+    img.referrerPolicy = 'no-referrer';
+    if (acct.avatar) img.src = acct.avatar;
+    img.onerror = function () { img.style.visibility = 'hidden'; };
+
+    const meta = document.createElement('div');
+    meta.className = 'as-post-meta';
+
+    if (boosted) {
+      const rb = document.createElement('div');
+      rb.className = 'as-boost-line as-mono';
+      rb.textContent = '🔁 @' + (s.account.acct || s.account.username) + ' boosted';
+      meta.appendChild(rb);
+    }
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'as-display-name';
+    nameEl.textContent = acct.display_name ? stripHtml(acct.display_name) : (acct.username || '');
+    const handleEl = document.createElement('div');
+    handleEl.className = 'as-handle as-mono';
+    handleEl.textContent = '@' + (acct.acct || '');
+
+    const bodyEl = document.createElement('div');
+    bodyEl.className = 'as-post-body';
+    if (String(inner.id || '').indexOf('local-') === 0) {
+      bodyEl.innerHTML = inner.content || '';
+    } else {
+      bodyEl.textContent = stripHtml(inner.content);
+    }
+
+    meta.appendChild(nameEl);
+    meta.appendChild(handleEl);
+    meta.appendChild(bodyEl);
+
+    if (inner.media_attachments && inner.media_attachments.length) {
+      inner.media_attachments.forEach(function (att) {
+        const wrap = document.createElement('div');
+        wrap.className = 'as-media-wrap';
+        if (att.type === 'video' || att.type === 'gifv') {
+          const v = document.createElement('video');
+          v.controls = true;
+          v.playsInline = true;
+          v.src = att.url;
+          wrap.appendChild(v);
+        } else if (att.preview_url || att.url) {
+          const im = document.createElement('img');
+          im.alt = att.description || '';
+          im.loading = 'lazy';
+          im.src = att.preview_url || att.url;
+          wrap.appendChild(im);
+        }
+        meta.appendChild(wrap);
+      });
+    }
+
+    headMain.appendChild(img);
+    headMain.appendChild(meta);
+    head.appendChild(headMain);
+
+    if (!opts.hideVault) {
+      const bk = document.createElement('button');
+      bk.type = 'button';
+      bk.className = 'as-bookmark-btn';
+      bk.title = 'Save to vault';
+      function refreshBk() {
+        const saved = isInVault(inner.id);
+        bk.classList.toggle('as-saved', saved);
+        bk.textContent = saved ? '★' : '☆';
+      }
+      refreshBk();
+      bk.onclick = function (e) {
+        e.stopPropagation();
+        toggleVaultPost(inner);
+        refreshBk();
+      };
+      head.appendChild(bk);
+    }
+
+    card.appendChild(head);
+
+    const target = inner;
+    const actions = document.createElement('div');
+    actions.className = 'as-post-actions';
+
+    if (!hasToken() || String(target.id || '').indexOf('local-') === 0) {
+      const hint = document.createElement('div');
+      hint.className = 'as-mono';
+      hint.style.cssText = 'font-size:11px;color:var(--as-muted);padding:4px 0';
+      hint.textContent =
+        String(target.id || '').indexOf('local-') === 0
+          ? 'local signal'
+          : 'Add token in SYSTEM to fav / boost';
+      card.appendChild(hint);
+      return card;
+    }
+
+    const favBtn = document.createElement('button');
+    favBtn.type = 'button';
+    favBtn.textContent = (target.favourited ? '♥' : '♡') + ' fav';
+    favBtn.onclick = async function (e) {
+      e.stopPropagation();
+      syncApiFromInputs();
+      try {
+        if (target.favourited) await api.unfavourite(target.id);
+        else await api.favourite(target.id);
+        target.favourited = !target.favourited;
+        favBtn.textContent = (target.favourited ? '♥' : '♡') + ' fav';
+      } catch (err) {
+        coffee.toast(err.message || 'Fav failed', 'error');
+      }
+    };
+
+    const boostBtn = document.createElement('button');
+    boostBtn.type = 'button';
+    boostBtn.textContent = (target.reblogged ? '🔁 boosted' : '🔁 boost');
+    boostBtn.onclick = async function (e) {
+      e.stopPropagation();
+      syncApiFromInputs();
+      try {
+        if (target.reblogged) await api.unreblog(target.id);
+        else await api.reblog(target.id);
+        target.reblogged = !target.reblogged;
+        boostBtn.textContent = (target.reblogged ? '🔁 boosted' : '🔁 boost');
+      } catch (err) {
+        coffee.toast(err.message || 'Boost failed', 'error');
+      }
+    };
+
+    actions.appendChild(favBtn);
+    actions.appendChild(boostBtn);
+    card.appendChild(actions);
+
+    return card;
+  }
+
+  function renderVault() {
+    const vm = document.getElementById('as-vault-mount');
+    if (!vm) return;
+    vm.innerHTML = '';
+    const items = loadVault();
+    if (!items.length) {
+      const p = document.createElement('p');
+      p.className = 'as-empty-feed';
+      p.style.padding = '24px';
+      p.innerHTML =
+        'Nothing saved yet. Tap <strong>☆</strong> on a post in the feed to bookmark.';
+      vm.appendChild(p);
+      return;
+    }
+    vm.appendChild(
+      coffee.list(items, {
+        emptyMessage: '',
+        renderItem: function (item) {
+          return renderStatusCard(item, { hideVault: true });
+        },
+        gap: '24px'
+      })
+    );
+  }
+
+  const feedMount = document.createElement('div');
+  feedMount.id = 'as-feed-mount';
+
+  const feedStatus = document.createElement('div');
+  feedStatus.className = 'as-feed-status as-mono';
+  feedStatus.id = 'as-feed-status';
+  feedStatus.textContent = 'Loading #' + currentTag + '…';
+
+  function showSkeleton() {
+    feedMount.innerHTML = '';
+    for (let i = 0; i < 2; i++) {
+      const sk = document.createElement('div');
+      sk.className = 'as-post-card';
+      sk.innerHTML =
+        '<div class="as-post-head"><div class="as-avatar as-shimmer" style="border:0"></div><div style="flex:1"><div class="as-shimmer" style="height:14px;width:40%;margin-bottom:8px"></div><div class="as-shimmer" style="height:10px;width:25%;opacity:.6"></div></div></div><div class="as-shimmer" style="height:180px;margin-top:12px;border-radius:12px"></div>';
+      feedMount.appendChild(sk);
+    }
+  }
+
+  function showEmptyMessage(html) {
+    feedMount.innerHTML = '';
+    const d = document.createElement('div');
+    d.className = 'as-empty-feed';
+    d.innerHTML = html;
+    feedMount.appendChild(d);
+  }
+
+  function mountFeedList(items) {
+    feedMount.innerHTML = '';
+    if (!items || !items.length) {
+      showEmptyMessage(
+        'Nothing for <strong>#' +
+          currentTag +
+          '</strong> yet.<br><br>Or instance blocked the request — try SYSTEM → check URL.'
+      );
+      return;
+    }
+    const list = coffee.list(items, {
+      emptyMessage: '',
+      renderItem: renderStatusCard,
+      gap: '24px'
+    });
+    feedMount.appendChild(list);
+  }
+
+  /** POC: public tag timeline + merge local signals (no token required) */
+  async function fetchPosts() {
+    syncApiFromInputs();
+    btnRefresh.classList.add('as-spinning');
+    showSkeleton();
+    feedStatus.textContent = 'Loading #' + currentTag + '…';
+    const local = loadLocalCreated();
+    try {
+      const remote = await api.tagTimeline(currentTag, { limit: 20 });
+      const combined = local.concat(remote);
+      mountFeedList(combined);
+      const host = (instanceInput.value || DEFAULT_INSTANCE).replace(/^https?:\/\//, '').replace(/\/$/, '');
+      feedStatus.textContent =
+        combined.length + ' · #' + currentTag + ' · ' + host;
+    } catch (e) {
+      if (local.length) {
+        mountFeedList(local);
+        feedStatus.textContent = local.length + ' local only (tag fetch failed)';
+        coffee.toast('Showing local signals — tag API failed', 'warning');
+      } else {
+        feedStatus.textContent = 'error';
+        showEmptyMessage(
+          'Could not load <strong>#' +
+            currentTag +
+            '</strong>.<br><br><span class="as-mono">' +
+            (e.message || e) +
+            '</span>'
+        );
+        coffee.toast(e.message || 'Feed failed', 'error');
+      }
+    } finally {
+      btnRefresh.classList.remove('as-spinning');
+    }
+  }
+
+  function setTag(tag) {
+    currentTag = tag;
+    tagBar.querySelectorAll('.as-tag-pill').forEach(function (p) {
+      p.classList.toggle('as-active', p.dataset.tag === tag);
+    });
+    fetchPosts();
+  }
+
+  const nav = document.createElement('nav');
+  nav.className = 'as-glass-nav';
+  const brand = document.createElement('div');
+  brand.className = 'as-brand';
+  const logo = document.createElement('div');
+  logo.className = 'as-logo';
+  logo.textContent = 'as';
+  const h1 = document.createElement('h1');
+  h1.textContent = 'anti-social';
+  brand.appendChild(logo);
+  brand.appendChild(h1);
+
+  const navAct = document.createElement('div');
+  navAct.className = 'as-nav-actions';
+
+  function iconSvg(paths) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', '20');
+    svg.setAttribute('height', '20');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    paths.forEach(function (d) {
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('d', d);
+      svg.appendChild(p);
+    });
+    return svg;
+  }
+
+  const btnVaultNav = document.createElement('button');
+  btnVaultNav.className = 'as-icon-btn';
+  btnVaultNav.title = 'Data vault';
+  btnVaultNav.appendChild(
+    iconSvg(['M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z'])
+  );
+  btnVaultNav.onclick = openVaultPanel;
+
+  const btnCompose = document.createElement('button');
+  btnCompose.className = 'as-icon-btn as-primary';
+  btnCompose.title = 'New signal';
+  btnCompose.appendChild(iconSvg(['M12 5v14', 'M5 12h14']));
+  btnCompose.onclick = openComposePanel;
+
+  const btnRefresh = document.createElement('button');
+  btnRefresh.className = 'as-icon-btn';
+  btnRefresh.title = 'Refresh timeline';
+  btnRefresh.appendChild(
+    iconSvg([
+      'M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8',
+      'M21 3v5h-5',
+      'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16',
+      'M3 21v-5h5'
+    ])
+  );
+  btnRefresh.onclick = fetchPosts;
+
+  const navAvatar = document.createElement('img');
+  navAvatar.className = 'as-nav-avatar';
+  navAvatar.id = 'as-nav-avatar';
+  navAvatar.alt = 'System';
+  navAvatar.src = NAV_AVATAR_DEFAULT_DATA_URI;
+  navAvatar.onclick = function () {
+    openUserPanel('profile');
+  };
+
+  navAct.appendChild(btnCompose);
+  navAct.appendChild(btnVaultNav);
+  navAct.appendChild(btnRefresh);
+  navAct.appendChild(navAvatar);
+  nav.appendChild(brand);
+  nav.appendChild(navAct);
+
+  const tagBar = document.createElement('div');
+  tagBar.className = 'as-tag-bar';
+  TAGS.forEach(function (tag) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'as-tag-pill' + (tag === currentTag ? ' as-active' : '');
+    b.dataset.tag = tag;
+    b.textContent = '#' + tag;
+    b.onclick = function () {
+      setTag(tag);
+    };
+    tagBar.appendChild(b);
+  });
+
+  const main = document.createElement('main');
+  main.className = 'as-feed-main';
+  main.id = 'as-feed-main';
+  main.appendChild(feedStatus);
+  main.appendChild(feedMount);
+
+  const root = document.getElementById('app-root');
+  root.appendChild(nav);
+  root.appendChild(tagBar);
+  root.appendChild(main);
+  root.appendChild(overlay);
+  root.appendChild(panelUser);
+  root.appendChild(panelVault);
+  root.appendChild(panelCompose);
+
+  async function loadCommunityProfileJson() {
+    const base = window.location.href;
+    let profileUrl = null;
+    const qp = new URLSearchParams(window.location.search).get('ceProfile');
+    if (qp && String(qp).trim()) {
+      profileUrl = new URL(String(qp).trim(), base).href;
+    } else if (ceProfileJsonUrlState && String(ceProfileJsonUrlState).trim()) {
+      profileUrl = String(ceProfileJsonUrlState).trim();
+    } else {
+      try {
+        const linkRes = await fetch(new URL('as-ce-profile.json', base).href, { cache: 'no-store' });
+        if (linkRes.ok) {
+          const linkJson = await linkRes.json();
+          if (linkJson && linkJson.profileJsonUrl && String(linkJson.profileJsonUrl).trim()) {
+            profileUrl = new URL(String(linkJson.profileJsonUrl).trim(), base).href;
+          }
+        }
+      } catch (_) {}
+      if (!profileUrl) {
+        profileUrl = new URL(CE_PROFILE_FALLBACK, base).href;
+      }
+    }
+    try {
+      const res = await fetch(profileUrl, { cache: 'no-store' });
+      if (!res.ok) {
+        communityProfile = null;
+        return;
+      }
+      const data = await res.json();
+      if (data && typeof data === 'object' && data.name) {
+        communityProfile = data;
+      } else {
+        communityProfile = null;
+      }
+    } catch (_) {
+      communityProfile = null;
+    }
+  }
+
+  (async function init() {
+    const drive = coffee.drive(DRIVE_ID);
+    if (drive) {
+      try {
+        const s = await drive.load(SETTINGS_KEY);
+        if (s && s.instanceUrl) instanceInput.value = s.instanceUrl;
+        if (s && s.token) tokenInput.value = s.token;
+        if (s && s.ceProfileJsonUrl != null && String(s.ceProfileJsonUrl).trim()) {
+          ceProfileJsonUrlState = String(s.ceProfileJsonUrl).trim();
+        }
+      } catch (_) {}
+    }
+    if (!instanceInput.value.trim()) instanceInput.value = DEFAULT_INSTANCE;
+    syncApiFromInputs();
+    await loadCommunityProfileJson();
+    syncProfileUI();
+    updateCeProfileStatusUI();
+    if (!cachedMe && communityProfile && communityProfile.name) {
+      navAvatar.src = ceDicebearUrl(communityProfile.avatar);
+      navAvatar.referrerPolicy = 'no-referrer';
+    }
+    /** POC: window.onload = fetchPosts */
+    fetchPosts();
+  })();
+})();
+  </script>
+</body>
+</html>

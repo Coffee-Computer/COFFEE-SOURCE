@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DUCK IDE — 2D game studio (Coffee stack)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/theme/dracula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/javascript/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/xml/xml.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/css/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.12/mode/htmlmixed/htmlmixed.min.js"></script>
+    <style>
+        body, html { height: 100%; overflow: hidden; background: #0f172a; color: #e2e8f0; }
+        .CodeMirror { height: 100%; font-size: 14px; border-radius: 8px; }
+        .panel-header { background: #1e293b; padding: 8px 16px; border-bottom: 1px solid #334155; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center; }
+        .sidebar-btn { width: 100%; text-align: left; padding: 10px; border-radius: 6px; transition: all 0.2s; margin-bottom: 4px; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .sidebar-btn:hover { background: #334155; }
+        .sidebar-btn svg { width: 16px; height: 16px; opacity: 0.7; }
+        iframe { background: white; width: 100%; height: 100%; border: none; border-radius: 8px; }
+        #duck-resizer {
+            width: 10px; flex-shrink: 0; cursor: col-resize; background: #334155;
+            transition: background 0.15s; touch-action: none; position: relative;
+        }
+        #duck-resizer::after {
+            content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 3px;
+            transform: translateX(-50%); background: #475569; border-radius: 2px;
+        }
+        #duck-resizer:hover, #duck-resizer.dragging { background: #1e3a5f; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .preset-section { margin-bottom: 20px; }
+        .preset-title { font-size: 10px; color: #94a3b8; margin-bottom: 8px; font-weight: 800; }
+        #duck-repair-banner {
+            display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+            padding: 10px 16px; background: #422006; border-bottom: 1px solid #f59e0b; color: #fef3c7;
+            font-size: 13px; line-height: 1.4;
+        }
+        #duck-repair-banner.visible { display: flex; }
+        #duck-repair-banner button {
+            flex-shrink: 0; background: #f59e0b; color: #1c1917; border: none; font-weight: 800;
+            padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 12px;
+        }
+        #duck-repair-banner button:hover { filter: brightness(1.05); }
+        #duck-repair-banner .dismiss { background: transparent; color: #fde68a; border: 1px solid #92400e; }
+        /* Shared with duck-ide-shell.js (template list + repair message) */
+        .duck-muted { font-size: 10px; color: #94a3b8; }
+        .duck-muted-block { line-height: 1.5; margin: 0; }
+        .duck-code-muted { color: #94a3b8; font-size: 10px; }
+        .duck-code-inline { color: #fde68a; font-size: inherit; }
+        .duck-template-list { display: flex; flex-direction: column; gap: 4px; max-height: 13rem; overflow-y: auto; padding-right: 4px; }
+        .duck-template-title { font-weight: 600; }
+        .duck-template-sub { display: block; font-size: 10px; color: #64748b; font-weight: 400; margin-top: 2px; }
+        .duck-sidebar-btn { flex-direction: column; align-items: flex-start; }
+        /* Sidebar toggle (shared behavior with duck-ide-shell.js) */
+        .duck-hamburger {
+            display: flex; align-items: center; justify-content: center;
+            width: 2.5rem; height: 2.5rem; padding: 0; margin: 0; margin-right: 0.125rem;
+            border: none; border-radius: 0.375rem; background: #1e293b; color: #e2e8f0;
+            cursor: pointer; flex-shrink: 0; transition: background 0.15s ease;
+        }
+        .duck-hamburger:hover { background: #334155; }
+        .duck-hamburger:focus-visible { outline: 2px solid #f59e0b; outline-offset: 2px; }
+        .duck-hamburger-bars { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 1.25rem; }
+        .duck-hamburger-bar {
+            display: block; width: 18px; height: 2px; background: currentColor; border-radius: 1px;
+            transition: transform 0.25s ease, opacity 0.2s ease; transform-origin: center;
+        }
+        body:not(.duck-sidebar-collapsed) .duck-hamburger-bar:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        body:not(.duck-sidebar-collapsed) .duck-hamburger-bar:nth-child(2) { opacity: 0; }
+        body:not(.duck-sidebar-collapsed) .duck-hamburger-bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        #duck-sidebar.duck-sidebar-poc {
+            transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                padding 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s ease, opacity 0.22s ease;
+            overflow-x: hidden;
+        }
+        body.duck-sidebar-collapsed #duck-sidebar.duck-sidebar-poc {
+            width: 0 !important; min-width: 0 !important; padding: 0 !important;
+            border-right: none !important; opacity: 0; pointer-events: none;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #duck-sidebar.duck-sidebar-poc { transition: none !important; }
+            .duck-hamburger-bar { transition: none; }
+        }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <nav class="h-14 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-6 shrink-0">
+        <div class="flex items-center gap-3">
+            <button type="button" id="duck-sidebar-toggle" class="duck-hamburger" onclick="duckToggleSidebar()" aria-expanded="true" aria-controls="duck-sidebar" title="Toggle tools panel">
+                <span class="duck-hamburger-bars" aria-hidden="true">
+                    <span class="duck-hamburger-bar"></span>
+                    <span class="duck-hamburger-bar"></span>
+                    <span class="duck-hamburger-bar"></span>
+                </span>
+            </button>
+            <div class="w-8 h-8 bg-amber-500 rounded flex items-center justify-center font-bold text-slate-900">D</div>
+            <h1 class="text-lg font-bold tracking-tight">DUCK <span class="text-amber-400">IDE</span></h1>
+            <span class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400">Default · Circle-Dude stack</span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button type="button" onclick="downloadProject()" class="text-sm bg-slate-800 hover:bg-slate-700 px-4 py-1.5 rounded-md transition border border-slate-700">Export HTML</button>
+            <button type="button" onclick="runCode()" class="text-sm bg-amber-600 hover:bg-amber-500 px-6 py-1.5 rounded-md font-bold transition flex items-center gap-2 text-slate-900">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M8 5v14l11-7z"/></svg> RUN
+            </button>
+        </div>
+    </nav>
+
+    <div id="duck-repair-banner" role="status" aria-live="polite">
+        <span id="duck-repair-msg">Your saved file is missing snippet anchors or has JavaScript before <code class="duck-code-inline">&lt;!DOCTYPE html&gt;</code> — snippets can’t inject. Restore the Circle-Dude starter to fix it.</span>
+        <div class="flex gap-2 flex-wrap">
+            <button type="button" id="duck-repair-restore">Restore Circle-Dude starter</button>
+            <button type="button" class="dismiss" id="duck-repair-dismiss">Dismiss</button>
+        </div>
+    </div>
+
+    <div class="flex flex-1 overflow-hidden">
+
+        <aside id="duck-sidebar" class="w-64 bg-slate-900 border-r border-slate-800 p-4 overflow-y-auto shrink-0 duck-sidebar-poc">
+            <div class="preset-section">
+                <p class="preset-title text-amber-400">COFFEE · SHAPES</p>
+                <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">Anchors live in <code class="text-slate-400">drawWorld</code> / <code class="text-slate-400">onUpdate</code> / top of script (<code class="text-slate-400">// DUCK_IDE_ANCHOR_*</code>).</p>
+                <button type="button" onclick="inject('shapePac')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg> playShapes · Pac</button>
+                <button type="button" onclick="inject('shapeGhost')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 3c-2 4-6 5-6 9a6 6 0 1012 0c0-4-4-5-6-9z"/></svg> playShapes · Ghost</button>
+                <button type="button" onclick="inject('shapeShip')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 4l8 16-8-4-8 4 8-16z"/></svg> playShapes · Ship</button>
+                <button type="button" onclick="inject('shapeBullet')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="3" fill="currentColor"/></svg> playShapes · Bullet</button>
+            </div>
+
+            <div class="preset-section">
+                <p class="preset-title text-blue-400">RAW CANVAS</p>
+                <button type="button" onclick="inject('square')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> Static box</button>
+                <button type="button" onclick="inject('circle')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg> Static circle</button>
+            </div>
+
+            <div class="preset-section">
+                <p class="preset-title text-emerald-400">LOGIC SNIPPETS</p>
+                <button type="button" onclick="inject('movement')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg> WASD (raw loop)</button>
+                <button type="button" onclick="inject('gravity')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M7 13l5 5 5-5M7 6l5 5 5-5"/></svg> Gravity (raw)</button>
+                <button type="button" onclick="inject('collision')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M4 4h16v16H4z"/></svg> AABB helper</button>
+                <button type="button" onclick="inject('particle')" class="sidebar-btn"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> Particles (raw)</button>
+            </div>
+
+            <div class="preset-section">
+                <p class="preset-title text-cyan-400">GAMES</p>
+                <p class="text-[10px] text-slate-500 mb-2 leading-relaxed">Load a full <code class="text-slate-400">coffee.play</code> template from <code class="text-slate-400">projects/duck-templates.json</code> (needs HTTP server).</p>
+                <div id="duck-template-list" class="duck-template-list flex flex-col gap-1 max-h-52 overflow-y-auto pr-1"></div>
+            </div>
+
+            <div class="preset-section">
+                <p class="preset-title text-purple-400">PROJECT</p>
+                <button type="button" onclick="restoreStarter()" class="sidebar-btn text-amber-300 hover:text-amber-200 border border-amber-900/50 bg-amber-950/30 mt-2">
+                    <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2" class="inline"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    Restore Circle-Dude starter
+                </button>
+                <button type="button" onclick="resetEditor()" class="sidebar-btn text-red-400 hover:text-red-300 mt-4"><svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2"><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6"/></svg> Clear project</button>
+            </div>
+        </aside>
+
+        <main id="duck-main-split" class="flex flex-1 min-w-0 flex-col md:flex-row">
+            <div id="editor-container" class="flex-1 flex flex-col min-w-0" style="min-width: 200px;">
+                <div class="panel-header">
+                    <span>index.html</span>
+                    <span class="text-slate-500">Auto-run debounced</span>
+                </div>
+                <div id="duck-editor-wrap" class="flex-1 overflow-hidden relative">
+                    <textarea id="code-editor"></textarea>
+                </div>
+            </div>
+
+            <div id="duck-resizer" class="hidden md:block" role="separator" aria-orientation="vertical" aria-label="Resize editor and preview"></div>
+
+            <div id="preview-container" class="flex-1 flex flex-col min-w-0 bg-slate-950 p-2" style="min-width: 200px;">
+                <div class="panel-header bg-transparent mb-1">
+                    <span>LIVE PREVIEW</span>
+                    <div class="flex gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    </div>
+                </div>
+                <div class="flex-1 shadow-2xl overflow-hidden rounded-lg bg-white relative">
+                    <iframe id="preview-frame" title="Live preview"></iframe>
+                    <div id="error-toast" class="absolute bottom-4 left-4 right-4 bg-red-600 text-white p-3 rounded-md hidden text-sm font-mono shadow-xl border border-red-400"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <footer class="h-8 bg-slate-800 text-slate-200 px-4 flex items-center justify-between text-[11px] font-medium uppercase tracking-widest shrink-0 border-t border-slate-700">
+        <div class="flex gap-4">
+            <span>Ready</span>
+            <span id="char-count">Chars: 0</span>
+        </div>
+        <div class="flex gap-4">
+            <span class="hidden sm:inline">Serve over HTTP for Coffee script paths</span>
+            <span>UTF-8 · HTML mixed</span>
+        </div>
+    </footer>
+
+    <script src="../duck-ide-shell.js"></script>
+</body>
+</html>

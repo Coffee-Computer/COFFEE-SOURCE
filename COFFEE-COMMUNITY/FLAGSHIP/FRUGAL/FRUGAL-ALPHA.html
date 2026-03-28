@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="cce:name" content="Frugal">
+  <meta name="cce:id" content="frugal">
+  <meta name="cce:icon" content="🧡">
+  <meta name="cce:color" content="#ff4500">
+  <meta name="cce:description" content="Privacy-style Wikipedia search — coffee.nebula + coffee.ui">
+  <title>Frugal α — Coffee + Nebula</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../../../COFFEE-NEBULA/coffee-nebula.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <link rel="stylesheet" href="./frugal-brand.css?v=cafe2026">
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--frugal-bg);
+      color: var(--frugal-text);
+      font-family: Inter, system-ui, sans-serif;
+    }
+    #app {
+      min-height: 100vh;
+    }
+    .frugal-mode-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .frugal-mode-btn {
+      opacity: 0.65;
+    }
+    .frugal-mode-btn.frugal-mode-on {
+      opacity: 1;
+      outline: 2px solid var(--coffee-accent, #4c9aff);
+      outline-offset: 2px;
+    }
+    /* When Images is off, hide Nebula thumbnails / galleries without removing DOM (instant toggle) */
+    #frugal-app-root.frugal-images-off .nebula-wiki-thumb,
+    #frugal-app-root.frugal-images-off [data-nebula-gallery],
+    #frugal-app-root.frugal-images-off .nebula-lead-image {
+      display: none !important;
+    }
+    /*
+     * Wordmark gradient inlined here so DevTools/shell iframes never show a stale
+     * cached frugal-brand.css (old 7-stop rainbow). Warm café only — matches homescreen --shell-bg.
+     */
+    .frugal-rainbow {
+      background-image: linear-gradient(135deg, #ff6f00 0%, #ffb300 30%, #e91e63 70%, #9c27b0 100%);
+      background-size: 100% 100%;
+      background-repeat: no-repeat;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      color: transparent;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="frugal-app-root"></div>
+  <script>
+(function () {
+  var coffee = window.coffee;
+  var dark = false;
+
+  function applyTheme() {
+    document.body.classList.toggle('frugal-dark', dark);
+    coffee.injectTheme(dark ? 'dark' : 'light');
+    document.documentElement.style.setProperty('--coffee-bg-surface', dark ? '#1c1c1e' : '#ffffff');
+    document.documentElement.style.setProperty('--coffee-bg-elev', dark ? '#2c2c2e' : '#f8f9fa');
+    document.documentElement.style.setProperty('--coffee-text-primary', dark ? '#e8eaed' : '#1a1a1a');
+    document.documentElement.style.setProperty('--coffee-text-muted', dark ? '#9aa0a6' : '#70757a');
+    document.documentElement.style.setProperty('--coffee-panel', dark ? '#3c4043' : '#dfe1e5');
+    document.documentElement.style.setProperty('--coffee-accent', '#ff4500');
+  }
+  applyTheme();
+
+  var mode = 'search';
+  var imagesOn = true;
+  var appRoot = document.getElementById('frugal-app-root');
+
+  var landingView = document.createElement('div');
+  landingView.className = 'frugal-landing';
+
+  var themeToggle = coffee.button(dark ? 'Light' : 'Dark', function () {
+    dark = !dark;
+    themeToggle.textContent = dark ? 'Light' : 'Dark';
+    applyTheme();
+  }, { style: { position: 'fixed', top: '12px', right: '12px', zIndex: 20, fontSize: '12px', padding: '6px 12px' } });
+  document.body.appendChild(themeToggle);
+
+  var title = document.createElement('h1');
+  title.className = 'frugal-rainbow frugal-landing-title';
+  title.textContent = 'frugal';
+
+  var modeRow = document.createElement('div');
+  modeRow.className = 'frugal-mode-row';
+  var btnSearch = coffee.button('Encyclopedia search', function () { setMode('search'); }, { style: { fontSize: '13px' } });
+  var btnAnswer = coffee.button('Quick answer', function () { setMode('answer'); }, { style: { fontSize: '13px' } });
+  btnSearch.classList.add('frugal-mode-btn', 'frugal-mode-on');
+  btnAnswer.classList.add('frugal-mode-btn');
+  var btnImages = coffee.button('Images', function () { toggleImages(); }, { style: { fontSize: '13px' } });
+  btnImages.classList.add('frugal-mode-btn', 'frugal-mode-on');
+  btnImages.setAttribute('aria-pressed', 'true');
+  btnImages.title = 'Wikipedia result thumbnails + Nebula image strip (on by default). Click to toggle.';
+  modeRow.appendChild(btnSearch);
+  modeRow.appendChild(btnAnswer);
+  modeRow.appendChild(btnImages);
+
+  function setMode(m) {
+    mode = m;
+    btnSearch.classList.toggle('frugal-mode-on', m === 'search');
+    btnAnswer.classList.toggle('frugal-mode-on', m === 'answer');
+    if (mainInput) {
+      mainInput.placeholder = m === 'search' ? 'Search Wikipedia…' : 'Ask for a quick answer…';
+    }
+  }
+
+  var btnImages2 = null;
+
+  function syncImagesButtons() {
+    btnImages.classList.toggle('frugal-mode-on', imagesOn);
+    btnImages.setAttribute('aria-pressed', imagesOn ? 'true' : 'false');
+    if (btnImages2) {
+      btnImages2.classList.toggle('frugal-mode-on', imagesOn);
+      btnImages2.setAttribute('aria-pressed', imagesOn ? 'true' : 'false');
+    }
+    appRoot.classList.toggle('frugal-images-off', !imagesOn);
+  }
+
+  function toggleImages() {
+    imagesOn = !imagesOn;
+    syncImagesButtons();
+    var q = (navInput && navInput.value.trim()) || (mainInput && mainInput.value.trim()) || '';
+    if (q && resultsView && !resultsView.classList.contains('frugal-hidden')) {
+      runSearch(q);
+    }
+  }
+
+  var searchShellLand = document.createElement('div');
+  searchShellLand.className = 'frugal-search-shell';
+  searchShellLand.innerHTML = '<svg width="20" height="20" fill="none" stroke="var(--frugal-secondary)" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>';
+  var mainInput = coffee.input({
+    placeholder: 'Search Wikipedia…',
+    style: {
+      flex: '1',
+      minWidth: '120px',
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: '18px',
+      width: '100%'
+    }
+  });
+  mainInput.id = 'frugal-main-q';
+  searchShellLand.appendChild(mainInput);
+  setMode('search');
+
+  var tagline = coffee.para('Privacy-first encyclopedia search · coffee.nebula · no API keys', {
+    style: { textAlign: 'center', marginTop: '24px', fontSize: '14px', color: 'var(--frugal-secondary)', maxWidth: '36rem' }
+  });
+
+  landingView.appendChild(title);
+  landingView.appendChild(modeRow);
+  landingView.appendChild(searchShellLand);
+  landingView.appendChild(tagline);
+
+  var resultsView = document.createElement('div');
+  resultsView.id = 'frugal-results';
+  resultsView.className = 'frugal-hidden';
+
+  var header = document.createElement('header');
+  header.className = 'frugal-results-header';
+
+  var logoMini = document.createElement('div');
+  logoMini.className = 'frugal-rainbow frugal-logo-mini';
+  logoMini.setAttribute('role', 'button');
+  logoMini.tabIndex = 0;
+  logoMini.textContent = 'frugal';
+  logoMini.onclick = goHome;
+  logoMini.onkeydown = function (e) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      goHome();
+    }
+  };
+
+  var searchShellNav = document.createElement('div');
+  searchShellNav.className = 'frugal-search-shell';
+  searchShellNav.style.maxWidth = 'none';
+  searchShellNav.style.flex = '1';
+  var navInput = coffee.input({
+    placeholder: 'Search…',
+    style: {
+      flex: '1',
+      border: 'none',
+      background: 'transparent',
+      outline: 'none',
+      fontSize: '16px',
+      width: '100%'
+    }
+  });
+  navInput.id = 'frugal-nav-q';
+  var navSearchBtn = document.createElement('button');
+  navSearchBtn.type = 'button';
+  navSearchBtn.setAttribute('aria-label', 'Search');
+  navSearchBtn.style.cssText = 'border:none;background:none;padding:4px;cursor:pointer;color:var(--frugal-accent)';
+  navSearchBtn.innerHTML = '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>';
+  navSearchBtn.onclick = function () { runSearch(navInput.value); };
+  searchShellNav.appendChild(navInput);
+  searchShellNav.appendChild(navSearchBtn);
+
+  var modeRowNav = document.createElement('div');
+  modeRowNav.className = 'frugal-mode-row';
+  modeRowNav.style.marginBottom = '0';
+  modeRowNav.style.width = '100%';
+  var btnSearch2 = coffee.button('Search', function () { setModeNav('search'); }, { style: { fontSize: '12px' } });
+  var btnAnswer2 = coffee.button('Answer', function () { setModeNav('answer'); }, { style: { fontSize: '12px' } });
+  btnSearch2.classList.add('frugal-mode-btn', 'frugal-mode-on');
+  btnAnswer2.classList.add('frugal-mode-btn');
+  btnImages2 = coffee.button('Images', function () { toggleImages(); }, { style: { fontSize: '12px' } });
+  btnImages2.classList.add('frugal-mode-btn', 'frugal-mode-on');
+  btnImages2.setAttribute('aria-pressed', 'true');
+  btnImages2.title = 'Wikipedia result thumbnails + Nebula image strip. Click to toggle.';
+  modeRowNav.appendChild(btnSearch2);
+  modeRowNav.appendChild(btnAnswer2);
+  modeRowNav.appendChild(btnImages2);
+
+  function setModeNav(m) {
+    setMode(m);
+    btnSearch2.classList.toggle('frugal-mode-on', m === 'search');
+    btnAnswer2.classList.toggle('frugal-mode-on', m === 'answer');
+    searchOut.classList.toggle('frugal-hidden', m !== 'search');
+    answerOut.classList.toggle('frugal-hidden', m !== 'answer');
+  }
+
+  header.appendChild(logoMini);
+  var headerMid = document.createElement('div');
+  headerMid.style.cssText = 'display:flex;flex-direction:column;gap:10px;flex:1;min-width:0;width:100%';
+  headerMid.appendChild(searchShellNav);
+  headerMid.appendChild(modeRowNav);
+  header.appendChild(headerMid);
+
+  var main = document.createElement('main');
+  main.className = 'frugal-main';
+
+  var resultsStats = coffee.para('', {
+    style: { fontSize: '14px', color: 'var(--frugal-secondary)', marginBottom: '16px', minHeight: '1.25em' }
+  });
+
+  var searchOut = document.createElement('div');
+  searchOut.id = 'frugal-wiki-results';
+
+  var answerOut = document.createElement('div');
+  answerOut.id = 'frugal-nebula-answer';
+  answerOut.className = 'frugal-hidden';
+
+  var loadingSkeleton = document.createElement('div');
+  loadingSkeleton.id = 'frugal-loading';
+  loadingSkeleton.className = 'frugal-hidden';
+  loadingSkeleton.style.cssText = 'margin-bottom:24px';
+  loadingSkeleton.innerHTML =
+    '<div class="frugal-shimmer" style="padding:16px 0">' +
+    '<div class="frugal-skel-line" style="width:25%"></div>' +
+    '<div class="frugal-skel-line" style="width:75%;height:14px"></div>' +
+    '<div class="frugal-skel-line" style="width:100%"></div></div>' +
+    '<div class="frugal-shimmer" style="padding:16px 0">' +
+    '<div class="frugal-skel-line" style="width:25%"></div>' +
+    '<div class="frugal-skel-line" style="width:66%;height:14px"></div>' +
+    '<div class="frugal-skel-line" style="width:100%"></div></div>';
+
+  main.appendChild(resultsStats);
+  main.appendChild(loadingSkeleton);
+  main.appendChild(searchOut);
+  main.appendChild(answerOut);
+
+  resultsView.appendChild(header);
+  resultsView.appendChild(main);
+
+  appRoot.appendChild(landingView);
+  appRoot.appendChild(resultsView);
+  syncImagesButtons();
+
+  function goHome() {
+    resultsView.classList.add('frugal-hidden');
+    landingView.classList.remove('frugal-hidden');
+    mainInput.value = '';
+    mainInput.focus();
+  }
+
+  function syncModeButtons() {
+    setModeNav(mode);
+  }
+
+  async function runSearch(q) {
+    q = String(q || '').trim();
+    if (!q) return;
+
+    landingView.classList.add('frugal-hidden');
+    resultsView.classList.remove('frugal-hidden');
+    navInput.value = q;
+    syncModeButtons();
+
+    searchOut.innerHTML = '';
+    answerOut.innerHTML = '';
+    resultsStats.textContent = '';
+    loadingSkeleton.classList.remove('frugal-hidden');
+
+    try {
+      if (mode === 'search') {
+        searchOut.classList.remove('frugal-hidden');
+        answerOut.classList.add('frugal-hidden');
+        var ws = await coffee.nebula.wikiSearch(q, { limit: 15, images: imagesOn });
+        loadingSkeleton.classList.add('frugal-hidden');
+        if (ws.error) {
+          searchOut.appendChild(coffee.msg('Could not reach Wikipedia. Check your connection.', 'error'));
+          return;
+        }
+        coffee.nebula.renderWikiSearch(ws.results, searchOut);
+        syncImagesButtons();
+        resultsStats.textContent = ws.results.length
+          ? 'About ' + ws.results.length + ' results'
+          : '';
+      } else {
+        searchOut.classList.add('frugal-hidden');
+        answerOut.classList.remove('frugal-hidden');
+        await coffee.nebula(q, { target: answerOut, gallery: imagesOn });
+        loadingSkeleton.classList.add('frugal-hidden');
+        resultsStats.textContent = 'Quick answer';
+        syncImagesButtons();
+      }
+    } catch (err) {
+      console.error(err);
+      loadingSkeleton.classList.add('frugal-hidden');
+      var box = mode === 'search' ? searchOut : answerOut;
+      box.innerHTML = '';
+      box.appendChild(coffee.msg('Something went wrong. Try again.', 'error'));
+    }
+  }
+
+  mainInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') runSearch(mainInput.value);
+  });
+  navInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') runSearch(navInput.value);
+  });
+
+  window.addEventListener('load', function () {
+    mainInput.focus();
+  });
+})();
+  </script>
+</body>
+</html>

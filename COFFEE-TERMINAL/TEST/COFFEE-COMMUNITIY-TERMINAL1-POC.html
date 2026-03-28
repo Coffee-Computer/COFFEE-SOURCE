@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Terminal // Core Control</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;600;800&display=swap');
+
+        :root {
+            --mocha-950: #1c1917;
+            --mocha-900: #292524;
+            --latte-gold: #eab308;
+            --cream: #f5f5f4;
+            --espresso-glow: rgba(234, 179, 8, 0.2);
+        }
+
+        body {
+            background-color: var(--mocha-950);
+            color: var(--cream);
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .os-interface {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            border: 8px solid var(--mocha-900);
+        }
+
+        /* Top Navigation Bar */
+        .status-bar {
+            height: 40px;
+            background: var(--mocha-900);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            border-bottom: 1px solid #444;
+        }
+
+        /* Terminal Output Area */
+        #output-stream {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+        }
+
+        .log-entry { margin-bottom: 0.75rem; animation: fadeIn 0.2s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Command Input Area */
+        .input-zone {
+            padding: 1.5rem 2rem;
+            background: rgba(41, 37, 36, 0.5);
+            backdrop-filter: blur(12px);
+            position: relative;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--mocha-950);
+            padding: 0.75rem 1.25rem;
+            border-radius: 0.5rem;
+            border: 1px solid #444;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: var(--latte-gold);
+            box-shadow: 0 0 15px var(--espresso-glow);
+        }
+
+        #main-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            flex: 1;
+            font-size: 1rem;
+        }
+
+        /* Slash Command Palette */
+        #palette {
+            position: absolute;
+            bottom: 100%;
+            left: 2rem;
+            width: 300px;
+            background: var(--mocha-900);
+            border-radius: 0.5rem;
+            border: 1px solid var(--latte-gold);
+            margin-bottom: 0.5rem;
+            display: none;
+            z-index: 50;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .palette-item {
+            padding: 0.75rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .palette-item.active {
+            background: var(--latte-gold);
+            color: var(--mocha-950);
+        }
+
+        .palette-item .shortcut {
+            font-size: 0.65rem;
+            opacity: 0.6;
+        }
+
+        /* Styling for different types of logs */
+        .tag-sys { color: var(--latte-gold); font-weight: bold; margin-right: 8px; }
+        .tag-success { color: #4ade80; }
+        .tag-error { color: #f87171; }
+        .tag-info { color: #60a5fa; }
+    </style>
+</head>
+<body>
+
+    <div class="os-interface">
+        <div class="status-bar">
+            <div class="flex items-center gap-4">
+                <span class="font-bold text-yellow-500">COFFEE OS v2.0</span>
+                <span class="text-stone-500">Node: Central-Bean-01</span>
+            </div>
+            <div class="flex items-center gap-6">
+                <span id="uptime-display">UPTIME: 00:00:00</span>
+                <span id="clock">12:00:00 PM</span>
+            </div>
+        </div>
+
+        <div id="output-stream">
+            <div class="log-entry">
+                <span class="tag-sys">[INIT]</span> Coffee Core Engine initialized...
+            </div>
+            <div class="log-entry">
+                <span class="tag-sys">[AUTH]</span> Welcome back, Administrator.
+            </div>
+            <div class="log-entry text-stone-500">
+                Type <span class="text-yellow-500">/</span> to browse system commands.
+            </div>
+        </div>
+
+        <div class="input-zone">
+            <!-- Command Palette -->
+            <div id="palette">
+                <!-- Populated via JS -->
+            </div>
+
+            <div class="input-wrapper">
+                <span class="text-yellow-500">/</span>
+                <input type="text" id="main-input" placeholder="Enter command or type '/' for list..." spellcheck="false" autocomplete="off" autofocus>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shared registry: COFFEE-TERMINAL/terminal-slash.js (coffee.terminalSlash.commands) -->
+    <script src="../../../COFFEE-SOURCE/COFFEE-SLASH/coffee-slash.js"></script>
+    <script src="../terminal-slash.js"></script>
+
+    <script>
+        const outputStream = document.getElementById('output-stream');
+        const mainInput = document.getElementById('main-input');
+        const palette = document.getElementById('palette');
+        const clockDisplay = document.getElementById('clock');
+        const uptimeDisplay = document.getElementById('uptime-display');
+
+        let startTime = Date.now();
+        let selectedIdx = 0;
+
+        const COMMANDS = (typeof coffee !== 'undefined' && coffee.terminalSlash && coffee.terminalSlash.commands)
+            ? coffee.terminalSlash.commands
+            : [];
+
+        // UI Updates
+        setInterval(() => {
+            const now = new Date();
+            clockDisplay.innerText = now.toLocaleTimeString();
+            
+            const diff = Math.floor((Date.now() - startTime) / 1000);
+            const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+            const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+            const s = (diff % 60).toString().padStart(2, '0');
+            uptimeDisplay.innerText = `UPTIME: ${h}:${m}:${s}`;
+        }, 1000);
+
+        function log(msg, type = 'sys') {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="tag-${type}">[${type.toUpperCase()}]</span> ${msg}`;
+            outputStream.appendChild(entry);
+            outputStream.scrollTop = outputStream.scrollHeight;
+        }
+
+        function filterPalette(query) {
+            const needle = query.replace(/^\//, '');
+            const filtered = COMMANDS.filter(c => c.id.startsWith(needle));
+            if (filtered.length > 0 && query.startsWith('/')) {
+                palette.style.display = 'block';
+                palette.innerHTML = filtered.map((c, i) => `
+                    <div class="palette-item ${i === selectedIdx ? 'active' : ''}" onclick="execute('${c.id}')">
+                        <span>${c.id}</span>
+                        <span class="shortcut text-[10px]">${c.label}</span>
+                    </div>
+                `).join('');
+            } else {
+                palette.style.display = 'none';
+                selectedIdx = 0;
+            }
+            return filtered;
+        }
+
+        function execute(cmdName) {
+            const raw = cmdName.toLowerCase().trim();
+            const c = raw.split(/\s+/)[0] || '';
+            log(`Running operation: ${raw || c}...`, 'info');
+            palette.style.display = 'none';
+            mainInput.value = '';
+
+            switch(c) {
+                case 'ls':
+                    log('README.md  src/  package.json');
+                    break;
+                case 'pwd':
+                    log('<span class="text-stone-400">/</span> (stub cwd)', 'info');
+                    break;
+                case 'cd':
+                    log('cd: stub — wire COFFEE-POSIX session', 'info');
+                    break;
+                case 'cat':
+                    log('cat: stub — wire CASH IO.READ_FILE', 'info');
+                    break;
+                case 'server':
+                    log('Brew-Server status: <span class="tag-success">OPTIMAL</span>');
+                    log('Temperature: 92°C | Pressure: 9.2 Bar');
+                    break;
+                case 'deploy':
+                    log('Initiating deployment to bean-chain...', 'info');
+                    setTimeout(() => log('Syncing blocks... 45%', 'sys'), 500);
+                    setTimeout(() => log('Deployment SUCCESS: Hash 0xBE4...420', 'success'), 1200);
+                    break;
+                case 'clear':
+                    outputStream.innerHTML = '';
+                    break;
+                case 'status':
+                    log('All systems roasted to perfection.', 'success');
+                    break;
+                case 'logs':
+                    log('[stream] bean-pump · idle · no drops', 'sys');
+                    break;
+                default:
+                    log(`Command '${c}' not recognized by Core.`, 'error');
+            }
+        }
+
+        mainInput.addEventListener('input', (e) => {
+            selectedIdx = 0;
+            filterPalette(e.target.value);
+        });
+
+        mainInput.addEventListener('keydown', (e) => {
+            const needle = mainInput.value.replace(/^\//, '');
+            const filtered = COMMANDS.filter(c => c.id.startsWith(needle));
+
+            if (palette.style.display === 'block') {
+                if (e.key === 'ArrowDown') {
+                    selectedIdx = (selectedIdx + 1) % filtered.length;
+                    filterPalette(mainInput.value);
+                    e.preventDefault();
+                } else if (e.key === 'ArrowUp') {
+                    selectedIdx = (selectedIdx - 1 + filtered.length) % filtered.length;
+                    filterPalette(mainInput.value);
+                    e.preventDefault();
+                } else if (e.key === 'Enter' && filtered[selectedIdx]) {
+                    execute(filtered[selectedIdx].id);
+                    e.preventDefault();
+                }
+            } else if (e.key === 'Enter') {
+                execute(mainInput.value.replace(/^\//, '').trim() || mainInput.value.trim());
+            }
+        });
+
+        // Global click to focus
+        document.addEventListener('click', () => mainInput.focus());
+
+    </script>
+</body>
+</html>

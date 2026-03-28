@@ -1,0 +1,6 @@
+{
+  "name": "Tailwind Test",
+  "id": "tailwind-test",
+  "version": "1.0.0",
+  "entry": "index.html"
+}

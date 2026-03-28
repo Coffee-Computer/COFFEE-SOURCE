@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Speak">
+  <meta name="cce:id" content="speak">
+  <meta name="cce:icon" content="🎙️">
+  <meta name="cce:color" content="#4f46e5">
+  <meta name="cce:description" content="Voice memos — coffee.control + coffee.ui">
+  <title>Speak α — Coffee voice notes</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <link rel="stylesheet" href="./speak-neumorphic.css">
+  <style>
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--speak-bg);
+      color: var(--speak-text);
+      font-family: Inter, system-ui, sans-serif;
+    }
+
+    #app {
+      max-width: 28rem;
+      margin: 0 auto;
+      padding: var(--coffee-space-md, 16px);
+      box-sizing: border-box;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: var(--coffee-space-lg, 24px);
+    }
+
+    .speak-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+    }
+
+    .speak-status-corner {
+      position: absolute;
+      top: 8px;
+      left: 16px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      opacity: 0.4;
+      color: var(--speak-text);
+      pointer-events: none;
+    }
+
+    .speak-timer-corner {
+      position: absolute;
+      bottom: 8px;
+      right: 16px;
+      font-family: ui-monospace, monospace;
+      font-size: 1.25rem;
+      font-weight: 700;
+      opacity: 0.75;
+      color: var(--speak-text);
+      pointer-events: none;
+    }
+
+    .speak-controls-row {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: var(--coffee-space-md, 16px) 0;
+    }
+
+    .speak-library {
+      flex: 1;
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      gap: var(--coffee-space-md, 16px);
+      overflow: hidden;
+    }
+
+    #recordings-scroll {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 8px;
+      padding-bottom: 48px;
+    }
+
+    .speak-row-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .speak-mini-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .speak-mini-actions .speak-icon-btn {
+      width: 36px;
+      height: 36px;
+    }
+
+    .speak-delete {
+      color: #f87171;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+(function () {
+  const STORAGE_KEY = 'speak_recordings';
+  const coffee = window.coffee;
+
+  let speakDark = false;
+  function applySpeakTheme() {
+    document.body.setAttribute('data-speak-theme', speakDark ? 'dark' : 'default');
+    coffee.injectTheme(speakDark ? 'dark' : 'light');
+    var root = document.documentElement;
+    if (speakDark) {
+      root.style.setProperty('--coffee-bg-surface', '#1a1a2e');
+      root.style.setProperty('--coffee-bg-elev', '#252542');
+      root.style.setProperty('--coffee-text-primary', '#e2e8f0');
+    } else {
+      root.style.setProperty('--coffee-bg-surface', '#e0e5ec');
+      root.style.setProperty('--coffee-bg-elev', '#e8ecf4');
+      root.style.setProperty('--coffee-text-primary', '#374151');
+    }
+    root.style.setProperty('--coffee-accent', speakDark ? '#818cf8' : '#4f46e5');
+  }
+  applySpeakTheme();
+
+  var liveStream = null;
+  var liveRec = null;
+  var viz = null;
+  var isRecording = false;
+  var pendingBlob = null;
+  var startTime = 0;
+  var timerInterval = null;
+
+  var app = document.getElementById('app');
+
+  var titleBlock = document.createElement('div');
+  titleBlock.appendChild(coffee.heading('SPEAK', 2, {
+    style: { margin: 0, fontStyle: 'italic', letterSpacing: '-0.04em', color: 'var(--speak-accent)' }
+  }));
+  titleBlock.appendChild(coffee.para('Voice capture · coffee.control + coffee-ui', {
+    style: { fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.2em', fontWeight: 700, opacity: 0.55, margin: '4px 0 0 0' }
+  }));
+
+  var themeBtn = document.createElement('button');
+  themeBtn.type = 'button';
+  themeBtn.className = 'speak-icon-btn speak-neu-flat';
+  themeBtn.setAttribute('aria-label', 'Toggle theme');
+  themeBtn.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>';
+  themeBtn.onclick = function () {
+    speakDark = !speakDark;
+    applySpeakTheme();
+  };
+
+  var titleRow = document.createElement('div');
+  titleRow.className = 'speak-title-row';
+  titleRow.appendChild(titleBlock);
+  titleRow.appendChild(themeBtn);
+
+  var waveformWrap = document.createElement('div');
+  waveformWrap.className = 'speak-neu-inset speak-waveform-wrap';
+  var canvas = document.createElement('canvas');
+  waveformWrap.appendChild(canvas);
+  var statusLabel = document.createElement('div');
+  statusLabel.className = 'speak-status-corner';
+  statusLabel.textContent = 'Standby';
+  var timerDisplay = document.createElement('div');
+  timerDisplay.className = 'speak-timer-corner';
+  timerDisplay.textContent = '00:00';
+  waveformWrap.appendChild(statusLabel);
+  waveformWrap.appendChild(timerDisplay);
+
+  function resizeCanvas() {
+    if (viz && viz.resize) viz.resize();
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'speak-icon-btn speak-neu-flat speak-neu-pressed';
+  cancelBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+  cancelBtn.disabled = true;
+
+  var recordBtn = document.createElement('button');
+  recordBtn.type = 'button';
+  recordBtn.className = 'speak-record-btn speak-neu-flat speak-neu-pressed';
+  recordBtn.setAttribute('aria-label', 'Record');
+  recordBtn.innerHTML =
+    '<svg id="speak-mic-icon" viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>' +
+    '<svg id="speak-stop-icon" class="speak-hidden" viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>';
+
+  var doneBtn = document.createElement('button');
+  doneBtn.type = 'button';
+  doneBtn.className = 'speak-icon-btn speak-neu-flat speak-neu-pressed';
+  doneBtn.style.color = '#22c55e';
+  doneBtn.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+  doneBtn.disabled = true;
+
+  var controlsRow = document.createElement('div');
+  controlsRow.className = 'speak-controls-row';
+  controlsRow.appendChild(cancelBtn);
+  controlsRow.appendChild(recordBtn);
+  controlsRow.appendChild(doneBtn);
+
+  var libraryHead = coffee.para('Recordings', {
+    style: { fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', opacity: 0.55, margin: '0 0 0 8px' }
+  });
+  var recordingsScroll = document.createElement('div');
+  recordingsScroll.id = 'recordings-scroll';
+  var emptyState = coffee.para('No recordings yet.', {
+    style: { textAlign: 'center', padding: '40px 16px', opacity: 0.35, fontStyle: 'italic', margin: 0 }
+  });
+  recordingsScroll.appendChild(emptyState);
+
+  var library = document.createElement('div');
+  library.className = 'speak-library';
+  library.appendChild(libraryHead);
+  library.appendChild(recordingsScroll);
+
+  var modalBackdrop = document.createElement('div');
+  modalBackdrop.className = 'speak-modal-backdrop';
+  modalBackdrop.setAttribute('role', 'dialog');
+  modalBackdrop.setAttribute('aria-modal', 'true');
+  var modalCard = document.createElement('div');
+  modalCard.className = 'speak-modal-card speak-neu-flat';
+  modalCard.appendChild(coffee.heading('Name recording', 4, { style: { textAlign: 'center', margin: '0 0 16px 0' } }));
+  var filenameInput = coffee.input({
+    id: 'speak-filename',
+    placeholder: 'Voice note',
+    style: { width: '100%', boxSizing: 'border-box', textAlign: 'center' }
+  });
+  modalCard.appendChild(filenameInput);
+  var modalActions = coffee.row([
+    coffee.button('Discard', function () { closeModalDiscard(); }, { style: { flex: 1, backgroundColor: 'var(--coffee-bg-elev)', color: 'var(--coffee-text-primary)' } }),
+    coffee.button('Save', function () { saveRecording(); }, { style: { flex: 1 } })
+  ], { style: { marginTop: '16px', gap: '12px', width: '100%' } });
+  modalCard.appendChild(modalActions);
+  modalBackdrop.appendChild(modalCard);
+  document.body.appendChild(modalBackdrop);
+
+  app.appendChild(titleRow);
+  app.appendChild(waveformWrap);
+  app.appendChild(controlsRow);
+  app.appendChild(library);
+
+  function vizRgb() {
+    var s = getComputedStyle(document.documentElement).getPropertyValue('--speak-viz-rgb').trim();
+    return s || '79, 70, 229';
+  }
+
+  function vizBarColor() {
+    var rgb = vizRgb();
+    return function (v, i, alpha) {
+      return 'rgba(' + rgb + ',' + alpha + ')';
+    };
+  }
+
+  function isModalOpen() {
+    return modalBackdrop.classList.contains('speak-open');
+  }
+
+  function loadList() {
+    var raw = coffee.load(STORAGE_KEY);
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onloadend = function () { resolve(r.result); };
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function setRecordingUi(active) {
+    isRecording = active;
+    recordBtn.classList.toggle('speak-recording', active);
+    document.getElementById('speak-mic-icon').classList.toggle('speak-hidden', active);
+    document.getElementById('speak-stop-icon').classList.toggle('speak-hidden', !active);
+    cancelBtn.disabled = !active;
+    /* Check = alternate “stop take” while recording (same as tapping record). */
+    doneBtn.disabled = !active;
+    statusLabel.textContent = active ? 'Recording…' : pendingBlob ? 'Name me' : 'Standby';
+  }
+
+  function stopTimer() {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  }
+
+  function updateTimer() {
+    var elapsed = Math.floor((Date.now() - startTime) / 1000);
+    var m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    var s = String(elapsed % 60).padStart(2, '0');
+    timerDisplay.textContent = m + ':' + s;
+  }
+
+  function resetAfterSession() {
+    pendingBlob = null;
+    timerDisplay.textContent = '00:00';
+    stopTimer();
+    setRecordingUi(false);
+    doneBtn.disabled = true;
+    statusLabel.textContent = 'Standby';
+  }
+
+  function openModal() {
+    filenameInput.value = 'Memo ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    modalBackdrop.classList.add('speak-open');
+    setTimeout(function () { filenameInput.focus(); }, 50);
+  }
+
+  function closeModalDiscard() {
+    modalBackdrop.classList.remove('speak-open');
+    pendingBlob = null;
+    resetAfterSession();
+  }
+
+  async function startRecording() {
+    try {
+      var mic = await coffee.microphone();
+      liveStream = mic.stream;
+      liveRec = coffee.record(liveStream);
+      viz = coffee.streamSpectrum(canvas, liveStream, {
+        fftSize: 256,
+        barColor: vizBarColor()
+      });
+      viz.start();
+      if (viz.audioContext.state === 'suspended') await viz.audioContext.resume();
+      liveRec.start();
+      startTime = Date.now();
+      updateTimer();
+      timerInterval = setInterval(updateTimer, 1000);
+      setRecordingUi(true);
+      resizeCanvas();
+    } catch (e) {
+      console.error('[Speak] mic', e);
+      var errBox = coffee.msg('Microphone access denied or unavailable.', 'error');
+      errBox.style.cssText += ';position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:3000;max-width:90vw';
+      document.body.appendChild(errBox);
+      setTimeout(function () { errBox.remove(); }, 4500);
+    }
+  }
+
+  async function finishRecording() {
+    if (!liveRec || !isRecording) return;
+    var blob;
+    try {
+      blob = await liveRec.stop();
+    } catch (e) {
+      console.error(e);
+      blob = null;
+    }
+    if (viz) {
+      viz.stop();
+      await viz.close();
+      viz = null;
+    }
+    if (liveStream) {
+      liveStream.getTracks().forEach(function (t) { t.stop(); });
+      liveStream = null;
+    }
+    liveRec = null;
+    stopTimer();
+    isRecording = false;
+    recordBtn.classList.remove('speak-recording');
+    document.getElementById('speak-mic-icon').classList.remove('speak-hidden');
+    document.getElementById('speak-stop-icon').classList.add('speak-hidden');
+    cancelBtn.disabled = true;
+
+    if (blob && blob.size > 0) {
+      pendingBlob = blob;
+      doneBtn.disabled = false;
+      statusLabel.textContent = 'Name me';
+      openModal();
+    } else {
+      resetAfterSession();
+    }
+  }
+
+  async function discardRecording() {
+    if (!isRecording) return;
+    if (!confirm('Discard this recording?')) return;
+    try {
+      if (liveRec) await liveRec.stop().catch(function () {});
+    } catch (e) { /* ignore */ }
+    if (viz) {
+      viz.stop();
+      await viz.close();
+      viz = null;
+    }
+    if (liveStream) {
+      liveStream.getTracks().forEach(function (t) { t.stop(); });
+      liveStream = null;
+    }
+    liveRec = null;
+    stopTimer();
+    resetAfterSession();
+  }
+
+  recordBtn.onclick = function () {
+    if (isModalOpen()) return;
+    if (!isRecording) startRecording();
+    else finishRecording();
+  };
+  cancelBtn.onclick = discardRecording;
+  doneBtn.onclick = function () {
+    if (isRecording) finishRecording();
+  };
+
+  async function saveRecording() {
+    if (!pendingBlob) return;
+    var name = (filenameInput.value || 'Untitled').trim();
+    var data = await blobToDataURL(pendingBlob);
+    var id = Date.now();
+    var list = loadList();
+    list.unshift({
+      id: id,
+      name: name,
+      data: data,
+      date: new Date().toLocaleDateString()
+    });
+    coffee.save(STORAGE_KEY, list);
+    modalBackdrop.classList.remove('speak-open');
+    pendingBlob = null;
+    resetAfterSession();
+    renderList();
+  }
+
+  function renderList() {
+    var saved = loadList();
+    emptyState.style.display = saved.length ? 'none' : 'block';
+    var existing = recordingsScroll.querySelectorAll('[data-speak-item]');
+    for (var i = 0; i < existing.length; i++) existing[i].remove();
+
+    saved.forEach(function (rec) {
+      var item = document.createElement('div');
+      item.setAttribute('data-speak-item', '1');
+      item.className = 'speak-list-item speak-neu-flat';
+
+      var title = document.createElement('div');
+      title.style.fontWeight = '700';
+      title.style.fontSize = '14px';
+      title.style.color = 'var(--speak-accent)';
+      title.textContent = rec.name;
+
+      var dateEl = document.createElement('div');
+      dateEl.style.fontSize = '10px';
+      dateEl.style.opacity = '0.5';
+      dateEl.style.textTransform = 'uppercase';
+      dateEl.style.fontWeight = '700';
+      dateEl.textContent = rec.date;
+
+      var left = document.createElement('div');
+      left.appendChild(title);
+      left.appendChild(dateEl);
+
+      var playB = document.createElement('button');
+      playB.type = 'button';
+      playB.className = 'speak-icon-btn speak-neu-flat speak-neu-pressed';
+      playB.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+      playB.onclick = function () { playRecording(rec.id); };
+
+      var delB = document.createElement('button');
+      delB.type = 'button';
+      delB.className = 'speak-icon-btn speak-neu-flat speak-neu-pressed speak-delete';
+      delB.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>';
+      delB.onclick = function () { deleteRecording(rec.id); };
+
+      var actions = document.createElement('div');
+      actions.className = 'speak-mini-actions';
+      actions.appendChild(playB);
+      actions.appendChild(delB);
+
+      var audio = document.createElement('audio');
+      audio.id = 'speak-audio-' + rec.id;
+      audio.src = rec.data;
+      audio.style.display = 'none';
+
+      var row = document.createElement('div');
+      row.className = 'speak-row-between';
+      row.appendChild(left);
+      row.appendChild(actions);
+
+      item.appendChild(row);
+      item.appendChild(audio);
+      recordingsScroll.appendChild(item);
+    });
+  }
+
+  function playRecording(id) {
+    var audio = document.getElementById('speak-audio-' + id);
+    if (!audio) return;
+    if (audio.paused) {
+      document.querySelectorAll('#recordings-scroll audio').forEach(function (a) {
+        a.pause();
+        a.currentTime = 0;
+      });
+      audio.play();
+    } else {
+      audio.pause();
+    }
+  }
+
+  function deleteRecording(id) {
+    var list = loadList().filter(function (r) { return r.id !== id; });
+    coffee.save(STORAGE_KEY, list);
+    renderList();
+  }
+
+  renderList();
+})();
+  </script>
+</body>
+</html>

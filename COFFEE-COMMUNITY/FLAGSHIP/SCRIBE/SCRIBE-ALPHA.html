@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scribe α — Coffee stack</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-FRAME/coffee-frame.js"></script>
+  <script src="../../../COFFEE-MONACO/coffee-monaco.js"></script>
+  <script src="../../../COFFEE-CODE/coffee-code.js"></script>
+  <script src="../../../COFFEE-MARKDOWN/coffee-markdown.js"></script>
+  <script src="../../../COFFEE-SLASH/coffee-slash.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    :root {
+      --scribe-accent: #d4a373;
+      --coffee-accent: #d4a373 !important;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--coffee-bg-surface);
+      color: var(--coffee-text-primary);
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #scribe-header {
+      flex-shrink: 0;
+      min-height: 48px;
+      padding: 0 var(--coffee-space-md);
+      border-bottom: 1px solid var(--coffee-panel);
+      background: var(--coffee-bg-elev);
+      display: flex;
+      align-items: center;
+    }
+
+    #scribe-header .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: var(--coffee-space-md);
+    }
+
+    #scribe-main {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    #editor-container {
+      position: relative;
+      flex: 1;
+      width: 50%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: var(--coffee-bg-surface);
+      border-right: 1px solid var(--coffee-panel);
+    }
+
+    #monaco-mount {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+    }
+
+    #monaco-mount iframe {
+      display: block;
+    }
+
+    .resizer {
+      width: 4px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      background: var(--coffee-panel);
+      transition: background 0.2s;
+    }
+
+    .resizer:hover {
+      background: var(--scribe-accent);
+    }
+
+    #preview-container {
+      flex: 1;
+      min-width: 0;
+      background: #fff;
+    }
+
+    #preview-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+    }
+
+    .scribe-logo {
+      width: 24px;
+      height: 24px;
+      background: var(--scribe-accent);
+      color: #111;
+      font-weight: 800;
+      border-radius: var(--coffee-radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      flex-shrink: 0;
+    }
+
+    .scribe-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--coffee-text-muted);
+      font-style: italic;
+    }
+
+    .scribe-title .sub {
+      opacity: 0.45;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header id="scribe-header"></header>
+    <div id="scribe-main">
+      <div id="editor-container">
+        <div id="monaco-mount"></div>
+      </div>
+      <div class="resizer" id="resizer" role="separator" aria-orientation="vertical"></div>
+      <div id="preview-container">
+        <iframe id="preview-frame" title="Markdown preview"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var logo = document.createElement('div');
+      logo.className = 'scribe-logo';
+      logo.textContent = 'S';
+      logo.setAttribute('aria-hidden', 'true');
+
+      var titleWrap = document.createElement('div');
+      titleWrap.className = 'scribe-title';
+      titleWrap.appendChild(document.createTextNode('Scribe '));
+      var alpha = document.createElement('span');
+      alpha.textContent = 'α';
+      alpha.style.opacity = '0.5';
+      titleWrap.appendChild(alpha);
+      var sub = document.createElement('span');
+      sub.className = 'sub';
+      sub.textContent = 'code · slash · markdown · ui';
+      titleWrap.appendChild(sub);
+
+      var left = coffee.row([logo, titleWrap], {
+        style: { flexWrap: 'nowrap', gap: 'var(--coffee-space-md)' }
+      });
+
+      var exportBtn = coffee.button('Export PDF', null, {
+        style: {
+          fontSize: '10px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          opacity: 0.5,
+          cursor: 'not-allowed',
+          backgroundColor: 'var(--coffee-bg-surface)',
+          color: 'var(--coffee-text-muted)',
+          minHeight: '36px',
+          minWidth: 'auto',
+          padding: '6px 12px'
+        }
+      });
+      exportBtn.disabled = true;
+      exportBtn.title = 'Soon';
+
+      var saveBtn = coffee.button('Save draft', null, {
+        style: {
+          fontSize: '10px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          backgroundColor: 'var(--scribe-accent)',
+          color: '#111',
+          minHeight: '36px',
+          minWidth: 'auto',
+          padding: '6px 12px'
+        }
+      });
+      saveBtn.id = 'scribe-save-draft';
+
+      var actions = coffee.row([exportBtn, saveBtn], { style: { gap: 'var(--coffee-space-sm)', flexShrink: 0 } });
+      var inner = document.createElement('div');
+      inner.className = 'header-inner';
+      inner.appendChild(left);
+      inner.appendChild(actions);
+      document.getElementById('scribe-header').appendChild(inner);
+    })();
+
+    (async function () {
+      var previewFrame = document.getElementById('preview-frame');
+      var mount = document.getElementById('monaco-mount');
+      var previewSession = coffee.markdown.createPreviewSession();
+      var slashHandle = null;
+      var editorApi = null;
+
+      var previewTimer;
+      function debouncePreview(md) {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(function () {
+          previewSession.update(previewFrame, md);
+        }, 120);
+      }
+
+      var initialMarkdown =
+        '# Scribe α\n\n' +
+        '**Monaco** (`coffee.code`) + **/** menu (`coffee.slash`) + **preview** (`coffee.markdown`).\n\n' +
+        '## Stack\n' +
+        '- `coffee.frame` → `coffee.monaco` inside the editor iframe\n' +
+        '- Preview pane: plain iframe + blob (not `coffee.frame`)\n\n' +
+        'Type **/** for headings, lists, quotes, code fence.\n\n' +
+        '> Dogfood the full Coffee editor stack.\n';
+
+      var saved = coffee.load('scribe-alpha-draft');
+      var startValue = typeof saved === 'string' && saved.length ? saved : initialMarkdown;
+
+      try {
+        editorApi = await coffee.code.create(mount, {
+          value: startValue,
+          language: 'markdown',
+          theme: 'vs-dark'
+        });
+      } catch (err) {
+        mount.appendChild(
+          coffee.msg('Editor failed (use HTTP server, not file://): ' + err.message, 'error', {
+            style: { margin: 'var(--coffee-space-md)' }
+          })
+        );
+        return;
+      }
+
+      slashHandle = coffee.slash.attach(coffee.slash.adapters.monaco(editorApi), {
+        mountParent: document.body,
+        onAfterInsert: function () {
+          editorApi.getValue().then(function (v) {
+            debouncePreview(v);
+          });
+        }
+      });
+
+      editorApi.onChange(function (payload) {
+        var v = payload && payload.value != null ? payload.value : '';
+        slashHandle.notifyChange(payload);
+        debouncePreview(v);
+      });
+
+      editorApi.getValue().then(function (v) {
+        previewSession.update(previewFrame, v);
+      });
+
+      document.getElementById('scribe-save-draft').onclick = function () {
+        editorApi.getValue().then(function (v) {
+          coffee.save('scribe-alpha-draft', v);
+        });
+      };
+
+      window.addEventListener('beforeunload', function () {
+        previewSession.revoke();
+        if (slashHandle) slashHandle.destroy();
+        if (editorApi) editorApi.destroy();
+      });
+
+      window.addEventListener('resize', function () {
+        if (editorApi) editorApi.layout();
+      });
+
+      (function dragResize() {
+        var resizer = document.getElementById('resizer');
+        var container = document.getElementById('editor-container');
+        var dragging = false;
+        resizer.addEventListener('mousedown', function () {
+          dragging = true;
+        });
+        window.addEventListener('mouseup', function () {
+          dragging = false;
+        });
+        window.addEventListener('mousemove', function (e) {
+          if (!dragging) return;
+          var pct = (e.clientX / window.innerWidth) * 100;
+          container.style.width = Math.min(85, Math.max(15, pct)) + '%';
+          if (editorApi) editorApi.layout();
+        });
+      })();
+    })();
+  </script>
+</body>
+</html>

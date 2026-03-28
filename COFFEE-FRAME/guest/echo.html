@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Coffee frame echo guest</title>
+</head>
+<body>
+  <p style="font-family:system-ui;padding:12px;margin:0;">Echo guest — used by FRAME-DEMO.</p>
+  <script>
+    (function () {
+      var CF = 1;
+      function sendRes(source, id, ok, result, err) {
+        source.postMessage(
+          { cf: CF, t: 'res', id: id, ok: ok, result: result, err: err ? String(err) : undefined },
+          '*'
+        );
+      }
+      window.addEventListener('message', function (e) {
+        var d = e.data;
+        if (!d || d.cf !== CF || d.t !== 'req') return;
+        var id = d.id;
+        var method = d.method;
+        var args = d.args || [];
+        try {
+          if (method === 'echo') sendRes(e.source, id, true, args[0]);
+          else if (method === 'add') sendRes(e.source, id, true, (args[0] || 0) + (args[1] || 0));
+          else sendRes(e.source, id, false, null, 'unknown method: ' + method);
+        } catch (err) {
+          sendRes(e.source, id, false, null, err);
+        }
+      });
+      window.parent.postMessage({ cf: CF, t: 'ready' }, '*');
+    })();
+  </script>
+</body>
+</html>

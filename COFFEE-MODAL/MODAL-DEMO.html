@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.modal() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-modal.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.modal() / coffee.dialog()', 1);
+    const sub = coffee.para('Overlay modals and confirm dialogs. Esc to close.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const btnModal = coffee.button('Open modal', () => {
+      const content = coffee.card([coffee.para('This is modal content. Click outside or press Esc to close.')]);
+      coffee.modal(content, { title: 'Modal', onClose: () => coffee.toast && coffee.toast('Modal closed', 'info') });
+    });
+
+    const btnDialog = coffee.button('Confirm dialog', () => {
+      coffee.dialog('Are you sure you want to continue?', {
+        title: 'Confirm',
+        confirm: 'Yes',
+        cancel: 'No',
+        onConfirm: () => coffee.toast && coffee.toast('Confirmed', 'success'),
+        onCancel: () => coffee.toast && coffee.toast('Cancelled', 'info')
+      });
+    });
+
+    const row = coffee.row([btnModal, btnDialog], { style: { flexWrap: 'wrap', gap: '8px' } });
+    const card = coffee.card([header, sub, row], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

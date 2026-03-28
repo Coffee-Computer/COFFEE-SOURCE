@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Que - Data Storage Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee-cream: #fdfaf6;
+            --coffee-deep: #1b130c;
+            --que-accent: #8b5cf6;
+        }
+        body {
+            background-color: var(--coffee-cream);
+            color: var(--coffee-deep);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .json-card {
+            background: white;
+            border: 1px solid #e7d8c9;
+            transition: all 0.2s;
+        }
+        .json-card:hover {
+            border-color: var(--que-accent);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.1);
+        }
+        pre {
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #e7d8c9;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar: Collection Management -->
+    <aside class="w-72 bg-white border-r border-stone-200 p-6 flex flex-col gap-6 z-10 shadow-sm">
+        <div>
+            <h1 class="text-3xl font-black text-stone-800 italic">coffee<span class="text-violet-600">.que()</span></h1>
+            <p class="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Document Storage Engine</p>
+        </div>
+
+        <div class="space-y-4">
+            <label class="block">
+                <span class="text-xs font-bold text-stone-500 uppercase">Current Pot</span>
+                <select id="collectionSelect" onchange="que.loadCollection()" class="w-full mt-1 p-2 bg-stone-50 border border-stone-200 rounded-lg text-sm font-medium outline-none focus:border-violet-500">
+                    <!-- Dynamic Collections -->
+                </select>
+            </label>
+            <button onclick="que.newCollection()" class="w-full py-2 bg-stone-100 text-stone-600 rounded-lg text-xs font-bold hover:bg-stone-200 transition">+ New Collection</button>
+        </div>
+
+        <hr class="border-stone-100">
+
+        <div class="space-y-4">
+            <h3 class="text-xs font-black text-stone-400 uppercase">Quick Actions</h3>
+            <button onclick="que.seedDemo()" class="w-full text-left p-3 rounded-xl bg-violet-50 text-violet-700 hover:bg-violet-100 transition border border-violet-100">
+                <p class="text-sm font-bold">☕ Seed Demo</p>
+                <p class="text-[10px] opacity-70">Add sample coffee orders</p>
+            </button>
+            <button onclick="que.clearCollection()" class="w-full text-left p-3 rounded-xl bg-red-50 text-red-700 hover:bg-red-100 transition border border-red-100">
+                <p class="text-sm font-bold">🗑️ Clear Pot</p>
+                <p class="text-[10px] opacity-70">Delete all data in current pot</p>
+            </button>
+        </div>
+
+        <div class="mt-auto p-4 bg-stone-50 rounded-xl border border-stone-100">
+            <p class="text-[10px] leading-relaxed text-stone-500">
+                <strong>Engine:</strong> LocalStorage<br>
+                <strong>Capacity:</strong> ~5MB per browser<br>
+                <strong>Status:</strong> Ready to brew
+            </p>
+        </div>
+    </aside>
+
+    <!-- Main Viewport: Query & Results -->
+    <main class="flex-1 flex flex-col overflow-hidden bg-stone-50">
+        <!-- Search/Query Bar -->
+        <header class="bg-white border-b border-stone-200 p-4 px-8 flex items-center gap-4">
+            <div class="flex-1 relative">
+                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm">🔍</span>
+                <input type="text" id="searchInput" placeholder="Search documents by key or value..." oninput="que.filterData()" class="w-full pl-10 pr-4 py-2 bg-stone-100 border-transparent border-2 focus:bg-white focus:border-violet-500 rounded-xl outline-none text-sm transition-all">
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="docCount" class="text-xs font-bold text-stone-400 bg-stone-100 px-3 py-1.5 rounded-full">0 Docs</span>
+            </div>
+        </header>
+
+        <!-- Data Display Area -->
+        <section class="flex-1 p-8 overflow-y-auto custom-scrollbar">
+            <div id="resultsGrid" class="data-grid">
+                <!-- Data cards injected here -->
+            </div>
+        </section>
+
+        <!-- Entry Console -->
+        <footer class="bg-white border-t border-stone-200 p-6 shadow-2xl">
+            <div class="max-w-4xl mx-auto flex gap-4">
+                <div class="flex-1">
+                    <textarea id="jsonInput" placeholder='{"item": "Latte", "price": 4.50, "roast": "Medium"}' class="w-full h-24 p-4 bg-stone-50 border border-stone-200 rounded-xl text-sm font-mono outline-none focus:border-violet-500 transition-all"></textarea>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <button onclick="que.save()" class="h-full px-8 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition shadow-lg shadow-violet-200">
+                        Pour Into Pot<br><span class="text-[10px] font-normal opacity-80">(Save JSON)</span>
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const que = (() => {
+            const PREFIX = 'coffee_que_';
+            const collectionSelect = document.getElementById('collectionSelect');
+            const resultsGrid = document.getElementById('resultsGrid');
+            const searchInput = document.getElementById('searchInput');
+            const jsonInput = document.getElementById('jsonInput');
+            const docCount = document.getElementById('docCount');
+
+            let currentPot = 'default';
+            let allData = [];
+
+            // Initialize
+            const init = () => {
+                refreshCollections();
+                loadCollection();
+            };
+
+            const refreshCollections = () => {
+                let pots = [];
+                for(let i=0; i<localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if(key.startsWith(PREFIX)) pots.push(key.replace(PREFIX, ''));
+                }
+                if(pots.length === 0) {
+                    pots = ['default'];
+                    saveToBrowser('default', []);
+                }
+                
+                collectionSelect.innerHTML = pots.map(p => `<option value="${p}">${p}</option>`).join('');
+                collectionSelect.value = currentPot;
+            };
+
+            const loadCollection = () => {
+                currentPot = collectionSelect.value;
+                const raw = localStorage.getItem(PREFIX + currentPot);
+                allData = raw ? JSON.parse(raw) : [];
+                filterData();
+            };
+
+            const filterData = () => {
+                const term = searchInput.value.toLowerCase();
+                const filtered = allData.filter(doc => {
+                    return JSON.stringify(doc).toLowerCase().includes(term);
+                });
+                render(filtered);
+                docCount.innerText = `${filtered.length} Docs`;
+            };
+
+            const render = (data) => {
+                resultsGrid.innerHTML = data.map((doc, idx) => `
+                    <div class="json-card p-4 rounded-xl flex flex-col gap-3 relative group">
+                        <button onclick="que.remove(${idx})" class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600 transition">✕</button>
+                        <div class="text-[10px] font-black text-stone-300 uppercase tracking-tighter">ID: ${idx}</div>
+                        <pre class="text-stone-600 overflow-hidden text-ellipsis">${JSON.stringify(doc, null, 2)}</pre>
+                    </div>
+                `).join('');
+                
+                if (data.length === 0) {
+                    resultsGrid.innerHTML = `
+                        <div class="col-span-full py-20 text-center opacity-30 select-none">
+                            <p class="text-4xl mb-4">🫙</p>
+                            <p class="text-sm font-bold">This pot is empty.</p>
+                        </div>
+                    `;
+                }
+            };
+
+            const saveToBrowser = (pot, data) => {
+                localStorage.setItem(PREFIX + pot, JSON.stringify(data));
+            };
+
+            return {
+                loadCollection,
+                newCollection: () => {
+                    const name = prompt("Name your new collection pot:");
+                    if(name) {
+                        currentPot = name.toLowerCase().replace(/\s/g, '_');
+                        saveToBrowser(currentPot, []);
+                        refreshCollections();
+                        loadCollection();
+                    }
+                },
+                save: () => {
+                    try {
+                        const val = jsonInput.value.trim();
+                        if(!val) return;
+                        const obj = JSON.parse(val);
+                        allData.unshift(obj); // Add to start
+                        saveToBrowser(currentPot, allData);
+                        jsonInput.value = '';
+                        filterData();
+                    } catch(e) {
+                        alert("Invalid JSON format! Check your syntax.");
+                    }
+                },
+                remove: (index) => {
+                    allData.splice(index, 1);
+                    saveToBrowser(currentPot, allData);
+                    filterData();
+                },
+                clearCollection: () => {
+                    if(confirm(`Are you sure you want to empty the '${currentPot}' pot?`)) {
+                        allData = [];
+                        saveToBrowser(currentPot, []);
+                        filterData();
+                    }
+                },
+                seedDemo: () => {
+                    const demo = [
+                        { item: "Espresso", origin: "Ethiopia", price: 3.50, stock: 12 },
+                        { item: "Flat White", origin: "Colombia", price: 4.50, stock: 8 },
+                        { item: "Cold Brew", origin: "Brazil", price: 5.00, stock: 20 },
+                        { item: "Mocha", origin: "Ghana", price: 5.50, stock: 5 }
+                    ];
+                    allData = [...demo, ...allData];
+                    saveToBrowser(currentPot, allData);
+                    filterData();
+                },
+                filterData
+            };
+        })();
+
+        // Start
+        window.onload = () => {
+            // Check for existing data
+            const pots = [];
+            for(let i=0; i<localStorage.length; i++) {
+                if(localStorage.key(i).startsWith('coffee_que_')) pots.push(localStorage.key(i));
+            }
+            que.loadCollection();
+        };
+    </script>
+</body>
+</html>

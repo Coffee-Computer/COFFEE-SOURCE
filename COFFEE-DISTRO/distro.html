@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Distro — Verification</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100%; box-sizing: border-box; }
+    /* White / high-contrast copy (fixes undefined --coffee-text + readability) */
+    #app {
+      --coffee-text-primary: #ffffff;
+      --coffee-text-muted: rgba(255, 255, 255, 0.88);
+    }
+    .distro-seal { font-size: 48px; margin-bottom: 16px; }
+    .distro-card { max-width: 560px; padding: var(--coffee-space-xl); }
+    .distro-token-wrap {
+      margin: var(--coffee-space-lg) 0;
+      padding: var(--coffee-space-md);
+      background: var(--coffee-bg-elev);
+      border-radius: var(--coffee-radius-sm);
+      border: 1px solid var(--coffee-border, rgba(0,0,0,0.08));
+    }
+    .distro-token-label {
+      font-size: var(--coffee-font-xs, 11px);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--coffee-text-muted);
+      margin-bottom: var(--coffee-space-sm);
+    }
+    .distro-token-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--coffee-space-sm);
+      align-items: center;
+    }
+    .distro-token {
+      font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+      flex: 1;
+      min-width: 0;
+      color: #ffffff;
+      padding: 8px 10px;
+      background: var(--coffee-bg-surface);
+      border-radius: 6px;
+      border: 1px dashed var(--coffee-accent);
+    }
+    .distro-token-hint {
+      font-size: var(--coffee-font-xs, 11px);
+      color: var(--coffee-text-muted);
+      margin-top: var(--coffee-space-sm);
+      line-height: 1.45;
+    }
+    .distro-relays {
+      margin-top: var(--coffee-space-md);
+      border-top: 1px solid var(--coffee-border, rgba(0,0,0,0.06));
+      padding-top: var(--coffee-space-md);
+    }
+    .distro-relays-title {
+      font-size: var(--coffee-font-xs, 11px);
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--coffee-text-muted);
+      margin-bottom: var(--coffee-space-sm);
+    }
+    .distro-relay-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      font-size: var(--coffee-font-sm, 13px);
+      border-bottom: 1px solid var(--coffee-border, rgba(0,0,0,0.05));
+    }
+    .distro-relay-row:last-child { border-bottom: none; }
+    .distro-relay-id {
+      font-family: ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--coffee-text-muted);
+      word-break: break-all;
+    }
+    .distro-relay-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .distro-relay-status.pending {
+      background: rgba(139, 94, 70, 0.15);
+      color: var(--coffee-accent);
+    }
+    .distro-relay-status.prop {
+      background: rgba(59, 130, 246, 0.15);
+      color: #2563eb;
+    }
+    .distro-relay-status.ok {
+      background: rgba(34, 197, 94, 0.18);
+      color: #15803d;
+    }
+    .distro-relay-status.fail {
+      background: rgba(239, 68, 68, 0.15);
+      color: #b91c1c;
+    }
+    .distro-manifest {
+      margin-bottom: var(--coffee-space-lg);
+      padding: var(--coffee-space-md);
+      background: var(--coffee-bg-elev);
+      border-radius: var(--coffee-radius-sm);
+      border: 1px solid var(--coffee-border, rgba(0,0,0,0.08));
+      text-align: left;
+    }
+    .distro-manifest-title {
+      font-size: var(--coffee-font-xs, 11px);
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--coffee-text-muted);
+      margin: 0 0 var(--coffee-space-md);
+    }
+    .distro-meta {
+      font-size: var(--coffee-font-sm, 13px);
+      color: var(--coffee-text-muted);
+      margin: -8px 0 var(--coffee-space-md);
+      line-height: 1.5;
+    }
+    .distro-meta a {
+      color: #a8d8ff;
+      font-weight: 600;
+    }
+    .distro-meta a:hover {
+      color: #ffffff;
+    }
+    .distro-manifest-section {
+      margin-top: var(--coffee-space-md);
+    }
+    .distro-manifest-section:first-of-type { margin-top: 0; }
+    .distro-manifest-k {
+      font-size: var(--coffee-font-xs, 11px);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--coffee-text-muted);
+      margin: 0 0 var(--coffee-space-xs);
+    }
+    .distro-manifest-p {
+      font-size: var(--coffee-font-sm, 13px);
+      line-height: 1.55;
+      color: #ffffff;
+      margin: 0;
+    }
+    .distro-manifest-ul {
+      margin: 0;
+      padding-left: 1.15rem;
+      font-size: var(--coffee-font-sm, 13px);
+      line-height: 1.55;
+      color: #ffffff;
+    }
+    .distro-manifest-ul li { margin-bottom: 0.35em; }
+    .distro-manifest-err {
+      font-size: var(--coffee-font-sm, 13px);
+      color: #fcd34d;
+      margin: 0;
+    }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    function asList(val) {
+      if (val == null) return [];
+      if (Array.isArray(val)) return val.map(String).filter(Boolean);
+      return [String(val)];
+    }
+
+    function maintainerHref(gh) {
+      if (!gh || typeof gh !== 'string') return null;
+      var t = gh.trim();
+      if (!t) return null;
+      if (/^https?:\/\//i.test(t)) return t;
+      return 'https://github.com/' + t.replace(/^@/, '');
+    }
+
+    function buildManifestUI(cfg) {
+      var wrap = document.createElement('div');
+      wrap.className = 'distro-manifest';
+      var title = document.createElement('div');
+      title.className = 'distro-manifest-title';
+      title.textContent = 'Distro manifest';
+      wrap.appendChild(title);
+
+      if (!cfg || typeof cfg !== 'object') {
+        var err = document.createElement('p');
+        err.className = 'distro-manifest-err';
+        err.textContent = 'Could not load or parse distro-config.json. Serve this folder over HTTP or check the file path.';
+        wrap.appendChild(err);
+        return { wrap: wrap, titleText: 'Coffee Distro — Verification', cfg: null };
+      }
+
+      function section(keyLabel, bodyNode) {
+        var s = document.createElement('div');
+        s.className = 'distro-manifest-section';
+        var k = document.createElement('div');
+        k.className = 'distro-manifest-k';
+        k.textContent = keyLabel;
+        s.appendChild(k);
+        s.appendChild(bodyNode);
+        wrap.appendChild(s);
+      }
+
+      if (cfg.purpose) {
+        var p = document.createElement('p');
+        p.className = 'distro-manifest-p';
+        p.textContent = String(cfg.purpose);
+        section('Purpose', p);
+      }
+
+      asList(cfg.whoItsFor).forEach(function () {});
+      var forList = asList(cfg.whoItsFor);
+      if (forList.length) {
+        var ul = document.createElement('ul');
+        ul.className = 'distro-manifest-ul';
+        forList.forEach(function (line) {
+          var li = document.createElement('li');
+          li.textContent = line;
+          ul.appendChild(li);
+        });
+        section('Who it’s for', ul);
+      }
+
+      var notFor = asList(cfg.whoItsNotFor);
+      if (notFor.length) {
+        var ul2 = document.createElement('ul');
+        ul2.className = 'distro-manifest-ul';
+        notFor.forEach(function (line) {
+          var li = document.createElement('li');
+          li.textContent = line;
+          ul2.appendChild(li);
+        });
+        section('Who it’s not for', ul2);
+      }
+
+      var req = asList(cfg.requirements);
+      if (req.length) {
+        var ul3 = document.createElement('ul');
+        ul3.className = 'distro-manifest-ul';
+        req.forEach(function (line) {
+          var li = document.createElement('li');
+          li.textContent = line;
+          ul3.appendChild(li);
+        });
+        section('Requirements', ul3);
+      }
+
+      var docTitle = (cfg.distro ? cfg.distro + ' — Distro' : null) || 'Coffee Distro — Verification';
+      return { wrap: wrap, titleText: docTitle, cfg: cfg };
+    }
+
+    const seal = document.createElement('div');
+    seal.className = 'distro-seal';
+    seal.textContent = '☕';
+    seal.style.cssText = 'fontSize:48px;marginBottom:16px';
+
+    var manifestResult = { wrap: null, titleText: 'Coffee Distro — Verification', cfg: null };
+
+    (function loadConfig() {
+      var cfgUrl = new URL('distro-config.json', window.location.href);
+      fetch(cfgUrl.href, { cache: 'no-store' })
+        .then(function (r) {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.json();
+        })
+        .then(function (cfg) {
+          manifestResult = buildManifestUI(cfg);
+          if (manifestResult.titleText) document.title = manifestResult.titleText;
+        })
+        .catch(function () {
+          manifestResult = buildManifestUI(null);
+          if (manifestResult.titleText) document.title = manifestResult.titleText;
+        })
+        .then(function () {
+          finishBuild();
+        });
+    })();
+
+    function finishBuild() {
+    var cfg = manifestResult.cfg;
+    var header = coffee.heading(
+      (cfg && cfg.distro) ? cfg.distro : 'This is the Coffee Distro page.',
+      1
+    );
+
+    var meta = document.createElement('div');
+    meta.className = 'distro-meta';
+    if (cfg) {
+      var parts = [];
+      if (cfg.version != null && String(cfg.version).length) {
+        parts.push('v' + String(cfg.version));
+      }
+      var href = maintainerHref(cfg.maintainerGithub);
+      if (href) {
+        var a = document.createElement('a');
+        a.href = href;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = cfg.maintainerGithub && !/^https?:/i.test(String(cfg.maintainerGithub).trim())
+          ? '@' + String(cfg.maintainerGithub).replace(/^@/, '')
+          : 'Maintainer';
+        parts.push(a.outerHTML);
+      }
+      meta.innerHTML = parts.join(' · ');
+      if (!parts.length) meta.style.display = 'none';
+    } else {
+      meta.textContent = '';
+      meta.style.display = 'none';
+    }
+
+    var manifestEl = manifestResult.wrap || document.createElement('div');
+
+    const main = coffee.para('This distro is built on the original Coffee Community base + wiring.');
+    main.style.cssText = 'fontSize:var(--coffee-font-base);lineHeight:1.6;marginBottom:var(--coffee-space-md);color:#ffffff';
+
+    const verify = coffee.para('This distro uses the core bricks as intended: que, wire, Control, and Drive.');
+    verify.style.cssText = 'fontSize:var(--coffee-font-sm);color:rgba(255,255,255,0.88);marginBottom:var(--coffee-space-lg)';
+
+    const rule = coffee.para('If you do not see this page at /distro or /about-coffee, the site is not built on the core.');
+    rule.style.cssText = 'fontSize:var(--coffee-font-sm);color:rgba(255,255,255,0.92);fontWeight:600;padding:var(--coffee-space-md);background:var(--coffee-bg-elev);borderRadius:var(--coffee-radius-sm);borderLeft:4px solid var(--coffee-accent)';
+
+    // —— Session attestation token + fake relay propagation (vibes, not auth) ——
+    const TOKEN_KEY = 'coffee-distro-attestation-v1';
+
+    function hexRandom(nBytes) {
+      const u = new Uint8Array(nBytes);
+      crypto.getRandomValues(u);
+      return Array.from(u, function (b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    function getOrCreateToken() {
+      try {
+        var existing = sessionStorage.getItem(TOKEN_KEY);
+        if (existing && existing.length > 16) return existing;
+      } catch (e) {}
+      var stamp = Math.floor(Date.now() / 1000).toString(16);
+      var body = hexRandom(16);
+      var t = 'DISTRO·' + stamp + '·' + body;
+      try {
+        sessionStorage.setItem(TOKEN_KEY, t);
+      } catch (e2) {}
+      return t;
+    }
+
+    var attestation = getOrCreateToken();
+
+    var tokenWrap = document.createElement('div');
+    tokenWrap.className = 'distro-token-wrap';
+    tokenWrap.innerHTML =
+      '<div class="distro-token-label">Session attestation</div>' +
+      '<div class="distro-token-row"><code class="distro-token" id="distro-token-el"></code></div>' +
+      '<p class="distro-token-hint">Ephemeral fingerprint for this tab session — not a login or secret. Shown for distro provenance theater.</p>';
+
+    var tokenEl = tokenWrap.querySelector('#distro-token-el');
+    tokenEl.textContent = attestation;
+
+    var copyBtn = coffee.button('Copy token', function () {
+      navigator.clipboard.writeText(attestation).then(function () {
+        copyBtn.textContent = 'Copied';
+        setTimeout(function () { copyBtn.textContent = 'Copy token'; }, 1600);
+      }).catch(function () {
+        copyBtn.textContent = 'Select & copy';
+      });
+    }, { style: { flexShrink: 0 } });
+    tokenWrap.querySelector('.distro-token-row').appendChild(copyBtn);
+
+    var relaysWrap = document.createElement('div');
+    relaysWrap.className = 'distro-relays';
+    relaysWrap.innerHTML = '<div class="distro-relays-title">Relay propagation</div>';
+
+    var RELAYS = [
+      { id: 'wss://quorum.coffee-source.local/handshake' },
+      { id: 'wss://relay.build/distro/v2' },
+      { id: 'nostr://relay.distro.coffee' },
+      { id: 'udp://mesh.ce.internal:7749' }
+    ];
+
+    RELAYS.forEach(function (r, i) {
+      var row = document.createElement('div');
+      row.className = 'distro-relay-row';
+      row.innerHTML =
+        '<span class="distro-relay-id">' + r.id + '</span>' +
+        '<span class="distro-relay-status pending" data-relay-idx="' + i + '">pending</span>';
+      relaysWrap.appendChild(row);
+    });
+
+    // Same-origin tab gossip (real but tiny — feels like “something happened”)
+    try {
+      var bc = new BroadcastChannel('coffee-distro-handshake');
+      bc.postMessage({ type: 'DISTRO_ATTEST', token: attestation, t: Date.now() });
+      bc.onmessage = function (ev) {
+        if (ev.data && ev.data.type === 'DISTRO_ATTEST' && ev.data.token !== attestation) {
+          console.log('[coffee-distro] sibling tab attestation:', ev.data.token.slice(0, 24) + '…');
+        }
+      };
+    } catch (e) {}
+
+    function staggerRelays() {
+      RELAYS.forEach(function (_, i) {
+        var delay = 280 + Math.random() * 520 + i * 190;
+        setTimeout(function () {
+          var badge = relaysWrap.querySelector('[data-relay-idx="' + i + '"]');
+          if (!badge) return;
+          badge.className = 'distro-relay-status prop';
+          badge.textContent = 'propagating';
+        }, delay);
+        var delay2 = delay + 400 + Math.random() * 600;
+        setTimeout(function () {
+          var badge = relaysWrap.querySelector('[data-relay-idx="' + i + '"]');
+          if (!badge) return;
+          var flake = Math.random() < 0.08;
+          if (flake) {
+            badge.className = 'distro-relay-status fail';
+            badge.textContent = 'retry';
+            setTimeout(function () {
+              badge.className = 'distro-relay-status ok';
+              badge.textContent = 'acked';
+            }, 900 + Math.random() * 400);
+          } else {
+            badge.className = 'distro-relay-status ok';
+            badge.textContent = 'acked';
+          }
+        }, delay2);
+      });
+    }
+    staggerRelays();
+
+    const card = coffee.card(
+      [seal, header, meta, manifestEl, main, verify, rule, tokenWrap, relaysWrap],
+      {
+        style: { maxWidth: '560px', padding: 'var(--coffee-space-xl)', margin: 'var(--coffee-space-xl) auto' }
+      }
+    );
+    card.className = 'distro-card';
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--coffee-bg-surface);padding:var(--coffee-space-lg)';
+    layout.appendChild(card);
+
+    document.getElementById('app').appendChild(layout);
+    }
+  </script>
+</body>
+</html>

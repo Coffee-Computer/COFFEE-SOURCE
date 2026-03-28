@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COFFEE-SLASH demo</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-MARKDOWN/coffee-markdown.js"></script>
+  <script src="coffee-slash.js"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: var(--coffee-bg-surface); color: var(--coffee-text-primary); }
+    #app { display: flex; flex-direction: column; height: 100vh; max-width: 900px; margin: 0 auto; }
+    #head { padding: var(--coffee-space-md); border-bottom: 1px solid var(--coffee-panel); }
+    #split { flex: 1; display: flex; min-height: 0; }
+    #ta-wrap { flex: 1; min-width: 0; padding: var(--coffee-space-md); display: flex; flex-direction: column; }
+    #editor { flex: 1; min-height: 200px; width: 100%; box-sizing: border-box; font-family: ui-monospace, monospace; font-size: 14px; padding: 12px; border-radius: var(--coffee-radius-sm); border: 1px solid var(--coffee-panel); background: var(--coffee-bg-elev); color: var(--coffee-text-primary); }
+    #pv-wrap { flex: 1; min-width: 0; background: #fff; border-left: 1px solid var(--coffee-panel); }
+    #pv-wrap iframe { width: 100%; height: 100%; border: 0; display: block; min-height: 200px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="head"></div>
+    <div id="split">
+      <div id="ta-wrap">
+        <textarea id="editor" spellcheck="false" placeholder="Type / for slash menu…"></textarea>
+      </div>
+      <div id="pv-wrap">
+        <iframe id="pv" title="Preview"></iframe>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      var h = coffee.heading('coffee.slash', 2, { style: { margin: '0 0 4px 0' } });
+      var p = coffee.para('Textarea adapter + coffee.markdown preview.', {
+        style: { margin: 0, fontSize: 'var(--coffee-font-sm)', color: 'var(--coffee-text-muted)' }
+      });
+      document.getElementById('head').appendChild(coffee.stack([h, p], { style: { gap: '0' } }));
+    })();
+
+    var ta = document.getElementById('editor');
+    var iframe = document.getElementById('pv');
+    var preview = coffee.markdown.createPreviewSession();
+    ta.value = '# Slash demo\n\nType **/** then pick a block.\n';
+
+    function syncPreview() {
+      preview.update(iframe, ta.value);
+    }
+
+    var slash = coffee.slash.attach(coffee.slash.adapters.textarea(ta), {
+      mountParent: document.body,
+      onAfterInsert: syncPreview,
+      onEditorInput: syncPreview
+    });
+
+    syncPreview();
+    window.addEventListener('beforeunload', function () {
+      preview.revoke();
+      slash.destroy();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,136 @@
+/* Kite α — layout only; floating panels + dock use coffee-ui (floatGroup, floatStack, toolDock, pillStrip) */
+
+.kite-root {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  margin: 0;
+  overflow: hidden;
+  background: var(--kite-canvas-bg, #1a1a1a);
+  color: var(--coffee-text-primary, #e4e4e7);
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+  touch-action: none;
+}
+
+.kite-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kite-stage-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 20px 108px;
+  box-sizing: border-box;
+}
+
+.kite-stage-wrap [data-coffee='scene2d'] {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.55);
+}
+
+/* Brand chip inside first floatGroup */
+.kite-float-brand {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--coffee-text-muted, #a1a1aa);
+  margin-right: auto;
+}
+
+/* Desktop-only slider card (coffee.floatGroup) */
+.kite-sliders-desktop .kite-slider-row {
+  width: 100%;
+}
+
+.kite-lab {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--coffee-text-muted, #a1a1aa);
+  margin-bottom: 4px;
+  display: block;
+}
+
+.kite-sliders-desktop input[type='range'] {
+  width: 100%;
+  accent-color: var(--coffee-accent, #00aaff);
+}
+
+.kite-save-accent {
+  background: var(--coffee-accent, #0284c7) !important;
+  color: #fff !important;
+  border: none !important;
+  font-weight: 700 !important;
+}
+
+.kite-mobile-size {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.kite-mobile-size input[type='range'] {
+  flex: 1;
+  accent-color: var(--coffee-accent, #00aaff);
+}
+
+.kite-mobile-size .kite-mobile-size-tag {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--coffee-text-muted, #71717a);
+  font-variant-numeric: tabular-nums;
+}
+
+.kite-hint {
+  position: fixed;
+  bottom: 92px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  font-size: 10px;
+  color: var(--coffee-text-muted, #71717a);
+  text-align: center;
+  max-width: 90vw;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+@media (max-width: 640px) {
+  .kite-stage-wrap {
+    padding: 12px 12px 120px;
+  }
+
+  [data-coffee='float-stack'] {
+    top: 10px !important;
+    right: 10px !important;
+    left: 10px !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-end !important;
+    align-items: flex-start !important;
+  }
+
+  .kite-sliders-desktop {
+    display: none !important;
+  }
+
+  .kite-mobile-size {
+    display: flex;
+  }
+
+  .kite-hint {
+    bottom: 130px;
+    font-size: 9px;
+  }
+}

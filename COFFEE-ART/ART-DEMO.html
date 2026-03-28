@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee.Art() — COIL + FORGE + ART</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #050505; color: #e0e0e0; font-family: 'Inter', system-ui; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .coffee-accent { color: #d4a373; }
+    input[type="range"] { accent-color: #d4a373; }
+    .art-panel { transition: transform 0.2s ease; }
+    .art-panel.collapsed { transform: translateX(calc(-100% - 8px)); }
+    #art-ui-wrap { position: relative; }
+    .art-toggle { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 2px; width: 28px; height: 56px; background: rgba(15,15,15,0.9); border: 1px solid rgba(255,255,255,0.1); border-left: none; border-radius: 0 8px 8px 0; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #888; }
+    .art-toggle:hover { color: #d4a373; }
+  </style>
+</head>
+<body>
+  <div id="ui-root"></div>
+  <canvas id="canvas"></canvas>
+
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-COIL/coffee-coil.js"></script>
+  <script src="../COFFEE-FORGE/coffee-forge.js"></script>
+  <script src="./coffee-art.js"></script>
+  <script>
+    coffee.injectTheme('dark');
+
+    const canvas = document.getElementById('canvas');
+    const art = coffee.art.create(canvas);
+    const coilBase = '../COFFEE-COIL/presets/';
+
+    let preset = null;
+    let runner = null;
+    let lastTime = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Build UI with coffee-ui
+    const engineSelect = coffee.select({
+      id: 'art-engine',
+      options: [
+        { value: 'flow', label: 'Flow Field' },
+        { value: 'fractal', label: 'Fractal Tree' },
+        { value: 'orbit', label: 'Orbital' },
+        { value: 'glitch', label: 'Glitch' }
+      ],
+      value: 'flow',
+      style: { width: '100%' }
+    });
+
+    const presetSelect = coffee.select({
+      id: 'art-preset',
+      options: [{ value: 'default', label: 'default' }],
+      style: { width: '100%' }
+    });
+
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.cssText = 'display:flex;flex-direction:column;gap:0.4rem;';
+
+    const fpsEl = coffee.para('— FPS', { style: { fontSize: '10px', opacity: 0.5, margin: 0 } });
+
+    const randomizeBtn = coffee.button('Randomize Seeds', null, { style: { width: '100%' } });
+    const captureBtn = coffee.button('Capture Frame', null, { style: { width: '100%', backgroundColor: '#d4a373', color: '#000' } });
+
+    function createSlider(id, cfg, value) {
+      const div = document.createElement('div');
+      const label = document.createElement('div');
+      label.style.cssText = 'display:flex;justify-content:space-between;margin-bottom:2px;font-size:11px;';
+      label.innerHTML = `<span>${cfg.label}</span><span id="val-${id}" style="opacity:0.6">${value}</span>`;
+      const input = coffee.slider({
+        min: cfg.min,
+        max: cfg.max,
+        step: cfg.step,
+        value,
+        onInput: (v) => {
+          if (runner) runner.state[id] = v;
+          document.getElementById(`val-${id}`).textContent = v;
+        },
+        style: { width: '100%' }
+      });
+      div.appendChild(label);
+      div.appendChild(input);
+      return div;
+    }
+
+    function updateControls() {
+      controlsContainer.innerHTML = '';
+      if (!runner) return;
+      const engine = coffee.forge.engines[preset.engine];
+      if (!engine) return;
+      for (const key of ['complexity', 'speed', 'hue', 'zoom']) {
+        const cfg = engine.params[key];
+        if (cfg) {
+          controlsContainer.appendChild(createSlider(key, cfg, runner.state[key]));
+        }
+      }
+    }
+
+    const panelContent = document.createElement('div');
+    panelContent.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;';
+    panelContent.append(
+      coffee.heading('Coffee.Art()', 1, { style: { margin: 0, fontSize: '1rem', color: '#d4a373' } }),
+      coffee.row([engineSelect, presetSelect], { style: { gap: '0.5rem', flexWrap: 'nowrap' } }),
+      controlsContainer,
+      coffee.row([randomizeBtn, captureBtn], { style: { gap: '0.5rem' } }),
+      fpsEl
+    );
+
+    const panel = coffee.glass([panelContent], {
+      style: {
+        position: 'fixed',
+        top: '0.75rem',
+        left: '0.75rem',
+        zIndex: 10,
+        width: '220px',
+        maxHeight: '85vh',
+        overflowY: 'auto',
+        padding: '0.75rem'
+      }
+    });
+    panel.className = 'art-panel';
+
+    const toggle = document.createElement('div');
+    toggle.className = 'art-toggle';
+    toggle.textContent = '◀';
+    toggle.title = 'Hide/Show controls';
+    toggle.onclick = () => {
+      panel.classList.toggle('collapsed');
+      toggle.textContent = panel.classList.contains('collapsed') ? '▶' : '◀';
+    };
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'art-ui-wrap';
+    wrapper.style.cssText = 'position:fixed;left:0;top:0;z-index:10;';
+    wrapper.appendChild(panel);
+    wrapper.appendChild(toggle);
+    document.getElementById('ui-root').appendChild(wrapper);
+
+    async function loadPreset() {
+      const engine = engineSelect.value;
+      const presetName = presetSelect.value;
+      preset = await coffee.coil.load(engine, presetName, { baseUrl: coilBase });
+      runner = coffee.forge.create(preset);
+      updateControls();
+    }
+
+    async function updatePresetList() {
+      const engine = engineSelect.value;
+      const manifest = await coffee.coil.list({ baseUrl: coilBase });
+      const presets = manifest[engine] || ['default'];
+      presetSelect.innerHTML = '';
+      presets.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p;
+        opt.textContent = p;
+        presetSelect.appendChild(opt);
+      });
+    }
+
+    engineSelect.onchange = async () => {
+      await updatePresetList();
+      await loadPreset();
+    };
+
+    presetSelect.onchange = loadPreset;
+
+    randomizeBtn.onclick = () => {
+      if (preset) preset.seed = Math.random() * 1000;
+      if (runner) runner.reset();
+    };
+
+    captureBtn.onclick = () => {
+      const a = document.createElement('a');
+      a.download = `coffee-art-${Date.now()}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+
+    async function init() {
+      await updatePresetList();
+      await loadPreset();
+    }
+
+    function loop(timestamp) {
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+      fpsEl.textContent = dt > 0 ? `${Math.round(1000 / dt)} FPS` : '— FPS';
+
+      if (runner) {
+        const drawables = runner.step(canvas.width, canvas.height);
+        art.draw(drawables);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    init().then(() => requestAnimationFrame(loop));
+  </script>
+</body>
+</html>

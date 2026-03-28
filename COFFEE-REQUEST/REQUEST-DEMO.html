@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.request() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-request.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.request()', 1);
+    const sub = coffee.para('Thin fetch wrapper. JSON by default. Throws on 4xx/5xx.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const outEl = document.createElement('pre');
+    outEl.style.cssText = 'background:var(--coffee-bg-surface);padding:var(--coffee-space-md);border-radius:var(--coffee-radius-sm);font-size:12px;overflow:auto;min-height:120px;margin-top:var(--coffee-space-md);color:var(--coffee-text-primary,#eee)';
+
+    const btnGet = coffee.button('GET post/1', async () => {
+      try {
+        coffee.request.baseUrl = 'https://jsonplaceholder.typicode.com';
+        const url = 'https://jsonplaceholder.typicode.com/posts/1';
+        const data = await coffee.request('/posts/1');
+        outEl.textContent = JSON.stringify(data, null, 2);
+        if (coffee.toast) coffee.toast('Fetched from ' + url, 'success');
+      } catch (e) {
+        outEl.textContent = 'Error: ' + (e.message || e) + (e.status ? ' (' + e.status + ')' : '');
+        if (coffee.toast) coffee.toast(e.message || 'Failed', 'error');
+      }
+    });
+
+    const btnPost = coffee.button('POST', async () => {
+      try {
+        coffee.request.baseUrl = 'https://jsonplaceholder.typicode.com';
+        const url = 'https://jsonplaceholder.typicode.com/posts';
+        const data = await coffee.request('/posts', {
+          method: 'POST',
+          body: { title: 'Coffee', body: 'Hello from coffee.request', userId: 1 }
+        });
+        outEl.textContent = JSON.stringify(data, null, 2);
+        if (coffee.toast) coffee.toast('Posted to ' + url, 'success');
+      } catch (e) {
+        outEl.textContent = 'Error: ' + (e.message || e);
+        if (coffee.toast) coffee.toast(e.message || 'Failed', 'error');
+      }
+    });
+
+    const btnTimeout = coffee.button('Timeout 1ms', async () => {
+      const url = 'https://jsonplaceholder.typicode.com/posts/1';
+      try {
+        await coffee.request(url, { timeout: 1 });
+      } catch (e) {
+        outEl.textContent = e.name === 'AbortError' ? 'Timed out (expected)' : e.message;
+        if (coffee.toast) coffee.toast('Timed out: ' + url, 'warning');
+      }
+    });
+
+    const row = coffee.row([btnGet, btnPost, btnTimeout], { style: { flexWrap: 'wrap', gap: '8px' } });
+    const card = coffee.card([header, sub, row, outEl], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

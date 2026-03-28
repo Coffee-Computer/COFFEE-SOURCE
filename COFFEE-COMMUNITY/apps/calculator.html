@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculator</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; background: var(--coffee-bg-surface); min-height: 100%; box-sizing: border-box; display: flex; justify-content: center; align-items: flex-start; }
+    #app { width: 100%; max-width: 320px; }
+    #display {
+      width: 100%;
+      min-height: 56px;
+      padding: 12px 16px;
+      font-size: 28px;
+      font-family: monospace;
+      text-align: right;
+      background: var(--coffee-bg-elev);
+      border: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-sm);
+      color: var(--coffee-text-primary);
+      margin-bottom: 16px;
+      box-sizing: border-box;
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .calc-grid .full { grid-column: 1 / -1; }
+    .calc-grid .span-2 { grid-column: span 2; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    let display = '0';
+    let prev = null;
+    let op = null;
+
+    const displayEl = document.createElement('div');
+    displayEl.id = 'display';
+    displayEl.className = 'full';
+    displayEl.textContent = display;
+
+    function updateDisplay() {
+      displayEl.textContent = display;
+    }
+
+    function inputDigit(d) {
+      if (display === '0' && d !== '.') display = String(d);
+      else display += String(d);
+      updateDisplay();
+    }
+
+    function inputOp(nextOp) {
+      const num = parseFloat(display);
+      if (prev !== null && op !== null) {
+        if (op === '+') prev += num;
+        else if (op === '-') prev -= num;
+        else if (op === '×') prev *= num;
+        else if (op === '÷') prev = num ? prev / num : 0;
+        display = String(prev);
+      } else {
+        prev = num;
+      }
+      op = nextOp;
+      display = nextOp ? '0' : display;
+      updateDisplay();
+    }
+
+    function equals() {
+      if (op === null) return;
+      const num = parseFloat(display);
+      if (op === '+') prev = (prev || 0) + num;
+      else if (op === '-') prev = (prev ?? num) - num;
+      else if (op === '×') prev = (prev || 1) * num;
+      else if (op === '÷') prev = num ? (prev || num) / num : 0;
+      display = String(prev);
+      prev = null;
+      op = null;
+      updateDisplay();
+    }
+
+    function clearAll() {
+      display = '0';
+      prev = null;
+      op = null;
+      updateDisplay();
+    }
+
+    const btn = (label, fn, opts = {}) => coffee.button(label, fn, {
+      minHeight: '52px',
+      fontSize: '20px',
+      ...opts
+    });
+
+    const num = (n) => btn(String(n), () => inputDigit(n), { backgroundColor: 'var(--coffee-bg-elev)', color: 'var(--coffee-text-primary)' });
+    const ops = (sym, fn) => btn(sym, fn, { backgroundColor: 'var(--coffee-panel)' });
+
+    const zeroBtn = num(0);
+    zeroBtn.style.gridColumn = 'span 2';
+    const grid = document.createElement('div');
+    grid.className = 'calc-grid';
+    grid.append(
+      displayEl,
+      btn('C', clearAll, { backgroundColor: '#dc2626' }),
+      btn('±', () => { display = String(-parseFloat(display)); updateDisplay(); }, { backgroundColor: 'var(--coffee-panel)' }),
+      btn('%', () => { display = String(parseFloat(display) / 100); updateDisplay(); }, { backgroundColor: 'var(--coffee-panel)' }),
+      ops('÷', () => inputOp('÷')),
+      num(7), num(8), num(9),
+      ops('×', () => inputOp('×')),
+      num(4), num(5), num(6),
+      ops('-', () => inputOp('-')),
+      num(1), num(2), num(3),
+      ops('+', () => inputOp('+')),
+      zeroBtn,
+      btn('.', () => { if (!display.includes('.')) inputDigit('.'); }, { backgroundColor: 'var(--coffee-bg-elev)', color: 'var(--coffee-text-primary)' }),
+      btn('=', equals, { backgroundColor: 'var(--coffee-accent)' })
+    );
+
+    document.getElementById('app').appendChild(grid);
+  </script>
+</body>
+</html>

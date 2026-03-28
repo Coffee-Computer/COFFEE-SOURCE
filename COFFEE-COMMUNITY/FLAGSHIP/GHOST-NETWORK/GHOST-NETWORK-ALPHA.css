@@ -1,0 +1,586 @@
+/* Ghost Network α — Nostr room channels (extracted from POC, no Tailwind) */
+
+/* Kill default browser margin (otherwise you get a “white frame” around full-bleed UIs). */
+html {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  min-height: 100%;
+  background: var(--gh-bg-darker, #0a0a0c);
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--gh-bg-darker, #0a0a0c);
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+:root {
+  --gh-bg-darker: #0a0a0c;
+  --gh-bg-main: #121214;
+  --gh-bg-sidebar: #1e1e22;
+  --gh-accent: #8b5cf6;
+  --gh-text-muted: #88888e;
+  --gh-border: rgba(255, 255, 255, 0.06);
+}
+
+.gh-mono { font-family: 'JetBrains Mono', monospace; }
+
+.gh-app {
+  display: grid;
+  grid-template-columns: 72px 260px 1fr;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  max-height: 100%;
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--gh-bg-darker);
+  color: #e2e2e4;
+  /* Narrow iframes (e.g. Anti-Social switcher) use drawer layout — not just viewport width */
+  container: ghost-app / inline-size;
+}
+
+.gh-relay-rail {
+  background: var(--gh-bg-darker);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 12px;
+  gap: 8px;
+  border-right: 1px solid var(--gh-border);
+}
+
+.gh-relay-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--gh-bg-sidebar);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  border: none;
+  color: inherit;
+  padding: 0;
+}
+
+.gh-relay-icon:hover,
+.gh-relay-icon.gh-active {
+  border-radius: 16px;
+  background: var(--gh-accent);
+  color: white;
+}
+
+.gh-relay-icon.gh-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  width: 4px;
+  height: 40px;
+  background: var(--gh-accent, #8b5cf6);
+  border-radius: 0 4px 4px 0;
+}
+
+.gh-rail-divider {
+  width: 32px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  margin: 4px 0;
+}
+
+.gh-sidebar {
+  background: var(--gh-bg-sidebar);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+.gh-chat-header {
+  height: 48px;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid var(--gh-border);
+  font-weight: 800;
+  font-style: italic;
+  flex-shrink: 0;
+}
+
+.gh-chat-header.gh-sidebar-head {
+  border: none;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.gh-drawer-close {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: -8px -8px -8px auto;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gh-text-muted);
+  cursor: pointer;
+}
+
+.gh-drawer-close:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gh-drawer-close:focus-visible {
+  outline: 2px solid var(--coffee-accent, #8b5cf6);
+  outline-offset: 2px;
+}
+
+/* Main chat header: hamburger + title + actions */
+.gh-main-header {
+  gap: 10px;
+}
+
+.gh-menu-btn {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 0 -8px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--gh-text-muted);
+  cursor: pointer;
+}
+
+.gh-menu-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.gh-menu-btn:focus-visible {
+  outline: 2px solid var(--coffee-accent, #8b5cf6);
+  outline-offset: 2px;
+}
+
+.gh-header-title-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  font-weight: 800;
+  font-style: italic;
+}
+
+.gh-header-title-row .gh-hash {
+  color: var(--gh-text-muted);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+#gh-channel-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Mobile drawer overlay (hidden on desktop) */
+.gh-drawer-backdrop {
+  display: none;
+}
+
+.gh-section-label {
+  padding: 0 16px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #52525b;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.gh-section-label:first-of-type {
+  margin-top: 8px;
+}
+
+.gh-channel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-top: 8px;
+}
+
+/* Stack channel buttons in one column (coffee.button is inline-ish; without this they wrap into a messy grid). */
+.gh-channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 10px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.gh-sidebar-footer {
+  flex-shrink: 0;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 11px;
+  min-width: 0;
+}
+
+.gh-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Full-width channel pills inside the sidebar column */
+.gh-channel-list[data-coffee-region] button[data-coffee="button"] {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  width: 100% !important;
+  max-width: 100%;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  box-sizing: border-box;
+  min-width: 0 !important;
+}
+
+.gh-join-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  align-items: stretch;
+  min-width: 0;
+  width: 100%;
+}
+
+.gh-join-mount {
+  padding: 0 10px 12px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.gh-join-row input[data-coffee="input"] {
+  min-width: 0 !important;
+  flex: 1;
+  width: auto !important;
+}
+
+.gh-join-row button[data-coffee="button"] {
+  flex-shrink: 0;
+}
+
+.gh-profile-stack > * + * {
+  margin-top: 8px;
+}
+
+.gh-relay-stack > * + * {
+  margin-top: 8px;
+}
+
+.gh-user-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gh-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: #333;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.gh-user-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.gh-npub {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gh-status-line {
+  font-size: 9px;
+  color: var(--gh-text-muted);
+}
+
+.gh-chat-area {
+  background: var(--gh-bg-main);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-width: 0;
+}
+
+.gh-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.gh-message-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.gh-message {
+  display: flex;
+  gap: 16px;
+}
+
+.gh-msg-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.gh-msg-user {
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.gh-msg-time {
+  font-size: 10px;
+  color: var(--gh-text-muted);
+  font-weight: 400;
+}
+
+.gh-msg-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #ccc;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.gh-input-container {
+  padding: 0 20px 20px;
+}
+
+.gh-msg-compose-inner {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--coffee-bg-elev, #2b2b2f);
+  border-radius: 8px;
+  border: 1px solid var(--coffee-text-muted, rgba(255,255,255,0.12));
+}
+
+.gh-msg-compose-inner input[data-coffee="input"] {
+  flex: 1;
+  min-width: 0;
+  width: auto !important;
+}
+
+.gh-hint {
+  font-size: 10px;
+  color: var(--gh-text-muted);
+  padding: 0 20px 12px;
+  line-height: 1.4;
+}
+
+/* Embed / switcher: tighter chrome */
+.gh-compact .gh-hint {
+  display: none;
+}
+
+.gh-compact .gh-message-list {
+  padding: 12px 14px;
+}
+
+.gh-compact .gh-input-container {
+  padding: 0 14px 14px;
+}
+
+.gh-compact .gh-main-header {
+  padding-top: max(0px, env(safe-area-inset-top, 0px));
+}
+
+/*
+ * Mobile / narrow layout: container query = correct inside iframes.
+ * Media query = fallback when container queries unsupported.
+ */
+@container ghost-app (max-width: 720px) {
+  .gh-app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    min-height: 100%;
+  }
+
+  .gh-relay-rail {
+    display: none;
+  }
+
+  .gh-menu-btn {
+    display: inline-flex;
+  }
+
+  .gh-drawer-close {
+    display: inline-flex;
+  }
+
+  .gh-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.52);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .gh-drawer-backdrop.gh-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .gh-sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: min(300px, 88vw);
+    width: min(300px, 88cqw);
+    max-width: min(320px, 100%);
+    z-index: 21;
+    transform: translateX(-102%);
+    transition: transform 0.22s ease;
+    box-shadow: none;
+    border-right: 1px solid var(--gh-border);
+  }
+
+  .gh-sidebar.gh-open {
+    transform: translateX(0);
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .gh-chat-area {
+    grid-column: 1;
+    min-height: 0;
+  }
+
+  body.gh-drawer-open {
+    overflow: hidden;
+  }
+
+  .gh-main-header {
+    padding-top: max(4px, env(safe-area-inset-top, 0px));
+  }
+}
+
+@supports not (container-type: inline-size) {
+  @media (max-width: 720px) {
+    .gh-app {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+      min-height: 100%;
+    }
+
+    .gh-relay-rail {
+      display: none;
+    }
+
+    .gh-menu-btn {
+      display: inline-flex;
+    }
+
+    .gh-drawer-close {
+      display: inline-flex;
+    }
+
+    .gh-drawer-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.52);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .gh-drawer-backdrop.gh-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .gh-sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: min(300px, 88vw);
+      max-width: 320px;
+      z-index: 21;
+      transform: translateX(-102%);
+      transition: transform 0.22s ease;
+      box-shadow: none;
+      border-right: 1px solid var(--gh-border);
+    }
+
+    .gh-sidebar.gh-open {
+      transform: translateX(0);
+      box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .gh-chat-area {
+      grid-column: 1;
+      min-height: 0;
+    }
+
+    body.gh-drawer-open {
+      overflow: hidden;
+    }
+  }
+}

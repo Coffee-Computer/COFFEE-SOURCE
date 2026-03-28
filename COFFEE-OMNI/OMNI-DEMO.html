@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="cce:name" content="OMNI demo">
+  <meta name="cce:id" content="omni-demo">
+  <meta name="cce:icon" content="◎">
+  <meta name="cce:color" content="#6366f1">
+  <meta name="cce:description" content="coffee.omni + CCE validate helpers">
+  <title>OMNI demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-COMMUNITY/tools/cce-validate.js"></script>
+  <script src="./coffee-omni.js"></script>
+  <style>
+    body { margin: 0; padding: 16px; font-family: system-ui, sans-serif; background: var(--coffee-bg-surface); color: var(--coffee-text-primary); }
+    #out { margin-top: 12px; white-space: pre-wrap; font-size: 12px; color: var(--coffee-text-muted); }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <pre id="out"></pre>
+  <script>
+(function () {
+  coffee.injectTheme('dark');
+  var app = document.getElementById('app');
+  var out = document.getElementById('out');
+
+  var sample = '<!DOCTYPE html><html><head><script src="coffee-control.js"><\/script></head><body></body></html>';
+
+  var schema = coffee.omni.parseSchemaFromManifest({
+    hyper: {
+      controls: [
+        { key: 'gain', type: 'range', label: 'Gain', min: 0, max: 100, default: 50, section: 'Audio' }
+      ]
+    }
+  });
+  out.textContent = 'parseSchemaFromManifest → ' + JSON.stringify(schema, null, 2) + '\n' +
+    'defaultProps → ' + JSON.stringify(coffee.omni.defaultPropsFromControls(schema.controls), null, 2);
+
+  app.appendChild(coffee.stack([
+    coffee.text('COFFEE-OMNI', { style: { fontWeight: '700', fontSize: '18px' } }),
+    coffee.para('Validate HTML with CCE (snippet below is expected to fail — incomplete).', { style: { color: 'var(--coffee-text-muted)', fontSize: '13px' } }),
+    coffee.button('Run validateHtml(sample)', function () {
+      var r = coffee.omni.validateHtml(sample);
+      coffee.msg(r.valid ? 'Valid' : ('Errors: ' + r.errors.join('; ')), r.valid ? 'success' : 'warning');
+    }, { style: { minHeight: '44px' } })
+  ], { style: { gap: '12px', maxWidth: '480px' } }));
+})();
+  </script>
+</body>
+</html>

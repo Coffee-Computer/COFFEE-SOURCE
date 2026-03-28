@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- POC: standalone RAF. Stack: STAY-ALIVE.html — see README.md -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>STAY ALIVE - Survival</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #1a2e1a;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+            touch-action: none;
+            color: #e2e8f0;
+        }
+        canvas {
+            display: block;
+            background: #2d4a2d;
+            cursor: crosshair;
+        }
+        .ui-panel {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .bar-container {
+            width: 200px;
+            height: 20px;
+            background: rgba(0,0,0,0.5);
+            border: 2px solid #444;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        #inventory-grid {
+            pointer-events: auto;
+            display: grid;
+            grid-template-columns: repeat(4, 50px);
+            gap: 8px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border: 2px solid #555;
+            border-radius: 8px;
+        }
+        .slot {
+            width: 50px;
+            height: 50px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            position: relative;
+        }
+        .slot-count {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        #msg-log {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            max-height: 100px;
+            overflow: hidden;
+            pointer-events: none;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px black;
+        }
+        #game-over {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer" class="ui-panel top-5 left-5">
+    <div class="stat-label text-sm uppercase font-bold text-red-400">Health</div>
+    <div class="bar-container"><div id="hp-bar" class="bar-fill bg-red-600" style="width: 100%"></div></div>
+    
+    <div class="stat-label text-sm uppercase font-bold text-orange-400">Hunger</div>
+    <div class="bar-container"><div id="hunger-bar" class="bar-fill bg-orange-500" style="width: 100%"></div></div>
+    
+    <div class="stat-label text-sm uppercase font-bold text-blue-400">Thirst</div>
+    <div class="bar-container"><div id="thirst-bar" class="bar-fill bg-blue-500" style="width: 100%"></div></div>
+</div>
+
+<div class="ui-panel top-5 right-5">
+    <div class="text-xs uppercase mb-2 text-gray-400 text-right">Inventory (Press E to use)</div>
+    <div id="inventory-grid">
+        <!-- JS populated -->
+    </div>
+    <div class="mt-4 pointer-events-auto">
+        <button onclick="craft('bandage')" class="w-full bg-gray-700 hover:bg-gray-600 text-xs py-2 border border-gray-500 rounded">Craft Bandage (2 Fiber)</button>
+    </div>
+</div>
+
+<div id="msg-log"></div>
+
+<div id="game-over">
+    <h1 class="text-5xl font-bold mb-4 text-red-600">YOU PERISHED</h1>
+    <p id="cause-of-death" class="mb-8"></p>
+    <button onclick="location.reload()" class="bg-white text-black px-8 py-3 font-bold hover:bg-gray-300">RESTART</button>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+/**
+ * STAY ALIVE - Survival
+ * A minimalist survival experience.
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const msgLog = document.getElementById('msg-log');
+
+// Game State
+let player = {
+    x: 0, y: 0,
+    speed: 3,
+    hp: 100,
+    hunger: 100,
+    thirst: 100,
+    size: 20
+};
+
+let inventory = {
+    'Berry': 0,
+    'Water': 0,
+    'Fiber': 0,
+    'Bandage': 0
+};
+
+const ITEMS = {
+    'Berry': { icon: '🍒', food: 15, water: 5, hp: 0 },
+    'Water': { icon: '💧', food: 0, water: 30, hp: 0 },
+    'Fiber': { icon: '🌿', food: 0, water: 0, hp: 0 },
+    'Bandage': { icon: '🩹', food: 0, water: 0, hp: 25 }
+};
+
+let worldItems = [];
+let keys = {};
+let camera = { x: 0, y: 0 };
+let gameActive = true;
+
+// Initialization
+function init() {
+    resize();
+    player.x = 2000;
+    player.y = 2000;
+    spawnItems(100);
+    updateInventoryUI();
+    loop();
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+function spawnItems(count) {
+    const types = ['Berry', 'Water', 'Fiber'];
+    for (let i = 0; i < count; i++) {
+        worldItems.push({
+            type: types[Math.floor(Math.random() * types.length)],
+            x: Math.random() * 4000,
+            y: Math.random() * 4000,
+            id: Date.now() + i
+        });
+    }
+}
+
+function log(text) {
+    const p = document.createElement('p');
+    p.innerText = text;
+    msgLog.prepend(p);
+    if (msgLog.childNodes.length > 5) msgLog.removeChild(msgLog.lastChild);
+}
+
+function updateInventoryUI() {
+    const grid = document.getElementById('inventory-grid');
+    grid.innerHTML = '';
+    Object.keys(inventory).forEach(key => {
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.innerHTML = `<span>${ITEMS[key].icon}</span><span class="slot-count">${inventory[key]}</span>`;
+        slot.onclick = () => useItem(key);
+        grid.appendChild(slot);
+    });
+}
+
+function useItem(type) {
+    if (inventory[type] <= 0) return;
+    
+    const item = ITEMS[type];
+    if (item.food > 0 || item.water > 0 || item.hp > 0) {
+        player.hunger = Math.min(100, player.hunger + item.food);
+        player.thirst = Math.min(100, player.thirst + item.water);
+        player.hp = Math.min(100, player.hp + item.hp);
+        inventory[type]--;
+        log(`Used ${type}`);
+        updateInventoryUI();
+    }
+}
+
+function craft(type) {
+    if (type === 'bandage') {
+        if (inventory['Fiber'] >= 2) {
+            inventory['Fiber'] -= 2;
+            inventory['Bandage']++;
+            log('Crafted Bandage');
+            updateInventoryUI();
+        } else {
+            log('Not enough Fiber!');
+        }
+    }
+}
+
+function update() {
+    if (!gameActive) return;
+
+    // Movement
+    let dx = 0, dy = 0;
+    if (keys['w'] || keys['ArrowUp']) dy -= player.speed;
+    if (keys['s'] || keys['ArrowDown']) dy += player.speed;
+    if (keys['a'] || keys['ArrowLeft']) dx -= player.speed;
+    if (keys['d'] || keys['ArrowRight']) dx += player.speed;
+    
+    player.x += dx;
+    player.y += dy;
+
+    // Bounds
+    player.x = Math.max(0, Math.min(4000, player.x));
+    player.y = Math.max(0, Math.min(4000, player.y));
+
+    // Camera
+    camera.x = player.x - canvas.width / 2;
+    camera.y = player.y - canvas.height / 2;
+
+    // Survival Decay
+    player.hunger -= 0.015;
+    player.thirst -= 0.025;
+
+    // Health logic
+    if (player.hunger <= 0 || player.thirst <= 0) {
+        player.hp -= 0.05;
+        player.hunger = Math.max(0, player.hunger);
+        player.thirst = Math.max(0, player.thirst);
+    }
+
+    if (player.hp <= 0) {
+        gameActive = false;
+        document.getElementById('game-over').style.display = 'flex';
+        document.getElementById('cause-of-death').innerText = player.hunger <= 0 ? "You starved." : "Dehydration took you.";
+    }
+
+    // Item Pickup
+    for (let i = worldItems.length - 1; i >= 0; i--) {
+        const item = worldItems[i];
+        const dist = Math.hypot(player.x - item.x, player.y - item.y);
+        if (dist < 30) {
+            inventory[item.type]++;
+            log(`Picked up ${item.type}`);
+            worldItems.splice(i, 1);
+            updateInventoryUI();
+            
+            // Respawn eventually
+            setTimeout(() => {
+                worldItems.push({
+                    type: item.type,
+                    x: Math.random() * 4000,
+                    y: Math.random() * 4000,
+                    id: Date.now()
+                });
+            }, 10000);
+        }
+    }
+
+    // Update UI Bars
+    document.getElementById('hp-bar').style.width = player.hp + '%';
+    document.getElementById('hunger-bar').style.width = player.hunger + '%';
+    document.getElementById('thirst-bar').style.width = player.thirst + '%';
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Grid/Background
+    ctx.strokeStyle = '#243a24';
+    ctx.lineWidth = 1;
+    const step = 100;
+    for (let x = -camera.x % step; x < canvas.width; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = -camera.y % step; y < canvas.height; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+
+    // Draw World Items
+    ctx.font = '20px Arial';
+    ctx.textAlign = 'center';
+    worldItems.forEach(item => {
+        const sx = item.x - camera.x;
+        const sy = item.y - camera.y;
+        if (sx > -20 && sx < canvas.width + 20 && sy > -20 && sy < canvas.height + 20) {
+            ctx.fillText(ITEMS[item.type].icon, sx, sy);
+        }
+    });
+
+    // Draw Player
+    ctx.fillStyle = '#4ade80';
+    ctx.beginPath();
+    ctx.arc(player.x - camera.x, player.y - camera.y, player.size, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Player Direction Indicator
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(player.x - camera.x, player.y - camera.y);
+    // Simple look direction based on last move
+    ctx.lineTo(player.x - camera.x, player.y - camera.y - 25);
+    ctx.stroke();
+}
+
+function loop() {
+    update();
+    draw();
+    if (gameActive) requestAnimationFrame(loop);
+}
+
+window.addEventListener('keydown', e => {
+    keys[e.key.toLowerCase()] = true;
+    if (e.key.toLowerCase() === 'e') {
+        // Use hotkey for first food item
+        if (inventory['Berry'] > 0) useItem('Berry');
+        else if (inventory['Water'] > 0) useItem('Water');
+    }
+});
+window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+window.addEventListener('resize', resize);
+
+window.onload = init;
+
+</script>
+</body>
+</html>

@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Art() | Generative Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #050505;
+            color: #e0e0e0;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        .glass {
+            background: rgba(15, 15, 15, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        input[type="range"] {
+            accent-color: #d4a373;
+        }
+        .coffee-accent { color: #d4a373; }
+        .coffee-bg { background-color: #d4a373; }
+        
+        /* Custom scrollbar for the UI panel */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(212, 163, 115, 0.3); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <!-- UI Overlay -->
+    <div id="ui" class="fixed top-6 left-6 z-10 w-80 glass rounded-2xl p-6 transition-opacity duration-500 max-h-[90vh] overflow-y-auto custom-scroll">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-xl font-bold tracking-tight">Coffee<span class="coffee-accent">.Art()</span></h1>
+            <div id="fps" class="text-xs opacity-50 font-mono">60 FPS</div>
+        </div>
+
+        <div class="space-y-6">
+            <!-- Mode Selector -->
+            <div>
+                <label class="text-[10px] uppercase tracking-widest opacity-50 mb-2 block font-bold">Engine Mode</label>
+                <select id="artMode" class="w-full bg-neutral-900 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#d4a373]">
+                    <option value="flow">Flow Field (Perlin)</option>
+                    <option value="fractal">Recursive Neural Tree</option>
+                    <option value="orbit">Orbital Resonance</option>
+                    <option value="glitch">Geometric Glitch</option>
+                </select>
+            </div>
+
+            <!-- Parameters -->
+            <div id="controls" class="space-y-4 text-sm">
+                <!-- Controls dynamically updated by JS -->
+            </div>
+
+            <div class="pt-4 border-t border-white/5 space-y-3">
+                <button id="randomize" class="w-full py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-xs font-medium">
+                    Randomize Seeds
+                </button>
+                <button id="capture" class="w-full py-2 coffee-bg text-black hover:brightness-110 rounded-lg transition-all text-xs font-bold uppercase tracking-wider">
+                    Capture Frame
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <script>
+        /**
+         * COFFEE.ART() ENGINE
+         * A lightweight generative art framework
+         */
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const controlsContainer = document.getElementById('controls');
+        const artModeSelect = document.getElementById('artMode');
+        const fpsDisplay = document.getElementById('fps');
+        
+        let width, height;
+        let frame = 0;
+        let lastTime = 0;
+        let particles = [];
+        
+        // State configuration
+        const state = {
+            mode: 'flow',
+            complexity: 0.5,
+            speed: 0.2,
+            hue: 30,
+            zoom: 1.0,
+            seed: Math.random() * 1000
+        };
+
+        // UI Definition for different modes
+        const config = {
+            flow: {
+                complexity: { label: 'Turbulence', min: 0.001, max: 0.02, step: 0.001, val: 0.005 },
+                speed: { label: 'Viscosity', min: 0.1, max: 5, step: 0.1, val: 1.2 },
+                hue: { label: 'Palette Shift', min: 0, max: 360, step: 1, val: 30 },
+                zoom: { label: 'Line Weight', min: 0.5, max: 10, step: 0.5, val: 1 }
+            },
+            fractal: {
+                complexity: { label: 'Recursion Depth', min: 4, max: 12, step: 1, val: 8 },
+                speed: { label: 'Sway Rate', min: 0.01, max: 0.1, step: 0.01, val: 0.03 },
+                hue: { label: 'Base Hue', min: 0, max: 360, step: 1, val: 180 },
+                zoom: { label: 'Angle Spread', min: 0.1, max: 1.5, step: 0.05, val: 0.5 }
+            },
+            orbit: {
+                complexity: { label: 'Orbitals', min: 2, max: 20, step: 1, val: 8 },
+                speed: { label: 'Angular Velocity', min: 0.1, max: 2, step: 0.1, val: 0.5 },
+                hue: { label: 'Chromatic Sat', min: 0, max: 100, step: 1, val: 60 },
+                zoom: { label: 'Radius', min: 10, max: 400, step: 10, val: 200 }
+            },
+            glitch: {
+                complexity: { label: 'Artifact Density', min: 1, max: 50, step: 1, val: 15 },
+                speed: { label: 'Refresh Rate', min: 0.1, max: 2, step: 0.1, val: 0.5 },
+                hue: { label: 'Glitch Hue', min: 0, max: 360, step: 1, val: 0 },
+                zoom: { label: 'Extrusion', min: 1, max: 100, step: 5, val: 40 }
+            }
+        };
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            initMode();
+        }
+
+        function createControl(id, cfg) {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <div class="flex justify-between mb-1">
+                    <label class="opacity-80">${cfg.label}</label>
+                    <span class="opacity-40 text-[10px]" id="val-${id}">${cfg.val}</span>
+                </div>
+                <input type="range" id="input-${id}" min="${cfg.min}" max="${cfg.max}" step="${cfg.step}" value="${cfg.val}" class="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer">
+            `;
+            const input = div.querySelector('input');
+            input.addEventListener('input', (e) => {
+                state[id] = parseFloat(e.target.value);
+                document.getElementById(`val-${id}`).innerText = e.target.value;
+            });
+            return div;
+        }
+
+        function updateUI() {
+            controlsContainer.innerHTML = '';
+            const modeCfg = config[state.mode];
+            for (const key in modeCfg) {
+                state[key] = modeCfg[key].val;
+                controlsContainer.appendChild(createControl(key, modeCfg[key]));
+            }
+        }
+
+        // --- ENGINES ---
+
+        // Simple 2D pseudo-noise
+        const noise = (x, y) => {
+            return Math.sin(x * 0.01 + state.seed) * Math.cos(y * 0.01 + state.seed);
+        };
+
+        function drawFlow() {
+            // Semi-transparent background for trails
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.05)';
+            ctx.fillRect(0, 0, width, height);
+
+            if (particles.length < 500) {
+                for(let i=0; i<5; i++) {
+                    particles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        vx: 0, vy: 0,
+                        age: 0,
+                        maxAge: 50 + Math.random() * 150,
+                        h: (state.hue + Math.random() * 40) % 360
+                    });
+                }
+            }
+
+            ctx.lineWidth = state.zoom;
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                const angle = noise(p.x * state.complexity * 100, p.y * state.complexity * 100) * Math.PI * 4;
+                
+                p.vx = Math.cos(angle) * state.speed;
+                p.vy = Math.sin(angle) * state.speed;
+                
+                ctx.beginPath();
+                ctx.strokeStyle = `hsla(${p.h}, 70%, 60%, ${1 - p.age/p.maxAge})`;
+                ctx.moveTo(p.x, p.y);
+                p.x += p.vx;
+                p.y += p.vy;
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+
+                p.age++;
+                if (p.age > p.maxAge || p.x < 0 || p.x > width || p.y < 0 || p.y > height) {
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        function drawFractal(x, y, len, angle, depth) {
+            if (depth <= 0) return;
+
+            const x2 = x + Math.cos(angle) * len;
+            const y2 = y + Math.sin(angle) * len;
+
+            ctx.lineWidth = depth * 0.5;
+            ctx.strokeStyle = `hsla(${state.hue + (depth * 15)}, 70%, 60%, 0.8)`;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            const sway = Math.sin(frame * state.speed + depth) * state.zoom;
+            
+            drawFractal(x2, y2, len * 0.75, angle - 0.4 + sway, depth - 1);
+            drawFractal(x2, y2, len * 0.75, angle + 0.4 + sway, depth - 1);
+        }
+
+        function drawOrbit() {
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.1)';
+            ctx.fillRect(0, 0, width, height);
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            for (let i = 0; i < state.complexity; i++) {
+                const t = frame * state.speed * 0.05 * (i + 1);
+                const r = state.zoom + Math.sin(t * 0.5) * 50;
+                const px = centerX + Math.cos(t) * r;
+                const py = centerY + Math.sin(t) * r;
+                
+                ctx.beginPath();
+                ctx.arc(px, py, 2, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${state.hue + (i * 10)}, ${state.hue > 0 ? 80 : 0}%, 60%, 0.8)`;
+                ctx.fill();
+                
+                // Connecting lines
+                if (i > 0) {
+                    const prevT = frame * state.speed * 0.05 * i;
+                    const pr = state.zoom + Math.sin(prevT * 0.5) * 50;
+                    const ppx = centerX + Math.cos(prevT) * pr;
+                    const ppy = centerY + Math.sin(prevT) * pr;
+                    ctx.strokeStyle = `hsla(${state.hue + (i * 10)}, 80%, 60%, 0.1)`;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(ppx, ppy);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function drawGlitch() {
+            if (frame % Math.floor(10 / state.speed) !== 0) return;
+            
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
+            ctx.fillRect(0, 0, width, height);
+
+            for (let i = 0; i < state.complexity; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const w = Math.random() * state.zoom * 2;
+                const h = Math.random() * 4;
+                
+                ctx.fillStyle = `hsla(${state.hue + Math.random() * 50}, 90%, 50%, 0.6)`;
+                ctx.fillRect(x, y, w, h);
+                
+                if (Math.random() > 0.9) {
+                    ctx.strokeStyle = '#fff';
+                    ctx.strokeRect(x - 10, y - 10, w + 20, h + 20);
+                }
+            }
+        }
+
+        function initMode() {
+            ctx.clearRect(0, 0, width, height);
+            particles = [];
+            frame = 0;
+        }
+
+        function animate(timestamp) {
+            const dt = timestamp - lastTime;
+            lastTime = timestamp;
+            if (dt > 0) fpsDisplay.innerText = `${Math.round(1000/dt)} FPS`;
+
+            frame++;
+
+            switch (state.mode) {
+                case 'flow':
+                    drawFlow();
+                    break;
+                case 'fractal':
+                    ctx.fillStyle = '#050505';
+                    ctx.fillRect(0, 0, width, height);
+                    drawFractal(width / 2, height * 0.9, height * 0.25, -Math.PI / 2, state.complexity);
+                    break;
+                case 'orbit':
+                    drawOrbit();
+                    break;
+                case 'glitch':
+                    drawGlitch();
+                    break;
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // Listeners
+        artModeSelect.addEventListener('change', (e) => {
+            state.mode = e.target.value;
+            updateUI();
+            initMode();
+        });
+
+        document.getElementById('randomize').addEventListener('click', () => {
+            state.seed = Math.random() * 1000;
+            initMode();
+        });
+
+        document.getElementById('capture').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `coffee-art-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+
+        window.addEventListener('resize', resize);
+
+        // Bootstrap
+        resize();
+        updateUI();
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>

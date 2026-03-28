@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "coffee-terminal-extensions",
+  "title": "Coffee.Terminal extension manifest",
+  "type": "object",
+  "required": ["version"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "insert": { "type": "string" },
+          "cat": { "type": "string" },
+          "handler": { "type": "string", "description": "Registered in plugin.js via registerHandler" }
+        }
+      }
+    },
+    "plugins": {
+      "type": "array",
+      "description": "Paths relative to this JSON file's directory",
+      "items": {
+        "type": "object",
+        "required": ["manifest"],
+        "properties": {
+          "manifest": { "type": "string", "description": "e.g. PLUGINS/my-plugin/plugin.json" },
+          "script": { "type": "string", "description": "e.g. PLUGINS/my-plugin/plugin.js" }
+        }
+      }
+    }
+  }
+}

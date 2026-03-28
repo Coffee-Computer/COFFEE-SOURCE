@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Community — Desk Mode α</title>
+  <!-- Coffee Source stack (shell): control → UI. Apps in iframe load their own chains (e.g. Scribe α). -->
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../COFFEE-INSTALL/coffee-install.js"></script>
+  <script src="./coffee-desktop.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+    :root {
+      /* Same gradient token as coffee-community-shell / homescreen (Community distro) */
+      --shell-bg: linear-gradient(135deg, #ff6f00 0%, #ffb300 30%, #e91e63 70%, #9c27b0 100%);
+      /* DOS base + Coffee warm accent (aligns w/ Scribe / café vibe) */
+      --dos-blue: #0000aa;
+      --dos-cyan: #00aaaa;
+      --dos-grey: #aaaaaa;
+      --dos-white: #ffffff;
+      --dos-shadow: #555555;
+      --dos-high-blue: #5555ff;
+      --coffee-desk-accent: #d4a373;
+      --coffee-desk-brown: #4a3728;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    body {
+      background-color: #000;
+      color: var(--dos-white);
+      font-family: 'VT323', monospace;
+      user-select: none;
+      image-rendering: pixelated;
+    }
+
+    /* Rainbow workspace (matches homescreen) — light scrim + dots for texture only */
+    .desktop {
+      width: 100vw;
+      height: calc(100vh - 48px);
+      position: relative;
+      background-color: #ffb300;
+      background-image:
+        radial-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 0),
+        linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.12) 100%),
+        var(--shell-bg);
+      background-size: 4px 4px, auto, auto;
+    }
+
+    .top-bar {
+      height: 24px;
+      background-color: var(--dos-grey);
+      color: #000;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 18px;
+      border-bottom: 2px solid #000;
+      z-index: 1000;
+    }
+
+    .menu-container {
+      position: relative;
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-item {
+      padding: 0 10px;
+      cursor: pointer;
+      height: 100%;
+      display: flex;
+      align-items: center;
+    }
+
+    .menu-item:hover,
+    .menu-item.active {
+      background-color: #000;
+      color: var(--dos-white);
+    }
+
+    .dropdown {
+      display: none;
+      position: absolute;
+      top: 24px;
+      left: 0;
+      background-color: var(--dos-grey);
+      border: 2px solid #000;
+      box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.5);
+      min-width: 150px;
+      z-index: 1100;
+    }
+
+    .dropdown-item {
+      padding: 5px 15px;
+      color: #000;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .dropdown-item:hover {
+      background-color: #000;
+      color: var(--dos-white);
+    }
+
+    .dropdown-item.checked::after {
+      content: '√';
+    }
+
+    .clock-slot {
+      margin-left: auto;
+      padding: 0 16px;
+    }
+
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 100px);
+      grid-gap: 20px;
+      padding: 40px;
+    }
+
+    .desktop-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .icon-box {
+      width: 48px;
+      height: 48px;
+      background-color: var(--dos-grey);
+      border: 3px outset var(--dos-white);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 5px;
+      font-size: 24px;
+    }
+
+    .desktop-icon:active .icon-box {
+      border-style: inset;
+    }
+
+    .dos-window {
+      position: absolute;
+      background-color: var(--dos-blue);
+      border: 2px solid var(--dos-white);
+      box-shadow: 10px 10px 0 rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      min-width: 200px;
+      min-height: 150px;
+      z-index: 10;
+    }
+
+    .window-header {
+      background-color: var(--dos-cyan);
+      height: 28px;
+      display: flex;
+      align-items: center;
+      padding: 0 5px;
+      border-bottom: 2px solid var(--dos-white);
+      cursor: move;
+    }
+
+    .window-title {
+      flex-grow: 1;
+      text-align: center;
+      font-weight: bold;
+      color: #fff;
+      letter-spacing: 1px;
+    }
+
+    .window-btn {
+      width: 20px;
+      height: 20px;
+      background-color: var(--dos-grey);
+      border: 2px outset var(--dos-white);
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .window-btn:active {
+      border-style: inset;
+    }
+
+    .window-content {
+      flex-grow: 1;
+      background: #000;
+      position: relative;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    .window-content iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .resizer {
+      width: 15px;
+      height: 15px;
+      background: var(--dos-grey);
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      cursor: nwse-resize;
+      border-left: 2px solid var(--dos-white);
+      border-top: 2px solid var(--dos-white);
+    }
+
+    .active-window {
+      z-index: 100;
+      border-color: var(--coffee-desk-accent, #d4a373);
+      box-shadow: 10px 10px 0 rgba(74, 55, 40, 0.45);
+    }
+
+    .active-window .window-header {
+      background: linear-gradient(180deg, var(--coffee-desk-accent) 0%, var(--coffee-desk-brown) 100%);
+      color: #fff;
+    }
+
+    .status-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 24px;
+      background-color: var(--dos-cyan);
+      color: #000;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      font-size: 16px;
+      border-top: 2px solid var(--dos-white);
+      box-sizing: border-box;
+      z-index: 900;
+    }
+
+    .status-right {
+      margin-left: auto;
+    }
+
+    .crt-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%),
+        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      background-size: 100% 3px, 3px 100%;
+      pointer-events: none;
+      z-index: 9999;
+      display: block;
+    }
+
+    body.crt-off .crt-overlay {
+      display: none;
+    }
+
+    .registry-error {
+      padding: 24px 40px;
+      color: #ff6;
+      font-size: 20px;
+    }
+
+    .desktop-icon.installed-app .icon-box {
+      outline: 2px solid var(--coffee-desk-accent, #d4a373);
+    }
+  </style>
+</head>
+<body class="crt-on">
+
+  <div class="crt-overlay" aria-hidden="true"></div>
+
+  <div class="top-bar">
+    <div class="menu-container">
+      <div class="menu-item" title="It’s not really a file menu yet ☕">Beans</div>
+    </div>
+    <div class="menu-container">
+      <div class="menu-item">Search</div>
+    </div>
+    <div class="menu-container">
+      <div class="menu-item">Options</div>
+    </div>
+    <div class="menu-container" id="window-menu-trigger">
+      <div class="menu-item" id="window-menu-btn">Window</div>
+      <div class="dropdown" id="window-dropdown">
+        <div class="dropdown-item checked" id="crt-toggle">CRT Effect</div>
+        <div class="dropdown-item" id="close-all-btn">Close All</div>
+      </div>
+    </div>
+    <div class="menu-container">
+      <div class="menu-item">Help</div>
+    </div>
+    <div class="clock-slot" id="clock">12:00 PM</div>
+  </div>
+
+  <div class="desktop" id="desktop">
+    <div class="icon-grid" id="icon-grid"></div>
+  </div>
+
+  <div class="status-bar">
+    <span>Desk Mode α · registry-driven · not your grandpa’s DOS (unless he drank coffee) ☕</span>
+    <span class="status-right">C:\COFFEE\COMMUNITY\DESK&gt; _</span>
+  </div>
+
+  <script>
+    (function () {
+      if (window.coffee && typeof coffee.injectTheme === 'function') {
+        coffee.injectTheme('dark');
+      }
+
+      const CRT_KEY = 'community_desktop_crt';
+      let crtEnabled = true;
+      if (window.coffee && typeof coffee.load === 'function') {
+        const saved = coffee.load(CRT_KEY);
+        if (saved === false) {
+          crtEnabled = false;
+          document.body.classList.add('crt-off');
+          document.getElementById('crt-toggle').classList.remove('checked');
+        }
+      }
+
+      function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = now.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+      setInterval(updateClock, 1000);
+      updateClock();
+
+      function toggleDropdown(e, id) {
+        e.stopPropagation();
+        const dropdown = document.getElementById(id);
+        const visible = dropdown.style.display === 'block';
+        document.querySelectorAll('.dropdown').forEach((d) => {
+          d.style.display = 'none';
+        });
+        dropdown.style.display = visible ? 'none' : 'block';
+      }
+
+      document.getElementById('window-menu-btn').addEventListener('click', function (e) {
+        toggleDropdown(e, 'window-dropdown');
+      });
+
+      window.addEventListener('click', function () {
+        document.querySelectorAll('.dropdown').forEach((d) => {
+          d.style.display = 'none';
+        });
+      });
+
+      document.getElementById('crt-toggle').addEventListener('click', function (e) {
+        e.stopPropagation();
+        crtEnabled = !crtEnabled;
+        const body = document.body;
+        const item = document.getElementById('crt-toggle');
+        if (crtEnabled) {
+          body.classList.remove('crt-off');
+          item.classList.add('checked');
+        } else {
+          body.classList.add('crt-off');
+          item.classList.remove('checked');
+        }
+        if (window.coffee && typeof coffee.save === 'function') {
+          coffee.save(CRT_KEY, crtEnabled);
+        }
+      });
+
+      document.getElementById('close-all-btn').addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (window.coffee && coffee.desktop) {
+          coffee.desktop.closeAllWindows();
+        }
+      });
+
+      const DESKTOP_INSTALL_LOADER = '../apps/installed-app-loader.html';
+
+      async function mergeDesktopApps(registryJson) {
+        const curated = ((registryJson && registryJson.apps) || []).map(function (a) {
+          return Object.assign({}, a, { installed: false });
+        });
+        if (window.coffee && coffee.install && typeof coffee.install.listInstalledForGrid === 'function') {
+          try {
+            const rows = await coffee.install.listInstalledForGrid(DESKTOP_INSTALL_LOADER);
+            rows.forEach(function (row) {
+              const slug = (row.name || 'APP').replace(/\s+/g, '').slice(0, 10).toUpperCase();
+              curated.push({
+                id: row.id,
+                label: slug + '.EXE',
+                icon: row.icon || '📦',
+                title: (row.name || 'App') + ' · installed',
+                src: row.url,
+                installed: true
+              });
+            });
+          } catch (e) {
+            console.warn('[Desk] merge installed apps', e);
+          }
+        }
+        return curated;
+      }
+
+      function renderRegistry(apps) {
+        const grid = document.getElementById('icon-grid');
+        grid.innerHTML = '';
+        const list = apps || [];
+        if (list.length === 0) {
+          grid.innerHTML = '<p class="registry-error">No apps in community-desktop-registry.json</p>';
+          return;
+        }
+        list.forEach(function (app) {
+          const icon = document.createElement('div');
+          icon.className = 'desktop-icon' + (app.installed ? ' installed-app' : '');
+          icon.setAttribute('role', 'button');
+          icon.setAttribute('aria-label', app.title || app.label || app.id);
+          icon.innerHTML =
+            '<div class="icon-box">' +
+            (coffee.desktop ? coffee.desktop.escapeHtml(app.icon || '📄') : '📄') +
+            '</div><span>' +
+            (coffee.desktop ? coffee.desktop.escapeHtml(app.label || app.id) : '') +
+            '</span>';
+          icon.addEventListener('click', function () {
+            if (!coffee.desktop) return;
+            coffee.desktop.openWindow(app.title || app.label || 'App', app.src, {
+              width: 'min(92vw, 960px)',
+              height: 'min(88vh, 720px)'
+            });
+          });
+          grid.appendChild(icon);
+        });
+      }
+
+      function reloadDesktopGrid() {
+        fetch('./community-desktop-registry.json')
+          .then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function (data) {
+            return mergeDesktopApps(data);
+          })
+          .then(renderRegistry)
+          .catch(function (err) {
+            document.getElementById('icon-grid').innerHTML =
+              '<p class="registry-error">Could not load registry: ' +
+              String(err.message || err) +
+              '</p><p class="registry-error">Serve this folder over HTTP (file:// blocks fetch).</p>';
+          });
+      }
+
+      window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'communityInstallChanged') {
+          reloadDesktopGrid();
+        }
+      });
+
+      reloadDesktopGrid();
+    })();
+  </script>
+</body>
+</html>

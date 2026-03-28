@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.gpu() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-gpu.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.gpu()', 1);
+    const sub = coffee.para('Raw WebGPU 3D. Box + sphere. CSS colors. rotationSpeed for animation. custom() escape hatch.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const scene = coffee.gpu({
+      shapes: [
+        { type: 'box', scale: 1, position: [0, 0, 0], color: '#4c9aff', rotationSpeed: [0, 45, 0] },
+        { type: 'sphere', radius: 0.6, position: [-1.5, 0, 0], color: 'rgb(239, 68, 68)', rotationSpeed: [30, 20, 0] },
+        { type: 'sphere', radius: 0.5, position: [1.5, 0, 0], color: 'hsl(142, 71%, 45%)', rotationSpeed: [0, 60, 0] }
+      ],
+      camera: { position: [0, 0, 5], lookAt: [0, 0, 0] },
+      background: [0.05, 0.05, 0.1, 1],
+      width: 800,
+      height: 400
+    });
+
+    const card = coffee.card([header, sub, scene], { style: { width: '100%', maxWidth: '860px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

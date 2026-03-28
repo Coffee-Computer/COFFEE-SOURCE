@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>COFFEE-INSPECTOR demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="coffee-inspector.js"></script>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f4f4f5; }
+    .layout { display: flex; min-height: 100vh; }
+    .main { flex: 1; padding: 24px; }
+    .panel {
+      width: 280px;
+      background: #fff;
+      border-left: 1px solid #e4e4e7;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .demo-box {
+      width: 120px;
+      height: 120px;
+      border-radius: 8px;
+      margin-top: 16px;
+      border: 1px solid #ccc;
+    }
+    button.pick {
+      margin-top: 12px;
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="main">
+      <h1>Inspector demo</h1>
+      <p>Select the fake “object” to edit fill and opacity in the panel.</p>
+      <button type="button" class="pick" id="btnSelect">Select object</button>
+      <button type="button" class="pick" id="btnClear">Clear selection</button>
+      <div class="demo-box" id="demoBox"></div>
+    </div>
+    <aside class="panel" id="inspMount"></aside>
+  </div>
+  <script>
+    coffee.injectTheme({ mode: 'light' });
+
+    const state = { selected: null, fill: '#4c9aff', opacity: 100 };
+    const demoBox = document.getElementById('demoBox');
+
+    function paint() {
+      demoBox.style.background = state.fill;
+      demoBox.style.opacity = String(state.opacity / 100);
+    }
+
+    const insp = coffee.inspector({
+      mount: '#inspMount',
+      title: 'Shape',
+      emptyText: 'Select an object',
+      sections: [
+        {
+          title: 'Appearance',
+          fields: [
+            { key: 'fill', type: 'color', label: 'Fill' },
+            { key: 'opacity', type: 'range', label: 'Opacity', min: 0, max: 100, step: 1 }
+          ]
+        }
+      ],
+      syncFrom() {
+        if (!state.selected) return null;
+        return { fill: state.fill, opacity: state.opacity };
+      },
+      syncTo(key, value) {
+        if (key === 'fill') state.fill = value;
+        if (key === 'opacity') state.opacity = value;
+        paint();
+      },
+      onDelete() {
+        state.selected = null;
+        insp.update();
+      }
+    });
+
+    document.getElementById('btnSelect').onclick = () => {
+      state.selected = true;
+      insp.update();
+      paint();
+    };
+    document.getElementById('btnClear').onclick = () => {
+      state.selected = null;
+      insp.update();
+    };
+
+    paint();
+    insp.update();
+  </script>
+</body>
+</html>

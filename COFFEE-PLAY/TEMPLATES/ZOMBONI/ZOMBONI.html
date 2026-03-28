@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Zomboni // Zombie wave shooter (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #0a0a0a; color: #eee;
+      font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; background: #111; cursor: crosshair; }
+    .ui-panel { position: fixed; pointer-events: none; z-index: 10; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+    .ui-panel.tl { top: 20px; left: 20px; }
+    .ui-panel.bl { bottom: 20px; left: 20px; }
+    .stat-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; }
+    .stat-label.vital { color: #ef4444; margin-bottom: 4px; }
+    .stat-label.ammo { color: #60a5fa; margin-bottom: 4px; }
+    .hud-bar {
+      width: min(250px, 70vw); height: 22px; background: rgba(255,255,255,0.1);
+      border: 2px solid #333; border-radius: 12px; overflow: hidden;
+    }
+    .hud-fill { height: 100%; width: 100%; background: #dc2626; transition: width 0.2s ease; }
+    .score-row { margin-top: 10px; font-size: clamp(1.25rem, 4vw, 1.75rem); font-weight: 900; font-style: italic; color: #fff; }
+    .wave-row { font-size: 13px; font-weight: 700; color: #9ca3af; margin-top: 4px; }
+    .ammo-big { font-size: clamp(1.75rem, 5vw, 2.25rem); font-weight: 900; color: #fff; }
+    #reloading-msg { font-weight: 800; color: #eab308; margin-top: 6px; display: none; animation: zb-pulse 0.8s ease-in-out infinite; }
+    #reloading-msg.on { display: block; }
+    @keyframes zb-pulse { 50% { opacity: 0.55; } }
+    #game-over {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none;
+      flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+      pointer-events: auto;
+    }
+    #game-over h1 {
+      margin: 0 0 8px; font-size: clamp(2rem, 8vw, 4rem); font-weight: 900; font-style: italic;
+      color: #b91c1c; letter-spacing: -0.04em;
+    }
+    #game-over p { margin: 0 0 20px; font-size: 1.1rem; color: #9ca3af; }
+    #game-over button {
+      padding: 14px 32px; border: none; border-bottom: 4px solid #7f1d1d; background: #b91c1c; color: #fff;
+      font-weight: 900; text-transform: uppercase; letter-spacing: 0.15em; cursor: pointer; font-family: inherit;
+    }
+    #game-over button:active { transform: scale(0.98); }
+  </style>
+</head>
+<body>
+
+<div class="ui-panel tl">
+  <div class="stat-label vital">Vital Signs</div>
+  <div class="hud-bar"><div id="hp-bar" class="hud-fill"></div></div>
+  <div class="score-row">SCORE: <span id="score">0</span></div>
+  <div class="wave-row">WAVE: <span id="wave">1</span></div>
+</div>
+
+<div class="ui-panel bl">
+  <div class="stat-label ammo">Ammunition</div>
+  <div class="ammo-big" id="ammo-display">15 / ∞</div>
+  <div id="reloading-msg">RELOADING...</div>
+</div>
+
+<div id="game-over">
+  <h1>OVERRUN</h1>
+  <p>You survived <span id="final-wave">0</span> waves.</p>
+  <button type="button" id="deploy">Deploy Again</button>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-zomboni-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var hpBar = document.getElementById('hp-bar');
+  var scoreEl = document.getElementById('score');
+  var waveEl = document.getElementById('wave');
+  var ammoEl = document.getElementById('ammo-display');
+  var reloadMsg = document.getElementById('reloading-msg');
+  var gameOverEl = document.getElementById('game-over');
+  var finalWaveEl = document.getElementById('final-wave');
+  var deployBtn = document.getElementById('deploy');
+
+  var zg = coffee.playZomboniGame.create({
+    callbacks: {
+      onHud: function (h) {
+        hpBar.style.width = Math.max(0, Math.min(100, h.hp)) + '%';
+        scoreEl.textContent = String(h.score);
+        waveEl.textContent = String(h.wave);
+        ammoEl.textContent = h.ammo + ' / ∞';
+      },
+      onReloading: function (on) {
+        reloadMsg.classList.toggle('on', !!on);
+      },
+      onScore: function (n) {
+        scoreEl.textContent = String(n);
+      },
+      onWave: function (w) {
+        waveEl.textContent = String(w);
+      },
+      onGameOver: function (wave) {
+        finalWaveEl.textContent = String(wave);
+        gameOverEl.style.display = 'flex';
+      }
+    }
+  });
+
+  var booted = false;
+  var prevR = false;
+  var touchShoot = false;
+  var touchAimX = 0;
+  var touchAimY = 0;
+  var touchActive = false;
+
+  var canvasEl = document.getElementById('stage');
+  canvasEl.addEventListener('touchstart', function (e) {
+    if (e.target !== canvasEl) return;
+    e.preventDefault();
+    touchShoot = true;
+    touchActive = true;
+    var t = e.touches[0];
+    touchAimX = t.clientX;
+    touchAimY = t.clientY;
+  }, { passive: false });
+  canvasEl.addEventListener('touchmove', function (e) {
+    if (!touchActive) return;
+    e.preventDefault();
+    var t = e.touches[0];
+    touchAimX = t.clientX;
+    touchAimY = t.clientY;
+  }, { passive: false });
+  window.addEventListener('touchend', function () {
+    touchActive = false;
+    touchShoot = false;
+  });
+
+  deployBtn.addEventListener('click', function () {
+    gameOverEl.style.display = 'none';
+    zg.reset(canvasEl.width, canvasEl.height);
+  });
+
+  var lastT = 0;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      if (!booted) {
+        booted = true;
+        zg.reset(game.canvas.width, game.canvas.height);
+      }
+
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+
+      var k = game.keys;
+      var reloadOnRelease = prevR && !k['r'];
+      prevR = !!k['r'];
+
+      var aimX = touchActive ? touchAimX : game.mouse.x;
+      var aimY = touchActive ? touchAimY : game.mouse.y;
+
+      zg.step(dt, {
+        keys: k,
+        viewW: game.canvas.width,
+        viewH: game.canvas.height,
+        aimX: aimX,
+        aimY: aimY,
+        now: Date.now(),
+        shootHeld: game.mouse.down || touchShoot,
+        reloadOnRelease: reloadOnRelease
+      });
+    },
+    onDraw: function (ctx, game) {
+      var st = zg.getState();
+      var S = coffee.playShapes;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, w, h);
+      S.drawZomboniArenaGrid(ctx, { w: w, h: h });
+
+      st.particles.forEach(function (p) {
+        S.drawParticle(ctx, { cx: p.x, cy: p.y, r: 2, life: p.life, color: p.color });
+      });
+
+      st.bullets.forEach(function (b) {
+        S.drawZomboniBullet(ctx, { cx: b.x, cy: b.y });
+      });
+
+      var px = st.player.x;
+      var py = st.player.y;
+      st.enemies.forEach(function (e) {
+        var look = Math.atan2(py - e.y, px - e.x);
+        S.drawZomboniEnemy(ctx, { cx: e.x, cy: e.y, r: e.size, color: e.color, lookAngle: look });
+      });
+
+      var pl = st.player;
+      S.drawZomboniPlayer(ctx, {
+        cx: pl.x,
+        cy: pl.y,
+        size: pl.size,
+        angle: pl.angle
+      });
+    }
+  });
+})();
+  </script>
+</body>
+</html>

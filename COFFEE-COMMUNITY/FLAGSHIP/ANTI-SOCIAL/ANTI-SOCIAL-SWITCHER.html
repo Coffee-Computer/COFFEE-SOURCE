@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="cce:name" content="Anti-Social Switcher" />
+  <meta name="cce:id" content="anti-social-switcher" />
+  <meta name="cce:icon" content="😈" />
+  <meta name="cce:color" content="#7c3aed" />
+  <meta name="cce:description" content="Anti-Social α · DND α · Ghost α · Friendz α — bottom iframe switcher" />
+  <title>Anti-Social · DnD · Ghost · Friendz</title>
+  <style>
+    :root {
+      --asw-bg: #070712;
+      --asw-bar: #0f0a1a;
+      --asw-border: rgba(124, 58, 237, 0.35);
+      --asw-muted: #71717a;
+      --asw-active: #e9d5ff;
+    }
+    html, body {
+      margin: 0;
+      height: 100%;
+      height: 100dvh;
+      background: var(--asw-bg);
+      color: #fafafa;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      overflow: hidden;
+    }
+    .asw-slot {
+      position: fixed;
+      inset: 0;
+      bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+      z-index: 1;
+      pointer-events: none;
+      visibility: hidden;
+    }
+    .asw-slot.active {
+      z-index: 10;
+      pointer-events: auto;
+      visibility: visible;
+    }
+    .asw-slot iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block;
+      background: #000;
+    }
+    /* Horizontally scrollable dock (same idea as COFFEE-SOCIAL-SWITCHER) */
+    .asw-nav-wrap {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      border-top: 1px solid var(--asw-border);
+      background-color: var(--asw-bar);
+      background-image: linear-gradient(180deg, transparent 0%, var(--asw-bar) 24%);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+      box-sizing: border-box;
+      min-height: 56px;
+    }
+    .asw-nav-wrap-inner {
+      position: relative;
+    }
+    .asw-nav-fade-l,
+    .asw-nav-fade-r {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 24px;
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 0.15s ease;
+    }
+    .asw-nav-fade-l {
+      left: 0;
+      background: linear-gradient(to right, var(--asw-bar) 42%, transparent);
+    }
+    .asw-nav-fade-r {
+      right: 0;
+      background: linear-gradient(to left, var(--asw-bar) 42%, transparent);
+    }
+    .asw-nav-fade-l.asw-fade-off,
+    .asw-nav-fade-r.asw-fade-off {
+      opacity: 0;
+    }
+    .asw-nav {
+      display: flex;
+      flex-wrap: nowrap;
+      align-items: stretch;
+      justify-content: flex-start;
+      gap: 10px;
+      padding: 8px 12px 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+    }
+    .asw-nav::-webkit-scrollbar {
+      height: 6px;
+    }
+    .asw-nav::-webkit-scrollbar-thumb {
+      background: #52525b;
+      border-radius: 3px;
+    }
+    .asw-nav::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    @media (min-width: 768px) {
+      .asw-nav {
+        justify-content: center;
+        gap: 1.25rem;
+      }
+    }
+    .asw-btn {
+      flex-shrink: 0;
+      min-width: 52px;
+      padding: 8px 14px;
+      margin: 0;
+      border: none;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--asw-muted);
+      font-size: 1.6rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, transform 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .asw-btn:hover {
+      background: rgba(124, 58, 237, 0.2);
+      color: #fff;
+    }
+    .asw-btn.asw-btn-active {
+      background: rgba(124, 58, 237, 0.35);
+      color: var(--asw-active);
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.45);
+    }
+    .asw-btn:active {
+      transform: scale(0.97);
+    }
+    .asw-btn span[aria-hidden] {
+      display: block;
+      padding: 6px 0;
+    }
+    .asw-hint {
+      position: fixed;
+      top: env(safe-area-inset-top, 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 60;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.35);
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <p class="asw-hint" aria-hidden="true">CE · flagship switcher</p>
+
+  <div id="slot-anti-social" class="asw-slot active" data-tab="anti-social">
+    <iframe
+      id="iframe-anti-social"
+      src="./ANTI-SOCIAL-ALPHA.html"
+      title="Anti-Social α"
+    ></iframe>
+  </div>
+  <div id="slot-dnd" class="asw-slot" data-tab="dnd">
+    <iframe id="iframe-dnd" src="" title="DND α"></iframe>
+  </div>
+  <div id="slot-ghost" class="asw-slot" data-tab="ghost">
+    <iframe id="iframe-ghost" src="" title="Ghost Network α"></iframe>
+  </div>
+  <div id="slot-friendz" class="asw-slot" data-tab="friendz">
+    <iframe id="iframe-friendz" src="" title="Friendz α"></iframe>
+  </div>
+
+  <div class="asw-nav-wrap">
+    <div class="asw-nav-wrap-inner">
+      <div class="asw-nav-fade-l asw-fade-off" id="aswNavFadeL" aria-hidden="true"></div>
+      <div class="asw-nav-fade-r" id="aswNavFadeR" aria-hidden="true"></div>
+      <nav class="asw-nav" id="aswNav" aria-label="Switch app">
+        <button
+          type="button"
+          class="asw-btn asw-btn-active"
+          data-tab="anti-social"
+          title="Anti-Social α"
+          aria-pressed="true"
+          id="asw-btn-anti-social"
+        >
+          <span aria-hidden="true">😈</span>
+        </button>
+        <button
+          type="button"
+          class="asw-btn"
+          data-tab="dnd"
+          title="DND α — DO NOT DISTURB"
+          aria-pressed="false"
+          id="asw-btn-dnd"
+        >
+          <span aria-hidden="true">👹</span>
+        </button>
+        <button
+          type="button"
+          class="asw-btn"
+          data-tab="ghost"
+          title="Ghost Network α (Nostr)"
+          aria-pressed="false"
+          id="asw-btn-ghost"
+        >
+          <span aria-hidden="true">👻</span>
+        </button>
+        <button
+          type="button"
+          class="asw-btn"
+          data-tab="friendz"
+          title="Friendz α — CE directory"
+          aria-pressed="false"
+          id="asw-btn-friendz"
+        >
+          <span aria-hidden="true">🤝</span>
+        </button>
+      </nav>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var TABS = ['anti-social', 'dnd', 'ghost', 'friendz'];
+      var SRC = {
+        'anti-social': './ANTI-SOCIAL-ALPHA.html',
+        dnd: '../DND/DND-ALPHA.html',
+        ghost: '../GHOST-NETWORK/GHOST-NETWORK-ALPHA.html?compact=1&embed=1',
+        friendz: '../FRIENDZ/FRIENDZ-ALPHA.html'
+      };
+      var activeTab = 'anti-social';
+      var loaded = { 'anti-social': true, dnd: false, ghost: false, friendz: false };
+
+      function updateNavFades() {
+        var nav = document.getElementById('aswNav');
+        var fadeL = document.getElementById('aswNavFadeL');
+        var fadeR = document.getElementById('aswNavFadeR');
+        if (!nav || !fadeL || !fadeR) return;
+        var scrollLeft = nav.scrollLeft;
+        var maxScroll = nav.scrollWidth - nav.clientWidth;
+        fadeL.classList.toggle('asw-fade-off', scrollLeft <= 2);
+        fadeR.classList.toggle('asw-fade-off', maxScroll <= 2 || scrollLeft >= maxScroll - 2);
+      }
+
+      function switchTo(tab) {
+        if (TABS.indexOf(tab) === -1 || tab === activeTab) return;
+        document.querySelectorAll('.asw-slot').forEach(function (el) {
+          el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+        });
+        document.querySelectorAll('.asw-btn').forEach(function (btn) {
+          var on = btn.getAttribute('data-tab') === tab;
+          btn.classList.toggle('asw-btn-active', on);
+          btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        var iframe = document.getElementById('iframe-' + tab);
+        if (iframe && !loaded[tab]) {
+          iframe.src = SRC[tab];
+          loaded[tab] = true;
+        }
+        if (iframe) {
+          iframe.setAttribute('tabindex', '0');
+          requestAnimationFrame(function () {
+            iframe.focus();
+            try {
+              iframe.contentWindow.focus();
+            } catch (e) {}
+          });
+        }
+        activeTab = tab;
+        requestAnimationFrame(function () {
+          updateNavFades();
+          scrollActiveIntoView();
+        });
+      }
+
+      function scrollActiveIntoView() {
+        var nav = document.getElementById('aswNav');
+        var btn = document.querySelector('.asw-btn.asw-btn-active');
+        if (!nav || !btn) return;
+        try {
+          btn.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+        } catch (e) {
+          btn.scrollIntoView(false);
+        }
+      }
+
+      document.querySelectorAll('.asw-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          switchTo(btn.getAttribute('data-tab'));
+        });
+      });
+
+      var navEl = document.getElementById('aswNav');
+      if (navEl) {
+        navEl.addEventListener('scroll', updateNavFades);
+        window.addEventListener('resize', updateNavFades);
+        setTimeout(updateNavFades, 100);
+      }
+
+      var urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab === 'dnd' || urlTab === 'anti-social' || urlTab === 'ghost' || urlTab === 'friendz') {
+        switchTo(urlTab);
+      }
+    })();
+  </script>
+</body>
+</html>

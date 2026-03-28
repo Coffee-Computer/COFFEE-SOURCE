@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snow Sequencer α — Coffee</title>
+  <script src="../../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../../COFFEE-SYNTH/coffee-synth.js"></script>
+  <script src="../../../../COFFEE-FUZZ/coffee-fuzz.js"></script>
+  <script src="../../../../COFFEE-TRANSPORT/coffee-transport.js"></script>
+  <script src="../../../../COFFEE-PATTERN/coffee-pattern.js"></script>
+  <script src="../snow-shoes.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600;800&display=swap');
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, sans-serif; user-select: none; }
+    body { display: flex; flex-direction: column; background: var(--coffee-bg-surface); color: var(--coffee-text-primary); }
+    .ss-seq-main { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+    .midi-container {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border: 1px solid var(--coffee-panel);
+    }
+    .piano-keys {
+      background: var(--coffee-bg-elev);
+      overflow-y: auto;
+      scrollbar-width: none;
+      border-right: 2px solid #000;
+    }
+    .piano-keys::-webkit-scrollbar { display: none; }
+    .key-row {
+      height: 30px;
+      border-bottom: 1px solid var(--coffee-bg-surface);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .key-white { background: #f8fafc; color: #64748b; }
+    .key-black { background: #020617; color: #94a3b8; }
+    .key-active { background: var(--coffee-accent) !important; color: #fff !important; }
+    .grid-viewport { overflow: auto; position: relative; background: #0f172a; }
+    #midi-canvas {
+      background-image: linear-gradient(var(--coffee-panel) 1px, transparent 1px), linear-gradient(90deg, var(--coffee-panel) 1px, transparent 1px);
+      background-size: 40px 30px;
+      cursor: crosshair;
+      display: block;
+    }
+    .playhead {
+      position: absolute; top: 0; left: 0; width: 2px; height: 100%;
+      background: #ef4444; pointer-events: none; z-index: 20;
+      transform: translateX(0);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script src="../snow-shoes-embed.js"></script>
+  <script>
+(function () {
+  const NOTES = ['B', 'A#', 'A', 'G#', 'G', 'F#', 'F', 'E', 'D#', 'D', 'C#', 'C'];
+  const OCTAVES = [5, 4, 3, 2];
+  const CELL_W = 40;
+  const CELL_H = 30;
+  const GRID_STEPS = 32;
+  const NOTE_LIST = [];
+  OCTAVES.forEach(function (o) {
+    NOTES.forEach(function (n) { NOTE_LIST.push(n + o); });
+  });
+
+  let patternRoll = coffee.pattern.emptyPianoRoll({ stepCount: GRID_STEPS, notes: [] });
+  let notesData = [];
+  let currentSound = 'synth';
+  let tempo = 120;
+  let timerID = null;
+  let nextTickTime = 0;
+  let currentStep = 0;
+
+  coffee.injectTheme('dark');
+  document.documentElement.style.setProperty('--coffee-accent', '#38bdf8');
+
+  function ensureSnow() {
+    coffee.snow.init({ fx: { reverbSeconds: 2, reverbDecay: 3, reverbMix: 0.24 } });
+  }
+
+  function syncPatternFromNotes() {
+    patternRoll.notes = notesData.map(function (n) { return { step: n.x, row: n.y }; });
+  }
+
+  function playVoiceAt(noteName, audioTime) {
+    ensureSnow();
+    const ac = coffee.synth.audioContext;
+    if (ac.state === 'suspended') ac.resume();
+    const delayMs = Math.max(0, (audioTime - ac.currentTime) * 1000);
+    setTimeout(function () {
+      const hz = coffee.synth.note(noteName);
+      let type = 'sawtooth';
+      var opts = { attack: 0.02, decay: 0.12, sustain: 0.35, release: 0.28 };
+      if (currentSound === 'bass') {
+        type = 'triangle';
+        opts = { attack: 0.02, decay: 0.08, sustain: 0.45, release: 0.22 };
+        new coffee.Synth(type).play(hz / 2, opts);
+      } else if (currentSound === 'bell') {
+        type = 'sine';
+        opts = { attack: 0.01, decay: 0.2, sustain: 0.2, release: 0.85 };
+        new coffee.Synth(type).play(hz * 2, opts);
+      } else {
+        new coffee.Synth(type).play(hz, opts);
+      }
+    }, delayMs);
+  }
+
+  function playVoiceNow(noteName) {
+    const ac = coffee.synth.audioContext;
+    playVoiceAt(noteName, ac.currentTime);
+  }
+
+  const root = document.getElementById('app');
+  const header = document.createElement('header');
+  Object.assign(header.style, {
+    flexShrink: '0',
+    padding: 'var(--coffee-space-md)',
+    borderBottom: '1px solid var(--coffee-panel)',
+    background: 'var(--coffee-bg-elev)'
+  });
+
+  const title = coffee.heading('SNOW SEQUENCER α', 3, {
+    style: { margin: 0, fontStyle: 'italic', color: 'var(--coffee-accent)' }
+  });
+
+  const playBtn = coffee.button('▶ Play', null, { style: { minHeight: '40px' } });
+  const stopBtn = coffee.button('■ Stop', null, {
+    style: { minHeight: '40px', backgroundColor: 'var(--coffee-text-muted)' }
+  });
+
+  const btnSynth = coffee.button('Poly Lead', function () { setSound('synth'); }, { style: { fontSize: '12px' } });
+  const btnBass = coffee.button('Sub Thump', function () { setSound('bass'); }, { style: { fontSize: '12px' } });
+  const btnBell = coffee.button('Crystal Bell', function () { setSound('bell'); }, { style: { fontSize: '12px' } });
+
+  const tempoVal = coffee.text('120', { style: { fontFamily: 'ui-monospace, monospace', minWidth: '2rem' } });
+  const tempoSlider = coffee.input({ type: 'range', id: 'ss-seq-tempo', style: { width: '8rem' } });
+  tempoSlider.min = '60';
+  tempoSlider.max = '180';
+  tempoSlider.value = '120';
+  tempoSlider.addEventListener('input', function () {
+    tempo = Number(tempoSlider.value);
+    tempoVal.textContent = String(tempo);
+    coffee.transport.bpm = tempo;
+  });
+
+  function setSound(s) {
+    currentSound = s;
+    [btnSynth, btnBass, btnBell].forEach(function (b) {
+      b.style.opacity = '0.65';
+      b.style.outline = 'none';
+    });
+    var active = s === 'synth' ? btnSynth : s === 'bass' ? btnBass : btnBell;
+    active.style.opacity = '1';
+    active.style.outline = '2px solid var(--coffee-accent)';
+  }
+  setSound('synth');
+
+  const soundRow = coffee.row([btnSynth, btnBass, btnBell], { style: { gap: '8px', flexWrap: 'wrap' } });
+  const tempoRow = coffee.row(
+    [coffee.label('Tempo', tempoSlider), tempoSlider, tempoVal],
+    { style: { alignItems: 'center', gap: '8px' } }
+  );
+
+  header.appendChild(coffee.row(
+    [title, coffee.row([playBtn, stopBtn], { style: { gap: '8px' } }), soundRow, tempoRow],
+    { style: { flexWrap: 'wrap', gap: 'var(--coffee-space-md)', alignItems: 'center', width: '100%' } }
+  ));
+  header.appendChild(coffee.para('Double-click grid to add/remove notes · coffee.pattern + coffee.synth + coffee.snow', {
+    style: { margin: '8px 0 0 0', fontSize: '11px', color: 'var(--coffee-text-muted)', fontStyle: 'italic' }
+  }));
+
+  const main = document.createElement('div');
+  main.className = 'ss-seq-main';
+  const midiWrap = document.createElement('div');
+  midiWrap.className = 'midi-container';
+  const piano = document.createElement('div');
+  piano.className = 'piano-keys';
+  piano.id = 'piano-keys';
+  const viewport = document.createElement('div');
+  viewport.className = 'grid-viewport';
+  viewport.id = 'grid-viewport';
+  const playhead = document.createElement('div');
+  playhead.className = 'playhead';
+  playhead.id = 'playhead';
+  const canvas = document.createElement('canvas');
+  canvas.id = 'midi-canvas';
+  viewport.appendChild(playhead);
+  viewport.appendChild(canvas);
+  midiWrap.appendChild(piano);
+  midiWrap.appendChild(viewport);
+  main.appendChild(midiWrap);
+  root.appendChild(header);
+  root.appendChild(main);
+
+  const ctx2d = canvas.getContext('2d');
+
+  function draw() {
+    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    for (var i = 0; i < GRID_STEPS; i += 4) {
+      ctx2d.fillStyle = 'rgba(255,255,255,0.03)';
+      ctx2d.fillRect(i * CELL_W, 0, CELL_W, canvas.height);
+    }
+    notesData.forEach(function (note) {
+      ctx2d.fillStyle = '#0ea5e9';
+      ctx2d.strokeStyle = '#7dd3fc';
+      ctx2d.lineWidth = 2;
+      roundRect(ctx2d, note.x * CELL_W + 2, note.y * CELL_H + 2, CELL_W - 4, CELL_H - 4, 4);
+      ctx2d.fill();
+      ctx2d.stroke();
+    });
+  }
+
+  function roundRect(c, x, y, w, h, r) {
+    if (c.roundRect) {
+      c.beginPath();
+      c.roundRect(x, y, w, h, r);
+      return;
+    }
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+
+  function initGrid() {
+    canvas.width = GRID_STEPS * CELL_W;
+    canvas.height = NOTE_LIST.length * CELL_H;
+    piano.innerHTML = '';
+    NOTE_LIST.forEach(function (name, i) {
+      const key = document.createElement('div');
+      key.className = 'key-row ' + (name.indexOf('#') >= 0 ? 'key-black' : 'key-white');
+      key.innerHTML = '<span>' + name + '</span>';
+      key.dataset.note = name;
+      key.onmousedown = function () {
+        playVoiceNow(name);
+        key.classList.add('key-active');
+      };
+      key.onmouseup = function () { key.classList.remove('key-active'); };
+      key.onmouseleave = function () { key.classList.remove('key-active'); };
+      piano.appendChild(key);
+    });
+    draw();
+  }
+
+  canvas.addEventListener('dblclick', function (e) {
+    ensureSnow();
+    var rect = canvas.getBoundingClientRect();
+    var x = Math.floor((e.clientX - rect.left) / CELL_W);
+    var y = Math.floor((e.clientY - rect.top) / CELL_H);
+    var existing = notesData.findIndex(function (n) { return n.x === x && n.y === y; });
+    if (existing !== -1) {
+      notesData.splice(existing, 1);
+    } else {
+      notesData.push({ x: x, y: y });
+      playVoiceNow(NOTE_LIST[y]);
+    }
+    syncPatternFromNotes();
+    draw();
+  });
+
+  coffee.transport.totalSteps = GRID_STEPS;
+  coffee.transport.bpm = tempo;
+
+  coffee.transport.onStep(function (step, audioTime) {
+    playhead.style.transform = 'translateX(' + (step * CELL_W) + 'px)';
+    notesData.filter(function (n) { return n.x === step; }).forEach(function (n) {
+      playVoiceAt(NOTE_LIST[n.y], audioTime);
+    });
+  });
+
+  function syncPlayUi() {
+    var playing = coffee.transport.isPlaying;
+    playBtn.textContent = playing ? '❚❚ Pause' : '▶ Play';
+  }
+
+  playBtn.onclick = function () {
+    ensureSnow();
+    if (coffee.transport.isPlaying) coffee.transport.stop();
+    else coffee.transport.play();
+    syncPlayUi();
+  };
+  stopBtn.onclick = function () {
+    ensureSnow();
+    coffee.transport.stop();
+    syncPlayUi();
+    playhead.style.transform = 'translateX(0)';
+  };
+
+  setInterval(syncPlayUi, 200);
+
+  viewport.addEventListener('scroll', function () {
+    piano.scrollTop = viewport.scrollTop;
+  });
+
+  initGrid();
+
+  if (window.SnowShoesEmbed) {
+    SnowShoesEmbed.init({ debug: false });
+    SnowShoesEmbed.onTransport(function (s) {
+      if (s.bpm != null && String(tempoSlider.value) !== String(s.bpm)) {
+        tempoSlider.value = String(s.bpm);
+        tempo = s.bpm;
+        tempoVal.textContent = String(s.bpm);
+        coffee.transport.bpm = tempo;
+      }
+    });
+  }
+})();
+  </script>
+</body>
+</html>

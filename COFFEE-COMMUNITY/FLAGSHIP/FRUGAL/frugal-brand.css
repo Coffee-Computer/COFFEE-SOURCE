@@ -1,0 +1,135 @@
+/**
+ * Frugal flagship — brand chrome (from POC). No Tailwind.
+ * Works with coffee-ui light theme + optional dark via body.frugal-dark.
+ */
+:root {
+  --frugal-bg: #ffffff;
+  --frugal-text: #1a1a1a;
+  --frugal-border: #dfe1e5;
+  --frugal-secondary: #70757a;
+  --frugal-accent: #ff4500;
+}
+
+body.frugal-dark {
+  --frugal-bg: #1c1c1e;
+  --frugal-text: #e8eaed;
+  --frugal-border: #3c4043;
+  --frugal-secondary: #9aa0a6;
+}
+
+/* Same gradient as Community devsumer homescreen --shell-bg (coffee-community-homescreen.html) */
+/* Use background-image (not background shorthand) so background-clip: text is reliable across engines */
+.frugal-rainbow {
+  background-image: linear-gradient(135deg, #ff6f00 0%, #ffb300 30%, #e91e63 70%, #9c27b0 100%);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin: 0;
+}
+
+.frugal-search-shell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-radius: 24px;
+  border: 1px solid var(--frugal-border);
+  background: var(--frugal-bg);
+  box-shadow: 0 2px 5px 1px rgba(64, 60, 67, 0.16);
+  transition: box-shadow 0.2s ease;
+  max-width: 42rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.frugal-search-shell:focus-within {
+  box-shadow: 0 2px 8px 1px rgba(64, 60, 67, 0.24);
+}
+
+.frugal-landing {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.frugal-landing-title {
+  font-size: clamp(3rem, 12vw, 6rem);
+  margin-bottom: 2rem;
+}
+
+.frugal-results-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--frugal-border);
+  background: var(--frugal-bg);
+}
+
+@media (min-width: 768px) {
+  .frugal-results-header {
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 32px;
+  }
+}
+
+.frugal-logo-mini {
+  font-size: 1.75rem;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.frugal-main {
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .frugal-main {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+
+.frugal-hidden {
+  display: none !important;
+}
+
+.frugal-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(120, 120, 120, 0.12), transparent);
+  background-size: 200% 100%;
+  animation: frugal-shimmer 1.5s infinite;
+}
+
+@keyframes frugal-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.frugal-skel-line {
+  height: 10px;
+  border-radius: 6px;
+  background: var(--frugal-border);
+  margin-bottom: 8px;
+}

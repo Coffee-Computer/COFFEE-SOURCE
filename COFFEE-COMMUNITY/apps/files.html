@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Files</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <style>body{margin:0;padding:16px;background:var(--coffee-bg-surface);min-height:100%;box-sizing:border-box}</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+    const list = coffee.list ? coffee.list() : { local: {}, session: {} };
+    const keys = Object.keys(list.local || {}).concat(Object.keys(list.session || {}));
+    const items = keys.length ? keys.map(k => coffee.para('📄 ' + k)) : [coffee.para('No stored files. Use coffee.save() from apps.')];
+    document.getElementById('app').appendChild(coffee.stack([
+      coffee.heading('Storage', 2),
+      coffee.card(items)
+    ]));
+  </script>
+</body>
+</html>

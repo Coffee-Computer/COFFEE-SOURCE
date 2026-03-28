@@ -1,0 +1,445 @@
+/* Hyper-Web α — composition shell */
+.hyper-root {
+  --hyper-stage-bg: #0c0c10;
+  --hyper-rail: #16161d;
+  --hyper-tl-label: 80px;
+  --hyper-tl-px-sec: 40px;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--coffee-bg-surface);
+  color: var(--coffee-text-primary);
+  font-family: system-ui, sans-serif;
+}
+
+.hyper-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--coffee-panel);
+  background: var(--coffee-bg-elev);
+  flex-wrap: wrap;
+}
+
+.hyper-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+.hyper-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/*
+ * Shell layout: flex row (desktop) instead of grid `200px 1fr 280px`.
+ * Grid + `1fr` often leaves a sub-pixel seam vs fixed tracks (worse under non-100% zoom / OS scale).
+ * Not related to inspector “Scale” on layers — that’s transform on the guest clip.
+ */
+.hyper-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-height: 200px;
+}
+
+.hyper-body > .hyper-stage-wrap {
+  min-height: 0;
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .hyper-rail {
+    flex: 0 0 auto;
+  }
+
+  .hyper-body > .hyper-stage-wrap {
+    flex: 1 1 0;
+  }
+
+  .hyper-inspector {
+    flex: 0 0 auto;
+  }
+}
+
+@media (min-width: 901px) {
+  .hyper-body {
+    flex-direction: row;
+    background: var(--hyper-stage-bg);
+    /* Let inspector’s negative margin draw over the stage edge without clipping. */
+    overflow-x: visible;
+  }
+
+  .hyper-rail {
+    flex: 0 0 200px;
+  }
+
+  .hyper-body > .hyper-stage-wrap {
+    flex: 1 1 0;
+  }
+
+  .hyper-inspector {
+    flex: 0 0 280px;
+    margin-left: -10px;
+    padding-left: 22px;
+    position: relative;
+    z-index: 4;
+  }
+}
+
+.hyper-rail {
+  border-right: 1px solid var(--coffee-panel);
+  background: var(--hyper-rail);
+  padding: 10px;
+  overflow: auto;
+}
+
+.hyper-rail h4 {
+  margin: 0 0 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--coffee-text-muted);
+}
+
+.hyper-layer-item {
+  padding: 8px 10px;
+  border-radius: var(--coffee-radius-sm, 8px);
+  cursor: pointer;
+  font-size: 13px;
+  margin-bottom: 4px;
+  border: 1px solid transparent;
+}
+
+.hyper-layer-item[data-active="1"] {
+  border-color: var(--coffee-accent);
+  background: rgba(76, 154, 255, 0.12);
+}
+
+.hyper-stage-wrap {
+  position: relative;
+  min-width: 0;
+  min-height: min(42vh, 520px);
+  margin: 0;
+  background: var(--hyper-stage-bg);
+  overflow: hidden;
+}
+
+/*
+ * Default (stretch): composition is position:absolute; inset:0 — fills this box (see fitComposition).
+ * Letterbox/cover: JS switches comp to position:relative + px size; flex below centers that frame.
+ */
+.hyper-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.hyper-composition {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  margin: 0;
+  box-sizing: border-box;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--hyper-stage-bg);
+  isolation: isolate;
+}
+
+/*
+ * Clip + layer transform (translate / scale / rotate) on this node so the whole layer moves on the composition.
+ * If transform were only on an inner full-bleed wrapper, X/Y would pan art inside a fixed full-size clip.
+ * No inner border. Iframe stays transform:none (avoid compositor glitches on the iframe itself).
+ */
+.hyper-layer-frame {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #000;
+  transform-origin: 50% 50%;
+}
+
+.hyper-layer-xform {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/*
+ * Iframe intrinsic size is ~300×150; % only fills a parent with definite size — still flaky nested.
+ * HYPER-WEB-ALPHA sets explicit px on frame/xform/iframe from composition.clientWidth/Height.
+ */
+.hyper-layer-frame iframe.hyper-layer-embed {
+  display: block;
+  margin: 0;
+  padding: 0;
+  vertical-align: top;
+  border: 0;
+  box-sizing: border-box;
+}
+
+.hyper-inspector {
+  /* Inset line instead of border-left: avoids an extra layout column that reads as a “gap”. */
+  border-left: none;
+  box-shadow: inset 1px 0 0 var(--coffee-panel);
+  background: var(--coffee-bg-elev);
+  padding: 12px;
+  overflow: auto;
+  box-sizing: border-box;
+}
+
+.hyper-timeline-shell {
+  flex-shrink: 0;
+  border-top: 1px solid var(--coffee-panel);
+  background: var(--coffee-bg-elev);
+  display: flex;
+  flex-direction: column;
+  /* Tall enough to read ruler + ≥2 track rows without feeling “missing” */
+  min-height: 220px;
+  max-height: min(52vh, 480px);
+}
+
+.hyper-timeline-transport {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--coffee-panel);
+}
+
+.hyper-timeline-transport input[type="range"] {
+  flex: 1;
+  min-width: 120px;
+}
+
+.hyper-timeline-panel {
+  position: relative;
+  flex: 1;
+  min-height: 168px;
+  overflow: auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  background: #12121a;
+}
+
+.hyper-timeline-inner {
+  position: relative;
+  min-height: 100%;
+}
+
+#hyper-timeline-content {
+  display: flex;
+  flex-direction: column;
+  min-width: min-content;
+  position: relative;
+  z-index: 1;
+}
+
+.hyper-track-row {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 52px;
+}
+
+.hyper-track-placeholder .hyper-track-lane {
+  cursor: default;
+}
+
+.hyper-track-empty-hint {
+  flex: 1;
+  margin: 8px 10px;
+  padding: 10px 12px;
+  border: 2px dashed rgba(168, 85, 247, 0.5);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--coffee-text-muted);
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  background: rgba(168, 85, 247, 0.06);
+}
+
+.hyper-track-label {
+  flex: 0 0 var(--hyper-tl-label);
+  width: var(--hyper-tl-label);
+  min-width: var(--hyper-tl-label);
+  max-width: var(--hyper-tl-label);
+  flex-shrink: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #1a1a22;
+  border-right: 1px solid var(--coffee-panel);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  color: var(--coffee-text-muted);
+}
+
+.hyper-track-lane {
+  flex: 1;
+  position: relative;
+  min-height: 52px;
+  background: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+}
+
+.hyper-ruler-row .hyper-track-lane {
+  min-height: 28px;
+  height: 28px;
+  cursor: default;
+  background: #1e1e26;
+  border-bottom: 1px solid var(--coffee-panel);
+  /* Flex ruler: works even if absolute ticks fail (e.g. stale CSS cache) */
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.hyper-ruler-cell {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 0 0 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--coffee-text-muted);
+  white-space: nowrap;
+}
+
+.hyper-ruler-cell:first-child {
+  border-left: none;
+  padding-left: 8px;
+}
+
+.hyper-ruler-cell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 1px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.hyper-clip {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 100%;
+  z-index: 2;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #fff;
+  box-sizing: border-box;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hyper-clip.hyper-clip-html {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+}
+
+.hyper-clip.selected {
+  box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(168, 85, 247, 0.5);
+}
+
+.hyper-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #4ade80;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.hyper-playhead::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 12px;
+  height: 11px;
+  background: #4ade80;
+  clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+}
+
+.hyper-time-readout {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: var(--coffee-text-muted);
+  min-width: 5rem;
+}
+
+.hyper-hint {
+  padding: 8px 14px;
+  font-size: 12px;
+  color: var(--coffee-text-muted);
+  border-top: 1px solid var(--coffee-panel);
+}

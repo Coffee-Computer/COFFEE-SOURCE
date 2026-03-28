@@ -1,0 +1,24 @@
+{
+  "distro": "Coffee Community Edition",
+  "version": "0.1.0",
+  "maintainerDisplayName": "Kyle",
+  "maintainerGithub": "paxxstacks",
+  "purpose": "Coffee Community is here to set a standard for the next generation of open source: composable pieces, clear wiring, room for weird ideas, and documentation that actually welcomes people in. We care how software feels, who gets to build, and what you learn along the way. The browser and the web stack are our medium — shipping, sharing, and remixing without unnecessary gatekeeping.",
+  "whoItsFor": [
+    "Creators shipping side projects, tools, games, and experiments",
+    "Thinkers who enjoy systems, protocols, and honest design tradeoffs",
+    "Tinkerers who learn by breaking things and putting them back differently",
+    "Anyone who genuinely loves computers — hardware, software, and the culture around them"
+  ],
+  "whoItsNotFor": [
+    "Chronic haters and bad-faith drive-bys",
+    "Linux-or-nothing purists who refuse web tech on principle (this stack is the web; that’s intentional)",
+    "People who hate joy, play, or earnest docs"
+  ],
+  "requirements": [
+    "Space to forget what you think you know — especially “how real devs do it”",
+    "A modern browser and internet access",
+    "Enough GitHub comfort to clone, fork, open an issue, or read a repo",
+    "Curiosity beats credentials"
+  ]
+}

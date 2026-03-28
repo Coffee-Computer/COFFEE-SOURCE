@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <style>body{margin:0;padding:16px;background:var(--coffee-bg-surface);min-height:100%;box-sizing:border-box}</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+    let quota = { usage: 0, quota: 0, percent: 0 };
+    function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+      app.appendChild(coffee.stack([
+        coffee.heading('System Settings', 2),
+        coffee.card([
+          coffee.para('Storage: ' + (quota.percent || 0) + '% used'),
+          coffee.para('Version: Coffee Community 1.0 (Alpha)')
+        ])
+      ]));
+    }
+    if (typeof coffee.storageQuota === 'function') {
+      coffee.storageQuota().then(q => { quota = q; render(); });
+    } else {
+      render();
+    }
+  </script>
+</body>
+</html>

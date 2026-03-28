@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.form() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-forms.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.form()', 1);
+    const sub = coffee.para('Form wrapper with validation and submit handling.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const f = coffee.form({
+      fields: [
+        { name: 'name', type: 'text', label: 'Name', required: true, placeholder: 'Your name' },
+        { name: 'email', type: 'email', label: 'Email', required: true, placeholder: 'you@example.com' },
+        { name: 'message', type: 'textarea', label: 'Message', placeholder: 'Optional note' }
+      ],
+      submitLabel: 'Submit',
+      validate: (data) => {
+        const err = {};
+        if (data.email && !data.email.includes('@')) err.email = 'Invalid email';
+        return Object.keys(err).length ? err : null;
+      },
+      onSubmit: (data) => {
+        console.log('Submitted:', data);
+        if (coffee.toast) coffee.toast('Submitted: ' + data.name, 'success');
+      }
+    });
+
+    const card = coffee.card([header, sub, f], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

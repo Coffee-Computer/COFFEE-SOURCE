@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Control — Camera POC</title>
+  <style>
+    body { font-family: system-ui; background: #1a1a1a; color: #eee; padding: 20px; }
+    button { padding: 10px 20px; background: #c6712b; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #d87a32; }
+    #log { margin-top: 16px; font-family: monospace; font-size: 12px; color: #7fff00; }
+    .design-summary { background: #252525; border: 1px solid #333; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; font-size: 13px; line-height: 1.5; color: #9ca3af; }
+    .design-summary strong { color: #e5e7eb; }
+    .design-summary h3 { margin: 0 0 8px 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <h1>Coffee Control</h1>
+  <p>POC: <code>coffee.camera()</code> — getUserMedia wrapper</p>
+
+  <section class="design-summary">
+    <h3>Control methodology (summary)</h3>
+    <strong>Device primitives</strong> — One API surface for camera, mic, location, clipboard, share, speech, encryption. Wraps browser APIs that need permissions.<br>
+    <strong>Singleton</strong> — Single <code>coffee</code> object. No constructors, no <code>new</code>. Call <code>coffee.camera()</code>, <code>coffee.speak()</code> directly.<br>
+    <strong>Bricks not schematics</strong> — Primitives you combine. No framework, no bloat. Vanilla JS only.<br>
+    <strong>Permission-first</strong> — Camera, mic, geolocation, notifications require user consent. Handle denials gracefully.<br>
+    <strong>Sovereign</strong> — No external runtime. Works standalone. Pair with Coffee UI for full-stack bricks.
+  </section>
+
+  <button onclick="runCamera()">coffee.camera()</button>
+  <button onclick="takePic()" id="btn-pic" disabled>Take pic</button>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p>POC: <code>coffee.microphone()</code> + <code>coffee.record(stream)</code></p>
+  <button onclick="runMic()">coffee.microphone()</button>
+  <button onclick="startRecord()" id="btn-record" disabled>Record</button>
+  <button onclick="stopRecord()" id="btn-stop" disabled>Stop</button>
+  <audio id="playback" controls style="margin-top:8px; display:none;"></audio>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p>POC: <code>coffee.geolocation()</code> + <code>coffee.geocode(lat, lng)</code></p>
+  <button onclick="runGeo()">coffee.geolocation()</button>
+  <button onclick="runGeocode()" id="btn-geocode" disabled>coffee.geocode()</button>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p><strong>High value:</strong> <code>coffee.notify</code> <code>coffee.clipboard</code> <code>coffee.share</code> <code>coffee.screen</code></p>
+  <button onclick="runNotify()">coffee.notify()</button>
+  <button onclick="runClipboardWrite()">clipboard.write</button>
+  <button onclick="runClipboardRead()">clipboard.read</button>
+  <button onclick="runShare()">coffee.share()</button>
+  <button onclick="runScreen()">coffee.screen()</button>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p><strong>Useful:</strong> <code>coffee.fullscreen</code> <code>coffee.wakeLock</code> <code>coffee.vibrate</code> <code>coffee.storageQuota</code></p>
+  <button onclick="runFullscreen()">coffee.fullscreen()</button>
+  <button onclick="runWakeLock()">coffee.wakeLock()</button>
+  <button onclick="runVibrate()">coffee.vibrate()</button>
+  <button onclick="runStorageQuota()">coffee.storageQuota()</button>
+  <button onclick="runSWRegister()">coffee.serviceWorker.register()</button>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p><code>coffee.save</code> <code>coffee.load</code> <code>coffee.remove</code> <code>coffee.clear</code> (localStorage)</p>
+  <button onclick="runSave()">coffee.save()</button>
+  <button onclick="runLoad()">coffee.load()</button>
+  <button onclick="runList()">coffee.list()</button>
+  <button onclick="runClear()">coffee.clear()</button>
+  <hr style="margin:20px 0; border-color:#333;">
+  <p><code>coffee.speak</code> <code>coffee.listen</code> <code>coffee.hash</code> <code>coffee.encrypt</code> <code>coffee.decrypt</code></p>
+  <button onclick="runSpeak()">coffee.speak()</button>
+  <button onclick="runListen()">coffee.listen()</button>
+  <button onclick="runHash()">coffee.hash()</button>
+  <button onclick="runEncrypt()">coffee.encrypt()</button>
+  <button onclick="runDecrypt()">coffee.decrypt()</button>
+  <pre id="log"></pre>
+  <img id="snapshot" style="max-width:300px; margin-top:12px; border:2px solid #7fff00; border-radius:8px; display:none;" alt="Snapshot">
+
+  <script src="coffee-control.js"></script>
+  <script>
+    let currentVideoEl = null;
+
+    function log(msg) {
+      document.getElementById('log').textContent += msg + '\n';
+    }
+
+    async function runCamera() {
+      log('Calling coffee.camera()...');
+      try {
+        const { stream, videoEl } = await coffee.camera();
+        currentVideoEl = videoEl;
+        document.getElementById('btn-pic').disabled = false;
+        log('OK: stream active, video appended');
+        log('Tracks: ' + stream.getTracks().map(t => t.kind).join(', '));
+      } catch (err) {
+        log('Error: ' + err.message);
+      }
+    }
+
+    function takePic() {
+      if (!currentVideoEl) return;
+      const dataUrl = coffee.capture(currentVideoEl, 'png');
+      const img = document.getElementById('snapshot');
+      img.src = dataUrl;
+      img.style.display = 'block';
+      log('Captured snapshot');
+    }
+
+    let micStream = null;
+    let currentRecorder = null;
+    async function runMic() {
+      log('Calling coffee.microphone()...');
+      try {
+        const { stream } = await coffee.microphone();
+        micStream = stream;
+        document.getElementById('btn-record').disabled = false;
+        log('OK: mic stream active, recorder ready');
+      } catch (err) {
+        log('Error: ' + err.message);
+      }
+    }
+    function startRecord() {
+      if (!micStream) return;
+      currentRecorder = coffee.record(micStream);
+      currentRecorder.start();
+      document.getElementById('btn-record').disabled = true;
+      document.getElementById('btn-stop').disabled = false;
+      log('Recording...');
+    }
+    async function stopRecord() {
+      if (!currentRecorder) return;
+      const blob = await currentRecorder.stop();
+      currentRecorder = null;
+      document.getElementById('btn-record').disabled = false;
+      document.getElementById('btn-stop').disabled = true;
+      const audio = document.getElementById('playback');
+      audio.src = URL.createObjectURL(blob);
+      audio.style.display = 'block';
+      log('Stopped. Playback ready.');
+    }
+
+    let lastCoords = null;
+    async function runGeo() {
+      log('Calling coffee.geolocation()...');
+      try {
+        const coords = await coffee.geolocation();
+        lastCoords = coords;
+        document.getElementById('btn-geocode').disabled = false;
+        log(`OK: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)} (±${Math.round(coords.accuracy)}m)`);
+      } catch (err) {
+        log('Error: ' + err.message);
+      }
+    }
+    async function runGeocode() {
+      if (!lastCoords) return;
+      log('Calling coffee.geocode()...');
+      try {
+        const data = await coffee.geocode(lastCoords.lat, lastCoords.lng);
+        log('Address: ' + data.display_name);
+      } catch (err) {
+        log('Error: ' + err.message);
+      }
+    }
+
+    async function runNotify() {
+      try {
+        await coffee.notify('Coffee Control', { body: 'Hello from coffee.notify()!' });
+        log('Notification sent');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runClipboardWrite() {
+      try {
+        await coffee.clipboard.write('Copied from Coffee Control!');
+        log('Clipboard written');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runClipboardRead() {
+      try {
+        const text = await coffee.clipboard.read();
+        log('Clipboard: ' + (text || '(empty)'));
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runShare() {
+      try {
+        await coffee.share({ title: 'Coffee Control', text: 'Check this out!', url: location.href });
+        log('Shared');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runScreen() {
+      try {
+        const { stream, videoEl } = await coffee.screen();
+        log('Screen capture active');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runFullscreen() {
+      try {
+        await coffee.fullscreen();
+        log('Fullscreen toggled');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    let wakeLockHandle = null;
+    async function runWakeLock() {
+      try {
+        if (wakeLockHandle) { wakeLockHandle.release(); wakeLockHandle = null; log('Wake lock released'); return; }
+        wakeLockHandle = await coffee.wakeLock();
+        log('Wake lock active (click again to release)');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    function runVibrate() {
+      coffee.vibrate([100, 50, 100]);
+      log('Vibrated (mobile only)');
+    }
+    async function runStorageQuota() {
+      try {
+        const q = await coffee.storageQuota();
+        const used = (q.usage / 1024 / 1024).toFixed(2);
+        const total = (q.quota / 1024 / 1024).toFixed(2);
+        log(`Storage: ${used} MB / ${total} MB (${q.percent}%)`);
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runSWRegister() {
+      try {
+        const reg = await coffee.serviceWorker.register('./coffee-worker.js');
+        log('Service worker registered: ' + reg.scope);
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    function runSave() {
+      coffee.save('test', { message: 'Hello from coffee.save!', time: Date.now() });
+      log('Saved { message, time }');
+    }
+    function runLoad() {
+      const val = coffee.load('test');
+      log('Loaded: ' + (val ? JSON.stringify(val) : '(nothing)'));
+    }
+    function runList() {
+      const { local, session } = coffee.list();
+      log('localStorage: ' + JSON.stringify(local, null, 2));
+      log('sessionStorage: ' + JSON.stringify(session, null, 2));
+    }
+    function runClear() {
+      coffee.clear();
+      log('Cleared all coffee.save() keys');
+    }
+    async function runSpeak() {
+      try {
+        await coffee.speak('Hello from Coffee Control!');
+        log('Spoke');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    let listenController = null;
+    function runListen() {
+      try {
+        if (listenController) { listenController.stop(); listenController = null; log('Stopped listening'); return; }
+        listenController = coffee.listen();
+        listenController.onresult((r) => log(r.isFinal ? 'Heard: ' + r.text : r.text + '...'));
+        listenController.start();
+        log('Listening... (click again to stop)');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runHash() {
+      try {
+        const h = await coffee.hash('hello');
+        log('Hash: ' + h.slice(0, 32) + '...');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    let lastEncrypted = null;
+    async function runEncrypt() {
+      try {
+        lastEncrypted = await coffee.encrypt('secret message', 'mypassword');
+        log('Encrypted (base64): ' + lastEncrypted.slice(0, 40) + '...');
+      } catch (err) { log('Error: ' + err.message); }
+    }
+    async function runDecrypt() {
+      if (!lastEncrypted) { log('Run encrypt first'); return; }
+      try {
+        const d = await coffee.decrypt(lastEncrypted, 'mypassword');
+        log('Decrypted: ' + d);
+      } catch (err) { log('Error: ' + err.message); }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "bootIds": ["builtin-synth", "builtin-drums"],
+  "plugins": [
+    {
+      "id": "builtin-synth",
+      "name": "Sub-Zero Keys",
+      "description": "Built-in mini keyboard + filter sliders (routed through host Snow Shoes audio / reverb).",
+      "kind": "builtin",
+      "builtinType": "synth",
+      "color": "#60a5fa"
+    },
+    {
+      "id": "builtin-drums",
+      "name": "Tread Pads",
+      "description": "Built-in 8-pad kit (host audio).",
+      "kind": "builtin",
+      "builtinType": "drums",
+      "color": "#fb923c"
+    },
+    {
+      "id": "iframe-sequencer",
+      "name": "Snow Sequencer",
+      "description": "Piano roll + MIDI-style keyboard — Coffee α plugin (iframe).",
+      "kind": "iframe",
+      "src": "PLUGINS/COFFEE-SEQUENCER-ALPHA.html",
+      "color": "#38bdf8"
+    },
+    {
+      "id": "iframe-subzero-mpc",
+      "name": "Sub-Zero MPC",
+      "description": "16-pad MPC + step sequencer — Coffee α plugin (iframe).",
+      "kind": "iframe",
+      "src": "PLUGINS/COFFEE-SUBZERO-MPC-ALPHA.html",
+      "color": "#22c55e"
+    }
+  ]
+}

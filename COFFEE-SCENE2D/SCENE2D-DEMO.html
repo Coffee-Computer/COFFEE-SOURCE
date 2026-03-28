@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.scene2d() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-scene2d.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.scene2d()', 1);
+    const sub = coffee.para('Declarative 2D. Rect, circle, line, arc, ellipse. Raw Canvas 2D. custom() escape hatch.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const scene = coffee.scene2d({
+      shapes: [
+        { type: 'rect', x: 50, y: 50, width: 100, height: 60, fill: '#4c9aff' },
+        { type: 'circle', x: 220, y: 100, radius: 45, fill: '#ef4444', stroke: '#fff', strokeWidth: 2 },
+        { type: 'line', x1: 300, y1: 60, x2: 380, y2: 140, stroke: '#22c55e', strokeWidth: 4 },
+        { type: 'ellipse', x: 450, y: 100, radiusX: 55, radiusY: 35, fill: '#f59e0b' },
+        { type: 'arc', x: 120, y: 220, radius: 40, startAngle: 0, endAngle: Math.PI, fill: '#8b5cf6', stroke: '#333' }
+      ],
+      background: 'skyblue',
+      custom: (ctx) => {
+        ctx.ctx.font = 'bold 14px sans-serif';
+        ctx.ctx.fillStyle = '#333';
+        ctx.ctx.fillText('Custom draw', 50, 280);
+      },
+      width: 550,
+      height: 320
+    });
+
+    const card = coffee.card([header, sub, scene], { style: { width: '100%', maxWidth: '600px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

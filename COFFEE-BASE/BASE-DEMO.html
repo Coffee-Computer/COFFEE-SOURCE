@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.base() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+    #app { padding: 16px; max-width: 960px; margin: 0 auto; box-sizing: border-box; }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .doc-row {
+      border: 1px solid var(--coffee-panel, #333);
+      border-radius: var(--coffee-radius-sm, 8px);
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      background: var(--coffee-bg-elev, #252525);
+    }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../COFFEE-WIRE/coffee-wire.js"></script>
+  <script src="../COFFEE-QUE/coffee-que.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-base.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    let base = null;
+
+    const header = coffee.heading('coffee.base()', 1);
+    const sub = coffee.para(
+      'Local document collections on que + wire + drive (IndexedDB). No SQL — thin faux BaaS for one browser.'
+    );
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const projectInput = coffee.input({
+      placeholder: 'Project key (isolates DB)',
+      value: 'demo',
+      style: { minWidth: '160px', flex: '1 1 140px' }
+    });
+
+    const connectBtn = coffee.button('Connect', null, { backgroundColor: 'var(--coffee-accent, #4c9aff)' });
+
+    const statusEl = coffee.para('');
+    statusEl.style.cssText = 'font-size:11px;color:var(--coffee-text-muted);margin:0';
+
+    const collLabel = coffee.para('Collection');
+    collLabel.style.cssText = 'font-size:11px;font-weight:600;color:var(--coffee-text-muted);margin:12px 0 4px 0';
+
+    const collSelect = document.createElement('select');
+    collSelect.id = 'base-coll-select';
+    collSelect.setAttribute('data-coffee', 'input');
+    Object.assign(collSelect.style, {
+      padding: 'var(--coffee-space-sm) var(--coffee-space-md)',
+      minHeight: 'var(--coffee-touch-min, 44px)',
+      border: '1px solid var(--coffee-text-muted)',
+      borderRadius: 'var(--coffee-radius-sm)',
+      backgroundColor: 'var(--coffee-bg-elev)',
+      color: 'var(--coffee-text-primary)',
+      width: '100%',
+      maxWidth: '320px',
+      cursor: 'pointer'
+    });
+
+    const newCollInput = coffee.input({
+      placeholder: 'new_collection_name',
+      style: { minWidth: '140px', flex: '1 1 120px' }
+    });
+    const newCollBtn = coffee.button('New collection', null, { backgroundColor: 'var(--coffee-panel)' });
+
+    const searchInput = coffee.input({
+      placeholder: 'Filter (substring on JSON)',
+      style: { width: '100%', maxWidth: '360px' }
+    });
+
+    const presetRow = coffee.row(
+      [
+        coffee.button('Preset: SaaS', () => runPreset('saas'), { backgroundColor: 'var(--coffee-panel)' }),
+        coffee.button('Preset: E‑commerce', () => runPreset('ecommerce'), { backgroundColor: 'var(--coffee-panel)' }),
+        coffee.button('Preset: Freelance', () => runPreset('freelance'), { backgroundColor: 'var(--coffee-panel)' })
+      ],
+      { style: { flexWrap: 'wrap', gap: '8px', marginTop: '12px' } }
+    );
+
+    const jsonInput = coffee.textarea({
+      placeholder: '{ "name": "Example", "value": 1 }',
+      rows: 4,
+      style: { width: '100%', fontFamily: 'ui-monospace, monospace', fontSize: '12px' }
+    });
+
+    const addBtn = coffee.button('Add document', null, { backgroundColor: 'var(--coffee-accent, #4c9aff)' });
+    const clearCollBtn = coffee.button('Clear collection', null, { backgroundColor: 'rgba(220,38,38,0.35)' });
+
+    const listHost = document.createElement('div');
+    listHost.style.marginTop = '16px';
+
+    function toast(msg, type) {
+      if (coffee.toast) coffee.toast(msg, type || 'info');
+    }
+
+    function refreshCollectionSelect() {
+      if (!base) return;
+      const names = base.collections();
+      collSelect.innerHTML = '';
+      names.forEach(function (n) {
+        const opt = document.createElement('option');
+        opt.value = n;
+        opt.textContent = n;
+        collSelect.appendChild(opt);
+      });
+      if (names.length) {
+        base.collection(collSelect.value);
+      }
+    }
+
+    function renderDocs() {
+      if (!base) {
+        listHost.innerHTML = '';
+        return;
+      }
+      const docs = base.list();
+      listHost.innerHTML = '';
+      if (docs.length === 0) {
+        const p = coffee.para('No documents (or no matches). Add JSON above or pick another collection.');
+        p.style.color = 'var(--coffee-text-muted)';
+        listHost.appendChild(p);
+        return;
+      }
+      docs.forEach(function (doc) {
+        const row = document.createElement('div');
+        row.className = 'doc-row';
+        const pre = document.createElement('div');
+        pre.className = 'mono';
+        try {
+          pre.textContent = JSON.stringify(doc, null, 2);
+        } catch (e) {
+          pre.textContent = String(doc);
+        }
+        const del = coffee.button('Remove', function () {
+          base.removeDoc(doc);
+          base.filter(searchInput.value || '');
+          renderDocs();
+          toast('Removed', 'success');
+        }, { backgroundColor: 'var(--coffee-panel)', minHeight: '36px', fontSize: '12px' });
+        del.style.marginTop = '8px';
+        row.appendChild(pre);
+        row.appendChild(del);
+        listHost.appendChild(row);
+      });
+    }
+
+    async function connect() {
+      const key = projectInput.value.trim() || 'demo';
+      const b = coffee.base(key);
+      if (!b) {
+        toast('coffee.base not available (load scripts)', 'error');
+        return;
+      }
+      await b.init();
+      base = b;
+      statusEl.textContent = 'IndexedDB: ' + base.appName;
+      refreshCollectionSelect();
+      base.filter(searchInput.value || '');
+      renderDocs();
+      toast('Connected', 'success');
+    }
+
+    function runPreset(name) {
+      if (!base) {
+        toast('Connect first', 'warning');
+        return;
+      }
+      const r = base.applyPreset(name);
+      if (!r.ok) {
+        toast(r.error || 'Preset failed', 'error');
+        return;
+      }
+      refreshCollectionSelect();
+      base.collection(collSelect.value);
+      base.filter(searchInput.value || '');
+      renderDocs();
+      toast(
+        'Preset applied — created: ' + (r.created || []).join(', ') || '(none)',
+        'success'
+      );
+    }
+
+    connectBtn.onclick = function () {
+      connect();
+    };
+
+    collSelect.onchange = function () {
+      if (!base) return;
+      base.collection(collSelect.value);
+      base.filter(searchInput.value || '');
+      renderDocs();
+    };
+
+    newCollBtn.onclick = function () {
+      if (!base) {
+        toast('Connect first', 'warning');
+        return;
+      }
+      const name = newCollInput.value.trim();
+      if (!name) {
+        toast('Enter a collection name', 'warning');
+        return;
+      }
+      base.newCollection(name);
+      newCollInput.value = '';
+      refreshCollectionSelect();
+      collSelect.value = base.que.currentCollection;
+      base.filter('');
+      renderDocs();
+      toast('Collection created', 'success');
+    };
+
+    let searchTimer = null;
+    searchInput.addEventListener('input', function () {
+      if (!base) return;
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(function () {
+        base.filter(searchInput.value || '');
+        renderDocs();
+      }, 120);
+    });
+
+    addBtn.onclick = function () {
+      if (!base) {
+        toast('Connect first', 'warning');
+        return;
+      }
+      const raw = jsonInput.value.trim();
+      if (!raw) {
+        toast('Paste JSON object', 'warning');
+        return;
+      }
+      let doc;
+      try {
+        doc = JSON.parse(raw);
+      } catch (e) {
+        toast('Invalid JSON', 'error');
+        return;
+      }
+      if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) {
+        toast('Root must be a JSON object', 'error');
+        return;
+      }
+      base.add(doc);
+      jsonInput.value = '';
+      base.filter(searchInput.value || '');
+      renderDocs();
+      toast('Document added', 'success');
+    };
+
+    clearCollBtn.onclick = function () {
+      if (!base) {
+        toast('Connect first', 'warning');
+        return;
+      }
+      base.clear();
+      base.filter(searchInput.value || '');
+      renderDocs();
+      toast('Collection cleared', 'info');
+    };
+
+    const topRow = coffee.row([projectInput, connectBtn], {
+      style: { flexWrap: 'wrap', gap: '8px', alignItems: 'center' }
+    });
+
+    const newCollRow = coffee.row([newCollInput, newCollBtn], {
+      style: { flexWrap: 'wrap', gap: '8px', marginTop: '8px' }
+    });
+
+    const app = document.getElementById('app');
+    app.appendChild(header);
+    app.appendChild(sub);
+    app.appendChild(topRow);
+    app.appendChild(statusEl);
+    app.appendChild(collLabel);
+    app.appendChild(collSelect);
+    app.appendChild(newCollRow);
+    app.appendChild(searchInput);
+    app.appendChild(presetRow);
+    app.appendChild(coffee.para('Add document (JSON object)'));
+    app.appendChild(jsonInput);
+    app.appendChild(coffee.row([addBtn, clearCollBtn], { style: { flexWrap: 'wrap', gap: '8px', marginTop: '8px' } }));
+    app.appendChild(coffee.heading('Documents', 3));
+    app.appendChild(listHost);
+
+    connect();
+  </script>
+</body>
+</html>

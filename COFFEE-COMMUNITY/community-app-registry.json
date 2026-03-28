@@ -1,0 +1,101 @@
+[
+  {
+    "id": "store",
+    "name": "Store",
+    "icon": "🛒",
+    "color": "#8b5cf6",
+    "url": "./apps/store.html",
+    "category": "system",
+    "description": "Browse and install community apps"
+  },
+  {
+    "id": "browser",
+    "name": "Browser",
+    "icon": "🌐",
+    "color": "#3b82f6",
+    "url": "https://www.wikipedia.org",
+    "category": "web",
+    "description": "Browse the web"
+  },
+  {
+    "id": "maps",
+    "name": "Maps",
+    "icon": "📍",
+    "color": "#22c55e",
+    "url": "https://www.openstreetmap.org",
+    "category": "web",
+    "description": "Maps and navigation"
+  },
+  {
+    "id": "terminal",
+    "name": "Terminal",
+    "icon": "⌘",
+    "color": "#27272a",
+    "url": "./apps/terminal.html",
+    "category": "system",
+    "description": "Terminal-style output"
+  },
+  {
+    "id": "notes",
+    "name": "Notes",
+    "icon": "📝",
+    "color": "#eab308",
+    "url": "./apps/notes.html",
+    "category": "productivity",
+    "description": "Quick notes with save"
+  },
+  {
+    "id": "calc",
+    "name": "Calculator",
+    "icon": "🧮",
+    "color": "#f97316",
+    "url": "./apps/calculator.html",
+    "category": "productivity",
+    "description": "Standard calculator"
+  },
+  {
+    "id": "camera",
+    "name": "Camera",
+    "icon": "📷",
+    "color": "#71717a",
+    "url": "./apps/camera.html",
+    "category": "media",
+    "description": "Take photos"
+  },
+  {
+    "id": "settings",
+    "name": "Settings",
+    "icon": "⚙️",
+    "color": "#64748b",
+    "url": "./apps/settings.html",
+    "category": "system",
+    "description": "Storage and system info"
+  },
+  {
+    "id": "files",
+    "name": "Files",
+    "icon": "📁",
+    "color": "#b45309",
+    "url": "./apps/files.html",
+    "category": "system",
+    "description": "Browse stored keys"
+  },
+  {
+    "id": "coffee-chat",
+    "name": "Chat",
+    "icon": "💬",
+    "color": "#6366f1",
+    "url": "../COFFEE-CHAT/CHAT-DEMO.html",
+    "category": "communication",
+    "description": "P2P chat + media over coffee.connect"
+  },
+  {
+    "id": "duck-ide",
+    "name": "DUCK IDE",
+    "icon": "🦆",
+    "color": "#f59e0b",
+    "url": "./FLAGSHIP/DUCK-IDE/DUCK-IDE-ALPHA.html",
+    "category": "creative",
+    "description": "2D game studio — coffee.play templates and live HTML preview"
+  }
+]

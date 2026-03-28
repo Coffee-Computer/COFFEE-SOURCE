@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>Coffee — Community Edition</title>
+  <link rel="manifest" href="../../coffee-ce-pwa-manifest.json">
+  <meta name="theme-color" content="#8B5E46">
+  <meta name="description" content="Coffee Community Edition — My Apps, Anti Social, Community Desk" />
+  <link rel="stylesheet" href="./community-coffee-title.css">
+  <style>
+    :root {
+      --bg: #071124;
+      --accent: #6f4e37;
+      --accent-light: #8B5E46;
+      --text-color: #e6eef8;
+      --glass-bg: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --shadow: 0 10px 40px rgba(0,0,0,0.4);
+      --radius: 18px;
+    }
+    html, body { height: 100dvh; margin: 0; }
+    body {
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(180deg, var(--bg) 0%, #081226 100%);
+      color: var(--text-color);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .splash-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: var(--radius);
+      padding: 30px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      max-width: 500px;
+      width: 90%;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+      position: relative;
+      overflow: hidden;
+    }
+    .subtitle {
+      font-size: 1.05rem;
+      color: rgba(230, 238, 248, 0.85);
+      margin: 0;
+      line-height: 1.5;
+    }
+    .btn-row {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 100%;
+      margin-top: 6px;
+    }
+    .btn {
+      background: var(--accent);
+      color: white;
+      padding: 14px 25px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      border: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:not(.btn-rainbow):not(.btn-webtop):not(.btn-anti-social):hover {
+      background: var(--accent-light);
+    }
+    .btn-rainbow {
+      background: linear-gradient(135deg, #FF6F00 0%, #FFB300 30%, #E91E63 70%, #9C27B0 100%);
+      background-size: 200% 200%;
+      color: white;
+      animation: rainbowMove 8s ease infinite;
+    }
+    .btn-rainbow:hover {
+      transform: translateY(-2px);
+    }
+    @keyframes rainbowMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .btn-webtop {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2d1b4e 25%, #1a237e 50%, #4a148c 75%, #1e3a5f 100%);
+      background-size: 200% 200%;
+      color: white;
+      animation: webtopGradient 4s ease infinite;
+      transition: transform 0.2s;
+    }
+    .btn-webtop:hover { transform: translateY(-2px); }
+    @keyframes webtopGradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .ce-foot {
+      font-size: 0.75rem;
+      color: rgba(230, 238, 248, 0.45);
+      margin-top: 8px;
+    }
+    .ce-manifest-link {
+      display: inline-block;
+      margin-top: 2px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #7dd3fc;
+      text-decoration: none;
+      border-bottom: 1px solid rgba(125, 211, 252, 0.45);
+      padding-bottom: 2px;
+      cursor: pointer;
+      transition: color 0.2s, border-color 0.2s, text-shadow 0.2s;
+    }
+    .ce-manifest-link:hover {
+      color: #bae6fd;
+      border-color: rgba(186, 230, 253, 0.7);
+      text-shadow: 0 0 12px rgba(125, 211, 252, 0.35);
+    }
+    .ce-manifest-link:focus-visible {
+      outline: 2px solid #7dd3fc;
+      outline-offset: 4px;
+      border-radius: 4px;
+    }
+    .btn-ce-pwa {
+      background: rgba(125, 211, 252, 0.12);
+      border: 1px solid rgba(125, 211, 252, 0.5);
+      color: #e0f2fe;
+      transition: background 0.2s, transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+    }
+    .btn-ce-pwa:hover {
+      background: rgba(125, 211, 252, 0.22);
+      border-color: rgba(186, 230, 253, 0.75);
+      box-shadow: 0 0 20px rgba(125, 211, 252, 0.15);
+      transform: translateY(-2px);
+    }
+    .btn-ce-pwa[disabled],
+    .btn-ce-pwa[aria-disabled="true"] {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+    /* CE distro overlay */
+    .ce-distro-overlay[hidden] {
+      display: none !important;
+    }
+    .ce-distro-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+    }
+    .ce-distro-scrim {
+      width: 100%;
+      height: 100%;
+      min-height: 100dvh;
+      margin: 0;
+      padding: 14px;
+      box-sizing: border-box;
+      background: rgba(4, 10, 24, 0.78);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .ce-distro-panel {
+      cursor: default;
+      width: min(640px, 100%);
+      height: min(88dvh, 860px);
+      max-height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #0a0e18;
+      border: 1px solid rgba(125, 211, 252, 0.22);
+      border-radius: 16px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+      overflow: hidden;
+    }
+    .ce-distro-toolbar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .ce-distro-toolbar-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: rgba(230, 238, 248, 0.75);
+    }
+    .ce-distro-close {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #e6eef8;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .ce-distro-close:hover {
+      background: rgba(239, 68, 68, 0.25);
+      color: #fecaca;
+    }
+    .ce-distro-frame {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      border: none;
+      background: #0a0e18;
+    }
+    @media (max-width: 768px) {
+      .splash-card { padding: 22px; gap: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="splash-card">
+    <h1 class="coffee-title" id="coffee-title-el"></h1>
+    <p class="ce-edition">Community Edition</p>
+    <p class="subtitle">create tomorrow… together.</p>
+
+    <div class="btn-row">
+      <button type="button" class="btn btn-ce-pwa" id="btn-install-ce" aria-label="Install or download Community Edition PWA">
+        📥 Download Community Edition
+      </button>
+      <button type="button" class="btn btn-rainbow" id="btn-my-apps">
+        Go to My Apps
+      </button>
+      <button type="button" class="btn btn-anti-social" id="btn-anti-social">
+        Anti Social 😈
+      </button>
+      <button type="button" class="btn btn-webtop" id="btn-community-desk">
+        Community Desk
+      </button>
+    </div>
+
+    <p class="ce-foot">COFFEE-COMMUNITY · splash</p>
+    <a href="../COMMUNITY-DISTRO.html" class="ce-manifest-link" id="ce-manifest-link">Distro manifest</a>
+  </div>
+
+  <div id="ce-distro-overlay" class="ce-distro-overlay" hidden aria-hidden="true">
+    <div class="ce-distro-scrim" id="ce-distro-scrim" role="button" tabindex="-1" aria-label="Close distro manifest">
+      <div class="ce-distro-panel" role="dialog" aria-modal="true" aria-labelledby="ce-distro-toolbar-title">
+        <div class="ce-distro-toolbar">
+          <span class="ce-distro-toolbar-title" id="ce-distro-toolbar-title">Distro manifest</span>
+          <button type="button" class="ce-distro-close" id="ce-distro-close" aria-label="Close">×</button>
+        </div>
+        <iframe class="ce-distro-frame" id="ce-distro-frame" title="Coffee Community Edition — distro"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initCommunityCoffeeTitle } from './community-coffee-title.js';
+    initCommunityCoffeeTitle(document.getElementById('coffee-title-el'));
+  </script>
+  <script>
+    (function () {
+      const base = new URL('.', window.location.href).href;
+      const ceRoot = new URL('../../', base).href;
+      const distroManifestUrl = new URL('../COMMUNITY-DISTRO.html', base).href;
+
+      /** CE mini-PWA: scoped to COFFEE-SOURCE — network-first SW (see coffee-ce-service-worker.js). */
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          var swUrl = new URL('coffee-ce-service-worker.js', ceRoot).href;
+          navigator.serviceWorker
+            .register(swUrl, { scope: ceRoot, updateViaCache: 'none' })
+            .then(function (reg) {
+              reg.update();
+              reg.addEventListener('updatefound', function () {
+                var nw = reg.installing;
+                if (!nw) return;
+                nw.addEventListener('statechange', function () {
+                  if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                    nw.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
+              document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) reg.update();
+              });
+            })
+            .catch(function (err) {
+              console.warn('[coffee-ce] Service worker register failed:', err);
+            });
+
+          var refreshing = false;
+          navigator.serviceWorker.addEventListener('controllerchange', function () {
+            if (refreshing) return;
+            refreshing = true;
+            window.location.reload();
+          });
+        });
+      }
+
+      var deferredInstallPrompt = null;
+      var installBtn = document.getElementById('btn-install-ce');
+
+      function setInstallButtonWaiting() {
+        if (!installBtn) return;
+        installBtn.setAttribute('aria-disabled', 'true');
+        installBtn.title = 'Waiting for browser install prompt… Use browser “Install app” if this stays gray.';
+      }
+
+      function setInstallButtonReady() {
+        if (!installBtn) return;
+        installBtn.removeAttribute('aria-disabled');
+        installBtn.removeAttribute('disabled');
+        installBtn.title = 'Install Community Edition (PWA)';
+      }
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        setInstallButtonReady();
+      });
+
+      window.addEventListener('appinstalled', function () {
+        deferredInstallPrompt = null;
+        if (installBtn) {
+          installBtn.textContent = '✓ Community Edition installed';
+          installBtn.setAttribute('aria-disabled', 'true');
+        }
+      });
+
+      if (installBtn) {
+        if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone) {
+          installBtn.textContent = 'Running as installed app';
+          installBtn.setAttribute('aria-disabled', 'true');
+        } else {
+          setInstallButtonWaiting();
+        }
+
+        installBtn.addEventListener('click', async function () {
+          if (!deferredInstallPrompt) {
+            alert(
+              'Install isn’t available from this browser context yet.\n\n' +
+                'Try Chrome/Edge: menu → Install app / Add to Home Screen. ' +
+                'Serve the site over HTTPS or localhost.'
+            );
+            return;
+          }
+          deferredInstallPrompt.prompt();
+          var choice = await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+          if (choice && choice.outcome === 'accepted') {
+            installBtn.textContent = 'Installing…';
+          }
+          setInstallButtonWaiting();
+        });
+      }
+
+      document.getElementById('btn-my-apps').addEventListener('click', function () {
+        window.location.href = new URL('../COMMUNITY-HOMESCREEN/coffee-community-homescreen.html', base).href;
+      });
+      document.getElementById('btn-anti-social').addEventListener('click', function () {
+        window.location.href = new URL('../FLAGSHIP/ANTI-SOCIAL/ANTI-SOCIAL-SWITCHER.html', base).href;
+      });
+      document.getElementById('btn-community-desk').addEventListener('click', function () {
+        window.location.href = new URL('../COMMUNITY-DESKTOP/COMMUNITY-DESKTOP-ALPHA.html', base).href;
+      });
+
+      const overlay = document.getElementById('ce-distro-overlay');
+      const scrim = document.getElementById('ce-distro-scrim');
+      const frame = document.getElementById('ce-distro-frame');
+      const manifestLink = document.getElementById('ce-manifest-link');
+      const closeBtn = document.getElementById('ce-distro-close');
+
+      function openDistroOverlay() {
+        frame.src = distroManifestUrl;
+        overlay.hidden = false;
+        overlay.setAttribute('aria-hidden', 'false');
+        closeBtn.focus();
+      }
+
+      function closeDistroOverlay() {
+        overlay.hidden = true;
+        overlay.setAttribute('aria-hidden', 'true');
+        frame.src = 'about:blank';
+        manifestLink.focus();
+      }
+
+      manifestLink.addEventListener('click', function (e) {
+        e.preventDefault();
+        openDistroOverlay();
+      });
+
+      scrim.addEventListener('click', function (e) {
+        if (e.target === scrim) closeDistroOverlay();
+      });
+
+      closeBtn.addEventListener('click', function () {
+        closeDistroOverlay();
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !overlay.hidden) {
+          e.preventDefault();
+          closeDistroOverlay();
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

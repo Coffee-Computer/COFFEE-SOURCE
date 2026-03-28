@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Coffee α: ../YAY-ALPHA.html · coffee.yay @ ../../../COFFEE-YAY/coffee-yay.js -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YAY3D // Spatial Web Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap');
+
+        :root {
+            --bg: #080808;
+            --panel: #121214;
+            --accent: #ff3e00; /* Svelte Orange / Cyber Red */
+            --border: rgba(255, 255, 255, 0.07);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background-color: var(--bg);
+            color: #efefef;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .app-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 300px;
+            height: 100vh;
+        }
+
+        /* Sidebar Panels */
+        .sidebar {
+            background: var(--panel);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 20;
+        }
+
+        .inspector {
+            background: var(--panel);
+            border-left: 1px solid var(--border);
+            z-index: 20;
+        }
+
+        .viewport-container {
+            position: relative;
+            background: #000;
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* UI Components */
+        .pane-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .scene-item {
+            padding: 8px 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .scene-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .scene-item.active {
+            background: rgba(255, 62, 0, 0.1);
+            border-left-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .tool-btn {
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            color: #888;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover, .tool-btn.active {
+            color: var(--accent);
+            border-color: var(--accent);
+            background: rgba(255, 62, 0, 0.05);
+        }
+
+        /* Floating HTML Content on 3D */
+        .html-overlay {
+            position: absolute;
+            pointer-events: none;
+            user-select: none;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+
+        .content-card {
+            background: white;
+            color: black;
+            padding: 20px;
+            border-radius: 2px;
+            width: 260px;
+            box-shadow: 15px 15px 0px var(--accent);
+            pointer-events: auto;
+        }
+
+        .content-card.dark {
+            background: #1a1a1a;
+            color: white;
+            box-shadow: 15px 15px 0px #333;
+        }
+
+        .control-group {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .input-label {
+            display: block;
+            font-size: 9px;
+            text-transform: uppercase;
+            color: #555;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        input[type="color"] {
+            background: none;
+            border: none;
+            width: 100%;
+            height: 30px;
+            cursor: pointer;
+        }
+
+        .floating-toolbar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 18, 20, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            padding: 6px;
+            border-radius: 10px;
+            display: flex;
+            gap: 6px;
+            z-index: 100;
+        }
+
+        .primitive-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            padding: 10px;
+        }
+
+        .primitive-btn {
+            padding: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .primitive-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-layout">
+        <!-- Scene Graph -->
+        <aside class="sidebar">
+            <header class="pane-header">
+                <div class="flex items-center gap-2">
+                    <div class="w-5 h-5 bg-[#ff3e00] rounded-sm flex items-center justify-center font-black text-[10px] italic">Y3</div>
+                    <span class="text-xs font-bold tracking-tighter italic">YAY3D_EXPLORER</span>
+                </div>
+            </header>
+            <div class="p-4 border-bottom border-white/5">
+                <span class="input-label">Hierarchy</span>
+            </div>
+            <div id="scene-list" class="flex-1 overflow-y-auto py-2 mono text-[10px] uppercase">
+                <!-- Objects dynamic -->
+            </div>
+            <div class="border-t border-white/5 bg-black/10">
+                <div class="p-4 pb-0">
+                    <span class="input-label">Add Primitives</span>
+                </div>
+                <div class="primitive-grid">
+                    <button onclick="addObject('box')" class="primitive-btn">Cube</button>
+                    <button onclick="addObject('sphere')" class="primitive-btn">Sphere</button>
+                    <button onclick="addObject('cylinder')" class="primitive-btn">Cylinder</button>
+                    <button onclick="addObject('torus')" class="primitive-btn">Torus</button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Viewport -->
+        <main class="viewport-container" id="viewport">
+            <div class="floating-toolbar">
+                <button id="tool-select" class="tool-btn active" title="Select (Left Click Drag to Orbit)">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 3 7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path><path d="m13 13 6 6"></path></svg>
+                </button>
+                <div class="w-px h-6 bg-white/10 mx-1 self-center"></div>
+                <button onclick="addHTMLNode('light')" class="tool-btn" title="Add Light Card">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                </button>
+                <button onclick="addHTMLNode('dark')" class="tool-btn" title="Add Dark Card">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                </button>
+            </div>
+            
+            <div id="html-layers"></div>
+            <!-- Three.js Canvas injected here -->
+        </main>
+
+        <!-- Inspector -->
+        <aside class="inspector">
+            <header class="pane-header">
+                <span class="text-[10px] font-bold tracking-widest uppercase opacity-50">Object_Inspector</span>
+            </header>
+            <div id="inspector-content" class="mono text-[11px]">
+                <div class="p-10 text-center opacity-20">Select an object to edit properties</div>
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        let scene, camera, renderer, clock;
+        let objects = [];
+        let selectedObject = null;
+        let htmlNodes = [];
+        
+        // Camera Orbit Variables
+        let isDragging = false;
+        let previousMousePosition = { x: 0, y: 0 };
+        let cameraAngle = { phi: Math.PI / 4, theta: Math.PI / 4, radius: 8 };
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x080808);
+            
+            const viewport = document.getElementById('viewport');
+            camera = new THREE.PerspectiveCamera(75, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+            updateCameraPosition();
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            viewport.appendChild(renderer.domElement);
+
+            // Lighting
+            const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambient);
+            const directional = new THREE.DirectionalLight(0xffffff, 0.8);
+            directional.position.set(5, 10, 7);
+            scene.add(directional);
+
+            // Grid
+            const grid = new THREE.GridHelper(20, 20, 0x333333, 0x111111);
+            scene.add(grid);
+
+            clock = new THREE.Clock();
+            
+            // Interaction
+            viewport.addEventListener('mousedown', (e) => { isDragging = true; });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+            viewport.addEventListener('mousemove', handleMouseMove);
+            viewport.addEventListener('wheel', handleWheel);
+
+            // Add initial primitive
+            addObject('box');
+
+            window.addEventListener('resize', onWindowResize);
+            animate();
+        }
+
+        function handleMouseMove(e) {
+            if (isDragging) {
+                const deltaX = e.movementX;
+                const deltaY = e.movementY;
+                cameraAngle.theta -= deltaX * 0.01;
+                cameraAngle.phi -= deltaY * 0.01;
+                cameraAngle.phi = Math.max(0.1, Math.min(Math.PI - 0.1, cameraAngle.phi));
+                updateCameraPosition();
+            }
+        }
+
+        function handleWheel(e) {
+            cameraAngle.radius += e.deltaY * 0.005;
+            cameraAngle.radius = Math.max(2, Math.min(20, cameraAngle.radius));
+            updateCameraPosition();
+        }
+
+        function updateCameraPosition() {
+            camera.position.x = cameraAngle.radius * Math.sin(cameraAngle.phi) * Math.cos(cameraAngle.theta);
+            camera.position.y = cameraAngle.radius * Math.cos(cameraAngle.phi);
+            camera.position.z = cameraAngle.radius * Math.sin(cameraAngle.phi) * Math.sin(cameraAngle.theta);
+            camera.lookAt(0, 0, 0);
+        }
+
+        function addObject(type) {
+            let geometry, material, mesh;
+            material = new THREE.MeshStandardMaterial({ 
+                color: 0xff3e00,
+                roughness: 0.3,
+                metalness: 0.5
+            });
+
+            switch(type) {
+                case 'box': geometry = new THREE.BoxGeometry(1, 1, 1); break;
+                case 'sphere': geometry = new THREE.SphereGeometry(0.7, 32, 32); break;
+                case 'cylinder': geometry = new THREE.CylinderGeometry(0.5, 0.5, 1.2, 32); break;
+                case 'torus': geometry = new THREE.TorusGeometry(0.5, 0.2, 16, 100); break;
+            }
+
+            mesh = new THREE.Mesh(geometry, material);
+            mesh.name = `${type.charAt(0).toUpperCase() + type.slice(1)}_${objects.length + 1}`;
+            scene.add(mesh);
+            objects.push(mesh);
+            
+            selectObject(mesh);
+            updateSceneList();
+        }
+
+        function addHTMLNode(style = 'light') {
+            const id = 'node-' + Math.random().toString(36).substr(2, 5);
+            const node = {
+                id: id,
+                style: style,
+                title: style === 'light' ? 'Feature Info' : 'Dark Analysis',
+                body: 'Edit coordinates and content in the inspector panel.',
+                position: new THREE.Vector3(
+                    (Math.random() - 0.5) * 6,
+                    Math.random() * 2,
+                    (Math.random() - 0.5) * 6
+                )
+            };
+            
+            htmlNodes.push(node);
+            renderHTMLLayers();
+            updateSceneList();
+        }
+
+        function selectObject(obj) {
+            selectedObject = obj;
+            renderInspector();
+            updateSceneList();
+        }
+
+        function renderInspector() {
+            const container = document.getElementById('inspector-content');
+            if (!selectedObject) {
+                container.innerHTML = `<div class="p-10 text-center opacity-20 uppercase text-[9px]">Selection Empty</div>`;
+                return;
+            }
+
+            const isNode = selectedObject.isNode;
+            const objName = isNode ? selectedObject.name : selectedObject.name;
+            const colorHex = isNode ? '#ffffff' : `#${selectedObject.material.color.getHexString()}`;
+
+            container.innerHTML = `
+                <div class="control-group">
+                    <span class="input-label">Identity</span>
+                    <div class="text-white mb-2 text-xs font-bold">${objName}</div>
+                </div>
+                ${!isNode ? `
+                <div class="control-group">
+                    <span class="input-label">Material Color</span>
+                    <input type="color" value="${colorHex}" oninput="updateColor(this.value)">
+                </div>
+                ` : ''}
+                <div class="control-group">
+                    <span class="input-label">Position (X, Y, Z)</span>
+                    <input type="range" min="-8" max="8" step="0.1" value="${selectedObject.position.x}" oninput="updateTransform('px', this.value)">
+                    <input type="range" min="-8" max="8" step="0.1" value="${selectedObject.position.y}" oninput="updateTransform('py', this.value)">
+                    <input type="range" min="-8" max="8" step="0.1" value="${selectedObject.position.z}" oninput="updateTransform('pz', this.value)">
+                </div>
+                <div class="control-group">
+                    <span class="input-label">Rotation</span>
+                    <input type="range" min="0" max="${Math.PI * 2}" step="0.1" value="${selectedObject.rotation.y}" oninput="updateTransform('ry', this.value)">
+                </div>
+                ${isNode ? `
+                <div class="control-group">
+                    <span class="input-label">Node Content</span>
+                    <input type="text" value="${selectedObject.title}" class="w-full bg-black/40 border border-white/10 p-2 text-[10px] mb-2" oninput="updateNodeContent('title', this.value)">
+                    <textarea class="w-full bg-black/40 border border-white/10 p-2 text-[10px] h-20" oninput="updateNodeContent('body', this.value)">${selectedObject.body}</textarea>
+                </div>
+                ` : ''}
+                <div class="p-4">
+                    <button onclick="deleteSelected()" class="w-full py-2 bg-red-900/20 text-red-500 border border-red-500/20 text-[9px] uppercase tracking-tighter hover:bg-red-500 hover:text-white transition">Delete</button>
+                </div>
+            `;
+        }
+
+        function updateColor(val) {
+            if (selectedObject && !selectedObject.isNode) {
+                selectedObject.material.color.set(val);
+            }
+        }
+
+        function updateTransform(prop, val) {
+            if (!selectedObject) return;
+            val = parseFloat(val);
+            if (prop === 'px') selectedObject.position.x = val;
+            if (prop === 'py') selectedObject.position.y = val;
+            if (prop === 'pz') selectedObject.position.z = val;
+            if (prop === 'ry') selectedObject.rotation.y = val;
+            
+            if (selectedObject.isNode) {
+                const node = htmlNodes.find(n => n.id === selectedObject.id);
+                if (node) node.position.copy(selectedObject.position);
+            }
+        }
+
+        function updateNodeContent(field, val) {
+            if (!selectedObject || !selectedObject.isNode) return;
+            const node = htmlNodes.find(n => n.id === selectedObject.id);
+            if (node) {
+                node[field] = val;
+                selectedObject[field] = val;
+                renderHTMLLayers();
+                updateSceneList();
+            }
+        }
+
+        function deleteSelected() {
+            if (!selectedObject) return;
+            if (!selectedObject.isNode) {
+                scene.remove(selectedObject);
+                objects = objects.filter(o => o !== selectedObject);
+            } else {
+                htmlNodes = htmlNodes.filter(n => n.id !== selectedObject.id);
+                renderHTMLLayers();
+            }
+            selectedObject = null;
+            renderInspector();
+            updateSceneList();
+        }
+
+        function updateSceneList() {
+            const list = document.getElementById('scene-list');
+            list.innerHTML = '';
+            
+            objects.forEach(obj => {
+                const item = document.createElement('div');
+                item.className = `scene-item ${selectedObject === obj ? 'active' : ''}`;
+                item.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>${obj.name}`;
+                item.onclick = () => selectObject(obj);
+                list.appendChild(item);
+            });
+
+            htmlNodes.forEach(node => {
+                const item = document.createElement('div');
+                item.className = `scene-item ${selectedObject && selectedObject.id === node.id ? 'active' : ''}`;
+                item.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path></svg>[Node] ${node.title}`;
+                item.onclick = () => selectObject({ ...node, name: node.title, isNode: true });
+                list.appendChild(item);
+            });
+        }
+
+        function renderHTMLLayers() {
+            const container = document.getElementById('html-layers');
+            container.innerHTML = '';
+            htmlNodes.forEach(node => {
+                const div = document.createElement('div');
+                div.id = node.id;
+                div.className = 'html-overlay';
+                div.innerHTML = `
+                    <div class="content-card ${node.style === 'dark' ? 'dark' : ''}">
+                        <h2 class="font-black text-lg italic border-b border-black/10 mb-2">${node.title}</h2>
+                        <p class="text-xs leading-relaxed opacity-70">${node.body}</p>
+                        <div class="flex gap-2 mt-4">
+                            <button class="text-[8px] font-bold uppercase tracking-widest bg-black text-white px-3 py-1 hover:bg-zinc-800 transition">View Repo</button>
+                            <button class="text-[8px] font-bold uppercase tracking-widest border border-black px-3 py-1 hover:bg-black hover:text-white transition">Details</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateHTMLPositions() {
+            htmlNodes.forEach(node => {
+                const div = document.getElementById(node.id);
+                if (!div) return;
+
+                const vector = node.position.clone();
+                vector.project(camera);
+
+                const x = (vector.x * 0.5 + 0.5) * renderer.domElement.clientWidth;
+                const y = (vector.y * -0.5 + 0.5) * renderer.domElement.clientHeight;
+
+                if (vector.z < 1) {
+                    div.style.display = 'block';
+                    div.style.left = `${x}px`;
+                    div.style.top = `${y}px`;
+                    const dist = camera.position.distanceTo(node.position);
+                    const scale = Math.max(0.3, 10 / (dist + 5));
+                    div.style.transform = `translate(-50%, -50%) scale(${scale})`;
+                    div.style.opacity = dist > 15 ? 0 : 1;
+                } else {
+                    div.style.display = 'none';
+                }
+            });
+        }
+
+        function onWindowResize() {
+            const viewport = document.getElementById('viewport');
+            camera.aspect = viewport.clientWidth / viewport.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getElapsedTime();
+            
+            objects.forEach((obj, i) => {
+                if (obj !== selectedObject) {
+                    obj.rotation.y += 0.005;
+                    obj.position.y += Math.sin(delta + i) * 0.001;
+                }
+            });
+
+            updateHTMLPositions();
+            renderer.render(scene, camera);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

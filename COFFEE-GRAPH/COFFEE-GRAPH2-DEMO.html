@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CoffeeGraph.js — Brewing Data</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-graph.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background: var(--coffee-bg-surface); min-height: 100%; box-sizing: border-box; }
+    .graph-demo { padding: 24px; max-width: 900px; margin: 0 auto; }
+    .graph-canvas {
+      width: 100%;
+      max-width: 400px;
+      height: 300px;
+      background: var(--coffee-bg-elev);
+      border-radius: var(--coffee-radius-md);
+      border: 1px solid var(--coffee-panel);
+      box-shadow: var(--coffee-shadow-soft);
+      cursor: crosshair;
+    }
+    .graph-card {
+      background: var(--coffee-bg-elev);
+      border: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-md);
+      padding: var(--coffee-space-lg);
+      box-shadow: var(--coffee-shadow-soft);
+      border-top: 4px solid #6f4e37;
+    }
+    .graph-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 600px) { .graph-grid { grid-template-columns: 1fr; } }
+    .code-block {
+      background: var(--coffee-panel);
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: var(--coffee-radius-sm);
+      font-family: monospace;
+      font-size: 13px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('☕ CoffeeGraph.js', 1);
+    const sub = coffee.para('"The finest grounds for your data."');
+    sub.style.fontStyle = 'italic';
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const barCard = document.createElement('div');
+    barCard.className = 'graph-card';
+    const barStatus = document.createElement('div');
+    barStatus.className = 'graph-status';
+    barStatus.style.cssText = 'margin-top:8px;font-size:12px;color:var(--coffee-text-muted);min-height:1.2em';
+    barCard.innerHTML = '<h3 style="margin:0 0 16px;font-weight:600;color:var(--coffee-text-primary)">Dark Roast (Bar Chart)</h3><div style="width:100%;max-width:400px;height:300px"><canvas id="barChart" class="graph-canvas" style="width:100%;height:100%;display:block"></canvas></div>';
+    barCard.appendChild(barStatus);
+
+    const lineCard = document.createElement('div');
+    lineCard.className = 'graph-card';
+    const lineStatus = document.createElement('div');
+    lineStatus.className = 'graph-status';
+    lineStatus.style.cssText = 'margin-top:8px;font-size:12px;color:var(--coffee-text-muted);min-height:1.2em';
+    lineCard.innerHTML = '<h3 style="margin:0 0 16px;font-weight:600;color:var(--coffee-text-primary)">Mild Brew (Line Chart)</h3><div style="width:100%;max-width:400px;height:300px"><canvas id="lineChart" class="graph-canvas" style="width:100%;height:100%;display:block"></canvas></div>';
+    lineCard.appendChild(lineStatus);
+
+    const grid = document.createElement('div');
+    grid.className = 'graph-grid';
+    grid.appendChild(barCard);
+    grid.appendChild(lineCard);
+
+    const codeBlock = document.createElement('div');
+    codeBlock.className = 'code-block';
+    codeBlock.innerHTML = '<pre style="margin:0">coffee.graph({\n  target: \'canvasId\',\n  type: \'bar\', // or \'line\'\n  roast: \'medium\',\n  data: [10, 45, 30, 70, 55],\n  animate: true,\n  animateDuration: 400,\n  onClick: (p) => {},\n  onHover: (p, entering) => {}\n});</pre>';
+
+    const codeLabel = coffee.text('// How to brew:', { style: { color: '#fbbf24', fontFamily: 'monospace', marginBottom: '8px', display: 'block' } });
+
+    const app = document.getElementById('app');
+    app.style.padding = '24px';
+    app.style.maxWidth = '900px';
+    app.style.margin = '0 auto';
+    app.appendChild(header);
+    app.appendChild(sub);
+    app.appendChild(grid);
+    app.appendChild(codeLabel);
+    app.appendChild(codeBlock);
+    codeLabel.style.marginTop = '24px';
+
+    coffee.graph({
+      target: 'barChart',
+      type: 'bar',
+      roast: 'dark',
+      data: [12, 19, 3, 5, 2, 3, 15],
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      animate: true,
+      animateDuration: 400,
+      onClick: (p) => { barStatus.textContent = `Clicked: ${p.label} = ${p.value}`; },
+      onHover: (p, entering) => { barStatus.textContent = entering ? `Hover: ${p.label} = ${p.value}` : ''; }
+    });
+
+    coffee.graph({
+      target: 'lineChart',
+      type: 'line',
+      roast: 'medium',
+      data: [5, 10, 8, 25, 18, 30, 22],
+      labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+      animate: true,
+      onClick: (p) => { lineStatus.textContent = `Clicked: ${p.label} = ${p.value}`; },
+      onHover: (p, entering) => { lineStatus.textContent = entering ? `Hover: ${p.label} = ${p.value}` : ''; }
+    });
+  </script>
+</body>
+</html>

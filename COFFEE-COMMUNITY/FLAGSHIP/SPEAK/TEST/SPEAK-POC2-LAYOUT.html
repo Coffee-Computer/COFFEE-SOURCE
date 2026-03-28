@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Speak - Neumorphic Voice Recorder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg: #e0e5ec;
+            --shadow-light: #ffffff;
+            --shadow-dark: #a3b1c6;
+            --accent: #4f46e5;
+            --danger: #ef4444;
+            --text: #4a5568;
+            --viz-color: rgba(79, 70, 229, 0.8);
+        }
+
+        /* Dark Theme Override */
+        [data-theme="dark"] {
+            --bg: #1a1a2e;
+            --shadow-light: #252542;
+            --shadow-dark: #0f0f1a;
+            --accent: #00d2ff;
+            --text: #e2e8f0;
+            --viz-color: rgba(0, 210, 255, 0.8);
+        }
+
+        /* Glass Theme Override */
+        [data-theme="glass"] {
+            --bg: #f0f4f8;
+            --shadow-light: rgba(255, 255, 255, 0.6);
+            --shadow-dark: rgba(163, 177, 198, 0.3);
+            --accent: #ec4899;
+            --text: #1f2937;
+            --viz-color: rgba(236, 72, 153, 0.8);
+            background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background 0.4s ease, color 0.4s ease;
+        }
+
+        .neu-flat {
+            background: var(--bg);
+            box-shadow: 9px 9px 16px var(--shadow-dark), -9px -9px 16px var(--shadow-light);
+            transition: all 0.4s ease;
+        }
+
+        [data-theme="glass"] .neu-flat {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+        }
+
+        .neu-inset {
+            background: var(--bg);
+            box-shadow: inset 6px 6px 12px var(--shadow-dark), inset -6px -6px 12px var(--shadow-light);
+            transition: all 0.4s ease;
+        }
+
+        [data-theme="glass"] .neu-inset {
+            background: rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 2px 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .neu-pressed:active {
+            box-shadow: inset 4px 4px 8px var(--shadow-dark), inset -4px -4px 8px var(--shadow-light);
+        }
+
+        .record-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .recording {
+            color: var(--danger);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+            100% { transform: scale(1); }
+        }
+
+        .waveform-container {
+            height: 120px;
+            width: 100%;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .recording-list-item {
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 15px;
+            transition: transform 0.1s;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--shadow-dark); border-radius: 10px; }
+    </style>
+</head>
+<body class="p-4" data-theme="default">
+
+    <div class="w-full max-w-md flex flex-col gap-6">
+        <!-- Header -->
+        <div class="flex items-center justify-between mt-4">
+            <div>
+                <h1 class="text-3xl font-black italic tracking-tighter text-[var(--accent)]">SPEAK</h1>
+                <p class="text-[10px] uppercase tracking-widest font-bold opacity-60">Professional Voice Capture</p>
+            </div>
+            <button id="theme-toggle" class="w-12 h-12 rounded-full neu-flat flex items-center justify-center text-[var(--accent)] hover:scale-105 transition-transform">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-11.314l.707.707m11.314 11.314l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"/></svg>
+            </button>
+        </div>
+
+        <!-- Visualizer Section -->
+        <div class="neu-inset waveform-container flex items-center justify-center relative">
+            <canvas id="visualizer" class="w-full h-full"></canvas>
+            <div id="status-label" class="absolute top-2 left-4 text-[10px] font-bold uppercase opacity-40">Standby</div>
+            <div id="timer" class="absolute bottom-2 right-4 font-mono text-xl font-bold opacity-70">00:00</div>
+        </div>
+
+        <!-- Main Controls -->
+        <div class="flex justify-around items-center py-4">
+            <button id="cancel-btn" class="w-12 h-12 rounded-full neu-flat neu-pressed flex items-center justify-center opacity-50 pointer-events-none">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            </button>
+
+            <button id="record-btn" class="record-btn neu-flat neu-pressed text-[var(--accent)]">
+                <svg id="mic-icon" viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                <svg id="stop-icon" class="hidden" viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+            </button>
+
+            <button id="save-btn" class="w-12 h-12 rounded-full neu-flat neu-pressed flex items-center justify-center opacity-50 pointer-events-none text-green-500">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            </button>
+        </div>
+
+        <!-- Library -->
+        <div class="flex-grow flex flex-col gap-4 overflow-hidden">
+            <h2 class="text-xs font-bold uppercase tracking-widest opacity-60 ml-2">Recordings</h2>
+            <div id="recordings-list" class="flex-grow overflow-y-auto pr-2 pb-20 space-y-4">
+                <div id="empty-state" class="text-center py-10 opacity-30 italic text-sm">No recordings yet.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Naming Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/20 backdrop-blur-sm hidden flex items-center justify-center p-6 z-50">
+        <div class="neu-flat p-8 rounded-[30px] w-full max-w-xs flex flex-col gap-4">
+            <h3 class="font-bold text-center">Name Recording</h3>
+            <input type="text" id="filename-input" placeholder="Voice Note 1" class="neu-inset p-3 rounded-xl outline-none text-center">
+            <div class="flex gap-4 mt-2">
+                <button id="modal-cancel" class="flex-1 py-3 rounded-xl neu-flat text-xs font-bold uppercase">Discard</button>
+                <button id="modal-save" class="flex-1 py-3 rounded-xl bg-indigo-600 text-white text-xs font-bold uppercase shadow-lg">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioContext;
+        let analyzer;
+        let dataArray;
+        let animationId;
+        let startTime;
+        let timerInterval;
+
+        const recordBtn = document.getElementById('record-btn');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const recordingsList = document.getElementById('recordings-list');
+        const canvas = document.getElementById('visualizer');
+        const ctx = canvas.getContext('2d');
+        const timerDisplay = document.getElementById('timer');
+        const statusLabel = document.getElementById('status-label');
+        const modal = document.getElementById('modal');
+        const filenameInput = document.getElementById('filename-input');
+        const themeToggle = document.getElementById('theme-toggle');
+
+        // Theme Swapping Logic
+        const themes = ['default', 'dark', 'glass'];
+        let currentThemeIndex = 0;
+        
+        themeToggle.onclick = () => {
+            currentThemeIndex = (currentThemeIndex + 1) % themes.length;
+            const newTheme = themes[currentThemeIndex];
+            document.body.setAttribute('data-theme', newTheme);
+        };
+
+        // Setup Canvas size
+        function resize() {
+            canvas.width = canvas.offsetWidth * window.devicePixelRatio;
+            canvas.height = canvas.offsetHeight * window.devicePixelRatio;
+        }
+        window.onresize = resize;
+        resize();
+
+        // Start recording logic
+        async function toggleRecording() {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => audioChunks.push(event.data);
+                    mediaRecorder.onstop = handleStop;
+
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioContext.createMediaStreamSource(stream);
+                    analyzer = audioContext.createAnalyser();
+                    analyzer.fftSize = 256;
+                    source.connect(analyzer);
+                    
+                    const bufferLength = analyzer.frequencyBinCount;
+                    dataArray = new Uint8Array(bufferLength);
+
+                    mediaRecorder.start();
+                    startTime = Date.now();
+                    updateTimer();
+                    timerInterval = setInterval(updateTimer, 1000);
+                    
+                    statusLabel.innerText = "Recording...";
+                    recordBtn.classList.add('recording');
+                    document.getElementById('mic-icon').classList.add('hidden');
+                    document.getElementById('stop-icon').classList.remove('hidden');
+                    
+                    cancelBtn.style.opacity = "1";
+                    cancelBtn.style.pointerEvents = "auto";
+                    
+                    drawVisualizer();
+                } catch (err) {
+                    console.error("Mic access denied", err);
+                }
+            } else {
+                stopRecording();
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                clearInterval(timerInterval);
+                cancelAnimationFrame(animationId);
+                
+                recordBtn.classList.remove('recording');
+                document.getElementById('mic-icon').classList.remove('hidden');
+                document.getElementById('stop-icon').classList.add('hidden');
+                statusLabel.innerText = "Paused";
+                
+                saveBtn.style.opacity = "1";
+                saveBtn.style.pointerEvents = "auto";
+            }
+        }
+
+        function handleStop() {
+            modal.classList.remove('hidden');
+            filenameInput.value = `Memo ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+            filenameInput.focus();
+        }
+
+        function drawVisualizer() {
+            animationId = requestAnimationFrame(drawVisualizer);
+            analyzer.getByteFrequencyData(dataArray);
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const barWidth = (canvas.width / dataArray.length) * 2.5;
+            let barHeight;
+            let x = 0;
+
+            const vizColor = getComputedStyle(document.body).getPropertyValue('--viz-color');
+
+            for(let i = 0; i < dataArray.length; i++) {
+                barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+                ctx.fillStyle = vizColor;
+                
+                const y = (canvas.height - barHeight) / 2;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth - 2, barHeight, 5);
+                ctx.fill();
+
+                x += barWidth + 1;
+            }
+        }
+
+        function updateTimer() {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const m = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const s = (elapsed % 60).toString().padStart(2, '0');
+            timerDisplay.innerText = `${m}:${s}`;
+        }
+
+        function saveRecording() {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            const reader = new FileReader();
+            reader.readAsDataURL(blob);
+            reader.onloadend = () => {
+                const base64data = reader.result;
+                const name = filenameInput.value || 'Untitled Memo';
+                const id = Date.now();
+                
+                const recording = { id, name, data: base64data, date: new Date().toLocaleDateString() };
+                const saved = JSON.parse(localStorage.getItem('speak_recordings') || '[]');
+                saved.unshift(recording);
+                localStorage.setItem('speak_recordings', JSON.stringify(saved));
+                
+                renderList();
+                closeModal();
+                resetUI();
+            };
+        }
+
+        function renderList() {
+            const saved = JSON.parse(localStorage.getItem('speak_recordings') || '[]');
+            const emptyState = document.getElementById('empty-state');
+            if (emptyState) emptyState.classList.toggle('hidden', saved.length > 0);
+            recordingsList.innerHTML = '';
+            
+            saved.forEach(rec => {
+                const item = document.createElement('div');
+                item.className = 'recording-list-item neu-flat flex flex-col gap-2';
+                item.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="font-bold text-sm text-[var(--text)]">${rec.name}</div>
+                            <div class="text-[10px] opacity-50 uppercase font-bold text-[var(--text)]">${rec.date}</div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="playRecording('${rec.id}')" class="w-8 h-8 rounded-full neu-flat flex items-center justify-center text-[var(--accent)]">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                            </button>
+                            <button onclick="deleteRecording('${rec.id}')" class="w-8 h-8 rounded-full neu-flat flex items-center justify-center text-red-400">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <audio id="audio-${rec.id}" src="${rec.data}" class="hidden"></audio>
+                `;
+                recordingsList.appendChild(item);
+            });
+        }
+
+        window.playRecording = (id) => {
+            const audio = document.getElementById(`audio-${id}`);
+            if (audio.paused) {
+                document.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
+                audio.play();
+            } else {
+                audio.pause();
+            }
+        };
+
+        window.deleteRecording = (id) => {
+            let saved = JSON.parse(localStorage.getItem('speak_recordings') || '[]');
+            saved = saved.filter(r => r.id != id);
+            localStorage.setItem('speak_recordings', JSON.stringify(saved));
+            renderList();
+        };
+
+        function resetUI() {
+            timerDisplay.innerText = "00:00";
+            statusLabel.innerText = "Standby";
+            saveBtn.style.opacity = "0.5";
+            saveBtn.style.pointerEvents = "none";
+            cancelBtn.style.opacity = "0.5";
+            cancelBtn.style.pointerEvents = "none";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        recordBtn.onclick = toggleRecording;
+        cancelBtn.onclick = () => {
+            if(confirm("Discard this recording?")) {
+                stopRecording();
+                resetUI();
+                closeModal();
+            }
+        };
+        saveBtn.onclick = () => stopRecording();
+        document.getElementById('modal-save').onclick = saveRecording;
+        document.getElementById('modal-cancel').onclick = closeModal;
+
+        renderList();
+    </script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoffeeSynth.js - Sonic Brewing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #fdfaf6;
+            color: #2d1b0e;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .control-panel {
+            background: #ffffff;
+            border: 2px solid #e7d8c9;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(62, 39, 35, 0.1);
+        }
+        .synth-btn {
+            transition: all 0.2s;
+            background: #6f4e37;
+        }
+        .synth-btn:hover {
+            background: #5d4037;
+            transform: translateY(-2px);
+        }
+        .synth-btn:active {
+            transform: translateY(0);
+        }
+        .visualizer {
+            background: #1b130c;
+            border-radius: 0.5rem;
+            height: 120px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-12">
+
+    <div class="max-w-3xl mx-auto">
+        <header class="text-center mb-10">
+            <h1 class="text-5xl font-black text-stone-800 mb-2">🔊 CoffeeSynth<span class="text-amber-700">.js</span></h1>
+            <p class="text-stone-500 text-lg font-medium">Synthesizing smooth audio tones with a caffeine kick.</p>
+        </header>
+
+        <!-- Tooltip for Audio Context -->
+        <div id="unlockOverlay" class="mb-6 p-4 bg-amber-100 border border-amber-200 rounded-lg text-amber-800 text-sm text-center">
+            Click any button below to "heat up the machine" (start AudioContext).
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <!-- Synth Controls -->
+            <div class="control-panel p-6">
+                <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+                    <span class="text-2xl">☕</span> The Espresso Bar
+                </h2>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Oscillator Type (Bean)</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="playNote('sine')" class="synth-btn text-white py-2 rounded-md font-bold">Sine (Mild)</button>
+                            <button onclick="playNote('square')" class="synth-btn text-white py-2 rounded-md font-bold">Square (Bold)</button>
+                            <button onclick="playNote('sawtooth')" class="synth-btn text-white py-2 rounded-md font-bold">Saw (Sharp)</button>
+                            <button onclick="playNote('triangle')" class="synth-btn text-white py-2 rounded-md font-bold">Tri (Balanced)</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-stone-400 mb-2">Master Volume (Steam)</label>
+                        <input type="range" id="volume" min="0" max="1" step="0.1" value="0.5" class="w-full h-2 bg-stone-200 rounded-lg appearance-none cursor-pointer accent-amber-800">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Library Usage Code -->
+            <div class="bg-stone-900 text-stone-300 p-6 rounded-xl font-mono text-xs overflow-auto shadow-inner">
+                <div class="flex justify-between mb-4 border-b border-stone-700 pb-2">
+                    <span class="text-amber-500">example_usage.js</span>
+                    <span class="text-stone-600">v1.0.0</span>
+                </div>
+                <pre><code>// 1. Create a synth
+const brew = new coffee.Synth('sawtooth');
+
+// 2. Heat up (Start)
+brew.play(440); // Play A4
+
+// 3. Cool down (Stop)
+brew.stop(0.5); // Fade out in 0.5s</code></pre>
+            </div>
+        </div>
+
+        <!-- Waveform Visualizer -->
+        <div class="mt-8 p-4 control-panel">
+            <h3 class="text-xs font-bold uppercase text-stone-400 mb-2">Oscilloscope (Vibration)</h3>
+            <canvas id="viz" class="visualizer"></canvas>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * CoffeeSynth.js Library Logic
+         */
+        const coffee = (() => {
+            let audioCtx = null;
+            let masterGain = null;
+            let analyzer = null;
+
+            const init = () => {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    masterGain = audioCtx.createGain();
+                    analyzer = audioCtx.createAnalyser();
+                    
+                    masterGain.connect(analyzer);
+                    analyzer.connect(audioCtx.destination);
+                    
+                    document.getElementById('unlockOverlay').classList.add('hidden');
+                    startVisualizer();
+                }
+            };
+
+            class Synth {
+                constructor(type = 'sine') {
+                    init();
+                    this.type = type;
+                    this.osc = null;
+                    this.gainNode = null;
+                }
+
+                /**
+                 * Play a frequency.
+                 * @param {number} freq - Frequency in Hz
+                 */
+                play(freq = 440) {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                    // Create Nodes
+                    this.osc = audioCtx.createOscillator();
+                    this.gainNode = audioCtx.createGain();
+
+                    // Configure
+                    this.osc.type = this.type;
+                    this.osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+
+                    // Envelope (The "Bloom")
+                    const vol = document.getElementById('volume').value;
+                    this.gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+                    this.gainNode.gain.linearRampToValueAtTime(vol, audioCtx.currentTime + 0.05);
+
+                    // Connect
+                    this.osc.connect(this.gainNode);
+                    this.gainNode.connect(masterGain);
+
+                    this.osc.start();
+                }
+
+                /**
+                 * Stops the sound with a fade
+                 * @param {number} time - Fade out duration
+                 */
+                stop(time = 0.1) {
+                    if (!this.gainNode) return;
+                    
+                    const releaseTime = audioCtx.currentTime + time;
+                    this.gainNode.gain.exponentialRampToValueAtTime(0.0001, releaseTime);
+                    this.osc.stop(releaseTime);
+                }
+            }
+
+            // Visualizer Logic
+            function startVisualizer() {
+                const canvas = document.getElementById('viz');
+                const ctx = canvas.getContext('2d');
+                analyzer.fftSize = 2048;
+                const bufferLength = analyzer.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                function draw() {
+                    requestAnimationFrame(draw);
+                    analyzer.getByteTimeDomainData(dataArray);
+
+                    ctx.fillStyle = '#1b130c';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#d4a373';
+                    ctx.beginPath();
+
+                    const sliceWidth = canvas.width / bufferLength;
+                    let x = 0;
+
+                    for (let i = 0; i < bufferLength; i++) {
+                        const v = dataArray[i] / 128.0;
+                        const y = v * canvas.height / 2;
+
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+
+                        x += sliceWidth;
+                    }
+
+                    ctx.lineTo(canvas.width, canvas.height / 2);
+                    ctx.stroke();
+                }
+                draw();
+            }
+
+            return { Synth };
+        })();
+
+        // UI Logic for the Espresso Bar
+        let currentSynth = null;
+
+        function playNote(type) {
+            // If something is playing, stop it
+            if (currentSynth) currentSynth.stop(0.1);
+
+            // Create and play new "Brew"
+            currentSynth = new coffee.Synth(type);
+            
+            // Play a random "warm" frequency
+            const notes = [261.63, 329.63, 392.00, 523.25]; // C Major Chord
+            const freq = notes[Math.floor(Math.random() * notes.length)];
+            
+            currentSynth.play(freq);
+
+            // Auto-stop after 1 second for demo
+            setTimeout(() => {
+                currentSynth.stop(0.5);
+            }, 800);
+        }
+    </script>
+</body>
+</html>

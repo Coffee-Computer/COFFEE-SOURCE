@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COFFEE-FRAME demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="coffee-frame.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 16px; background: #1a1a1c; color: #eee; }
+    #box { height: 200px; background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; }
+    pre { background: #0d0d0f; padding: 12px; border-radius: 6px; font-size: 13px; }
+    button { margin-top: 8px; padding: 8px 14px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>coffee.frame</h1>
+  <p>Echo guest in iframe; RPC from parent.</p>
+  <div id="box"></div>
+  <button type="button" id="btn">Call echo(&quot;hello&quot;)</button>
+  <pre id="out">…</pre>
+  <script>
+    var guestUrl = new URL('./guest/echo.html', window.location.href).href;
+    var rpc = coffee.frame.mount(document.getElementById('box'), guestUrl, { title: 'Echo guest' });
+    var out = document.getElementById('out');
+    rpc.ready.then(function () {
+      out.textContent = 'ready — guest loaded';
+    }).catch(function (e) {
+      out.textContent = 'ready failed: ' + e.message;
+    });
+    document.getElementById('btn').onclick = function () {
+      rpc.request('echo', ['hello']).then(function (r) {
+        out.textContent = 'echo → ' + JSON.stringify(r);
+        return rpc.request('add', [40, 2]);
+      }).then(function (n) {
+        out.textContent += '\nadd(40,2) → ' + n;
+      }).catch(function (e) {
+        out.textContent = 'error: ' + e.message;
+      });
+    };
+  </script>
+</body>
+</html>

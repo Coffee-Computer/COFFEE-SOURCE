@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xweb - HTML Compositor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --accent: #3b82f6;
+            --border: #333;
+            --track-bg: #252525;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #efefef;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Section: Preview & Properties */
+        .top-section {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            height: 60%;
+            gap: 4px;
+            padding: 4px;
+        }
+
+        /* Preview Stage */
+        #stage {
+            background-color: #000;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+        }
+
+        .composition-area {
+            width: 1280px;
+            height: 720px;
+            background: #111;
+            position: relative;
+            transform-origin: center;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        .iframe-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            pointer-events: auto; /* Changed to allow interaction with internal scripts */
+        }
+
+        .layer-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px transparent;
+            cursor: move;
+        }
+
+        .layer-container.selected {
+            border: 2px solid var(--accent);
+            z-index: 999;
+        }
+
+        /* UI Panels */
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Bottom Section: Timeline Tracks */
+        .bottom-section {
+            height: 40%;
+            padding: 0 4px 4px 4px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .timeline-header {
+            height: 32px;
+            background: #2a2a2a;
+            border: 1px solid var(--border);
+            border-bottom: none;
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #888;
+        }
+
+        .tracks-container {
+            flex-grow: 1;
+            background: #151515;
+            border: 1px solid var(--border);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column-reverse; 
+        }
+
+        .track {
+            height: 48px;
+            border-bottom: 1px solid #222;
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            align-items: center;
+        }
+
+        .track-label {
+            background: #2a2a2a;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            border-right: 1px solid var(--border);
+            color: #aaa;
+        }
+
+        .track-content {
+            padding: 4px 10px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .clip {
+            background: #3b82f6;
+            height: 32px;
+            border-radius: 4px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .clip.selected {
+            background: #60a5fa;
+            outline: 2px solid white;
+            z-index: 10;
+        }
+
+        .clip::after {
+            content: "";
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 4px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .prop-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: #888;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        .input-dark {
+            background: #111;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 4px 8px;
+            width: 100%;
+            font-size: 12px;
+        }
+
+        /* Modal Plugin System */
+        #plugin-modal {
+            position: fixed;
+            bottom: -100%;
+            left: 0;
+            width: 100%;
+            height: 70%;
+            background: #1a1a1a;
+            border-top: 2px solid var(--accent);
+            z-index: 2000;
+            transition: bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 -20px 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #plugin-modal.active {
+            bottom: 0;
+        }
+
+        .plugin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 24px;
+            overflow-y: auto;
+        }
+
+        .plugin-card {
+            background: #252525;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .plugin-card:hover {
+            border-color: var(--accent);
+            background: #2a2a2a;
+            transform: translateY(-4px);
+        }
+
+        .plugin-icon {
+            height: 100px;
+            background: #111;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="h-10 px-4 flex items-center justify-between border-b border-[#333] bg-[#1a1a1a]">
+        <div class="flex items-center gap-2">
+            <div class="w-6 h-6 bg-blue-500 rounded flex items-center justify-center font-bold text-xs italic text-white">X</div>
+            <span class="font-bold text-sm tracking-tight text-white">xweb</span>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="togglePluginModal()" class="text-xs font-bold bg-blue-600 px-3 py-1 rounded hover:bg-blue-500 transition text-white">+ NEW TRACK</button>
+        </div>
+    </header>
+
+    <!-- Plugin Library Modal -->
+    <div id="plugin-modal">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-[#333]">
+            <h2 class="font-bold text-lg text-blue-400">Library / Plugins</h2>
+            <button onclick="togglePluginModal()" class="text-gray-500 hover:text-white">
+                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="plugin-grid" id="plugin-list">
+            <!-- Plugin Cards Generated by JS -->
+        </div>
+    </div>
+
+    <!-- Main Layout -->
+    <div class="top-section">
+        <!-- Viewport -->
+        <main id="stage">
+            <div id="composition" class="composition-area">
+                <!-- Layer Containers -->
+            </div>
+        </main>
+
+        <!-- Properties -->
+        <aside class="panel p-4 overflow-y-auto">
+            <h2 class="text-xs font-bold mb-4 flex items-center gap-2 text-blue-400">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+                INSPECTOR
+            </h2>
+
+            <div id="no-selection" class="text-center py-20 text-gray-500 text-xs italic">
+                Select a clip on the timeline to edit
+            </div>
+
+            <div id="prop-controls" class="hidden space-y-4">
+                <div class="border-b border-[#333] pb-4 mb-4">
+                    <label class="prop-label">Source URL</label>
+                    <input type="text" id="prop-src" class="input-dark" placeholder="https://...">
+                </div>
+
+                <!-- Dynamic Component Attributes Section -->
+                <div id="dynamic-props" class="space-y-4 border-b border-[#333] pb-4 hidden">
+                    <h3 class="text-[10px] text-blue-500 font-bold tracking-widest">COMPONENT SCHEMA</h3>
+                    <div id="dynamic-inputs-container" class="space-y-4"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="prop-label">Scale</label>
+                        <input type="number" id="prop-scale" step="0.1" class="input-dark">
+                    </div>
+                    <div>
+                        <label class="prop-label">Rotation</label>
+                        <input type="number" id="prop-rotate" class="input-dark">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="prop-label">Pos X</label>
+                        <input type="number" id="prop-x" class="input-dark">
+                    </div>
+                    <div>
+                        <label class="prop-label">Pos Y</label>
+                        <input type="number" id="prop-y" class="input-dark">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="prop-label">Opacity</label>
+                    <input type="range" id="prop-opacity" min="0" max="1" step="0.01" class="w-full">
+                </div>
+
+                <div>
+                    <label class="prop-label">Blend Mode</label>
+                    <select id="prop-blend" class="input-dark">
+                        <option value="normal">Normal</option>
+                        <option value="screen">Screen</option>
+                        <option value="multiply">Multiply</option>
+                        <option value="overlay">Overlay</option>
+                        <option value="difference">Difference</option>
+                    </select>
+                </div>
+
+                <div class="pt-4">
+                    <button id="btn-delete" class="w-full bg-red-900/20 text-red-400 text-[10px] font-bold py-2 rounded border border-red-900/30 hover:bg-red-900/40">DELETE CLIP</button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Timeline Tracks -->
+    <div class="bottom-section">
+        <div class="timeline-header">
+            TIMELINE (VIDEO TRACKS)
+        </div>
+        <div id="tracks-container" class="tracks-container">
+            <!-- Dynamic Tracks -->
+        </div>
+    </div>
+
+    <script>
+        const composition = document.getElementById('composition');
+        const tracksContainer = document.getElementById('tracks-container');
+        const propControls = document.getElementById('prop-controls');
+        const noSelection = document.getElementById('no-selection');
+        const pluginModal = document.getElementById('plugin-modal');
+        const pluginList = document.getElementById('plugin-list');
+        const dynamicPropsPanel = document.getElementById('dynamic-props');
+        const dynamicInputsContainer = document.getElementById('dynamic-inputs-container');
+
+        let layers = [];
+        let selectedLayerId = null;
+
+        // Example Internal Plugin with data-schema string for parsing demo
+        const SMART_COMPONENT_HTML = `
+            data:text/html;charset=utf-8,
+            <body style="margin:0; background:transparent; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif;">
+                <div id="box" style="padding:20px; border-radius:10px; background:gold; color:black; font-weight:bold;">
+                    Hello Component
+                </div>
+                <script id="schema-script" data-schema='{"bgColor":"color","text":"string","fontSize":"number"}'>
+                    window.addEventListener('message', (e) => {
+                        const { type, key, value } = e.data;
+                        if(type === 'update-prop') {
+                            const el = document.getElementById('box');
+                            if(key === 'bgColor') el.style.background = value;
+                            if(key === 'text') el.innerText = value;
+                            if(key === 'fontSize') el.style.fontSize = value + 'px';
+                        }
+                    });
+                <\/script>
+            </body>
+        `.trim();
+
+        const PLUGINS = [
+            { id: 'smart', name: 'Smart Component', icon: '✨', url: SMART_COMPONENT_HTML, desc: 'Auto-parses attributes into Inspector' },
+            { id: 'empty', name: 'Empty Canvas', icon: '📄', url: 'about:blank', desc: 'A clean slate for external URLs' },
+            { id: 'wikipedia', name: 'Wikipedia Art', icon: '🏛️', url: 'https://en.wikipedia.org/wiki/Main_Page', desc: 'Live knowledge base reference' },
+            { id: 'game', name: '2D Platformer', icon: '🎮', url: 'https://itch.io/embed-upload/2785642?color=333333', desc: 'Simple web-based gaming layer' },
+            { id: 'sketch', name: 'Drawing Board', icon: '✏️', url: 'https://excalidraw.com', desc: 'Collaborative sketching plugin' }
+        ];
+
+        function togglePluginModal() {
+            pluginModal.classList.toggle('active');
+        }
+
+        function initPlugins() {
+            PLUGINS.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'plugin-card';
+                card.innerHTML = `
+                    <div class="plugin-icon">${p.icon}</div>
+                    <div>
+                        <div class="font-bold text-sm">${p.name}</div>
+                        <div class="text-[10px] text-gray-500">${p.desc}</div>
+                    </div>
+                `;
+                card.onclick = () => {
+                    addLayer(p.url, p.name);
+                    togglePluginModal();
+                };
+                pluginList.appendChild(card);
+            });
+        }
+
+        function fitStage() {
+            const stage = document.getElementById('stage');
+            const comp = document.getElementById('composition');
+            const padding = 20;
+            const availableW = stage.clientWidth - padding;
+            const availableH = stage.clientHeight - padding;
+            const scale = Math.min(availableW / 1280, availableH / 720);
+            comp.style.transform = `scale(${scale})`;
+        }
+        window.onresize = fitStage;
+        setTimeout(fitStage, 100);
+
+        function addLayer(url = 'about:blank', name = null) {
+            const id = 'layer-' + Date.now();
+            const trackNum = layers.length + 1;
+            const newLayer = {
+                id: id,
+                name: name || `Clip ${trackNum}`,
+                src: url,
+                x: 0,
+                y: 0,
+                scale: 1,
+                rotate: 0,
+                opacity: 1,
+                blend: 'normal',
+                customProps: {} // Stores data-schema attributes
+            };
+            
+            layers.push(newLayer);
+            renderWorkspace();
+            selectLayer(id);
+        }
+
+        // Logic to parse the schema from the URL/Source string
+        function parseSchema(layer) {
+            dynamicInputsContainer.innerHTML = '';
+            dynamicPropsPanel.classList.add('hidden');
+
+            try {
+                // Look for data-schema in data URLs or source strings
+                const schemaMatch = layer.src.match(/data-schema='({.*?})'/);
+                if (schemaMatch && schemaMatch[1]) {
+                    const schema = JSON.parse(schemaMatch[1]);
+                    dynamicPropsPanel.classList.remove('hidden');
+
+                    Object.keys(schema).forEach(key => {
+                        const type = schema[key];
+                        const wrapper = document.createElement('div');
+                        
+                        wrapper.innerHTML = `
+                            <label class="prop-label">${key}</label>
+                            <input type="${type === 'string' ? 'text' : type}" 
+                                   class="input-dark" 
+                                   value="${layer.customProps[key] || ''}" 
+                                   id="dynamic-${key}">
+                        `;
+                        
+                        const input = wrapper.querySelector('input');
+                        input.oninput = () => {
+                            layer.customProps[key] = input.value;
+                            // Send message to iframe if possible
+                            const iframe = document.querySelector(`#container-${layer.id} iframe`);
+                            if (iframe && iframe.contentWindow) {
+                                iframe.contentWindow.postMessage({
+                                    type: 'update-prop',
+                                    key: key,
+                                    value: input.value
+                                }, '*');
+                            }
+                        };
+                        dynamicInputsContainer.appendChild(wrapper);
+                    });
+                }
+            } catch (e) {
+                console.warn("Could not parse component schema", e);
+            }
+        }
+
+        function renderWorkspace() {
+            composition.innerHTML = '';
+            layers.forEach(layer => {
+                const container = document.createElement('div');
+                container.id = 'container-' + layer.id;
+                container.className = `layer-container ${layer.id === selectedLayerId ? 'selected' : ''}`;
+                
+                container.style.transform = `translate(${layer.x}px, ${layer.y}px) scale(${layer.scale}) rotate(${layer.rotate}deg)`;
+                container.style.opacity = layer.opacity;
+                container.style.mixBlendMode = layer.blend;
+
+                const iframe = document.createElement('iframe');
+                iframe.className = 'iframe-layer';
+                iframe.src = layer.src;
+                
+                container.appendChild(iframe);
+                container.onclick = (e) => {
+                    e.stopPropagation();
+                    selectLayer(layer.id);
+                };
+                composition.appendChild(container);
+            });
+
+            tracksContainer.innerHTML = '';
+            layers.forEach((layer, index) => {
+                const track = document.createElement('div');
+                track.className = "track";
+                
+                const label = document.createElement('div');
+                label.className = "track-label";
+                label.innerText = `V${index + 1}`;
+                
+                const content = document.createElement('div');
+                content.className = "track-content";
+                
+                const clip = document.createElement('div');
+                clip.className = `clip ${layer.id === selectedLayerId ? 'selected' : ''}`;
+                clip.innerText = layer.name;
+                clip.onclick = () => selectLayer(layer.id);
+                
+                content.appendChild(clip);
+                track.appendChild(label);
+                track.appendChild(content);
+                tracksContainer.appendChild(track);
+            });
+        }
+
+        function selectLayer(id) {
+            selectedLayerId = id;
+            const layer = layers.find(l => l.id === id);
+            
+            if (layer) {
+                noSelection.classList.add('hidden');
+                propControls.classList.remove('hidden');
+
+                document.getElementById('prop-src').value = layer.src;
+                document.getElementById('prop-x').value = layer.x;
+                document.getElementById('prop-y').value = layer.y;
+                document.getElementById('prop-scale').value = layer.scale;
+                document.getElementById('prop-rotate').value = layer.rotate;
+                document.getElementById('prop-opacity').value = layer.opacity;
+                document.getElementById('prop-blend').value = layer.blend;
+
+                // Handle dynamic schema parsing
+                parseSchema(layer);
+            }
+
+            renderWorkspace();
+        }
+
+        ['src', 'x', 'y', 'scale', 'rotate', 'opacity', 'blend'].forEach(key => {
+            const el = document.getElementById('prop-' + key);
+            el.oninput = () => {
+                if (!selectedLayerId) return;
+                const layer = layers.find(l => l.id === selectedLayerId);
+                let val = el.value;
+                
+                if (key === 'src') {
+                    layer.src = val;
+                    layer.name = val.startsWith('data:') ? "Smart Component" : (val.split('/').pop() || "Source");
+                    parseSchema(layer); // Re-parse if source changes
+                } else if (['x', 'y', 'scale', 'rotate', 'opacity'].includes(key)) {
+                    layer[key] = parseFloat(val) || 0;
+                } else {
+                    layer[key] = val;
+                }
+                
+                updateVisuals(layer);
+            };
+        });
+
+        function updateVisuals(layer) {
+            const container = document.getElementById('container-' + layer.id);
+            if (container) {
+                container.style.transform = `translate(${layer.x}px, ${layer.y}px) scale(${layer.scale}) rotate(${layer.rotate}deg)`;
+                container.style.opacity = layer.opacity;
+                container.style.mixBlendMode = layer.blend;
+                
+                const iframe = container.querySelector('iframe');
+                if (iframe.src !== layer.src) iframe.src = layer.src;
+            }
+            
+            const clips = document.querySelectorAll('.clip');
+            layers.forEach((l, i) => {
+                if (l.id === layer.id) clips[i].innerText = l.name;
+            });
+        }
+
+        document.getElementById('btn-delete').onclick = () => {
+            layers = layers.filter(l => l.id !== selectedLayerId);
+            selectedLayerId = null;
+            noSelection.classList.remove('hidden');
+            propControls.classList.add('hidden');
+            renderWorkspace();
+        };
+
+        composition.onclick = () => {
+            selectedLayerId = null;
+            noSelection.classList.remove('hidden');
+            propControls.classList.add('hidden');
+            renderWorkspace();
+        };
+
+        window.onload = () => {
+            fitStage();
+            initPlugins();
+            addLayer('about:blank', 'Base Track');
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en" class="coffee-flagship-root">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Helix">
+  <meta name="cce:id" content="helix-alpha">
+  <meta name="cce:icon" content="🧬">
+  <meta name="cce:color" content="#22d3ee">
+  <meta name="cce:description" content="Helix — Coffee CE build engine. Threads via coffee.bee (helix-build).">
+  <title>Helix α // Coffee OS CE</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <link rel="stylesheet" href="../../../COFFEE-UI/coffee-ui-flagship.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="HELIX-ALPHA.css">
+  <script src="../../../COFFEE-UI/coffee-ui-flagship.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../../COFFEE-AI/coffee-ai.js"></script>
+  <script src="../../../COFFEE-CONTEXT/coffee-context.js"></script>
+  <script src="../../../COFFEE-BEE/coffee-bee.js"></script>
+  <script src="./helix-instructions.js"></script>
+  <script src="./helix-build.js"></script>
+  <script src="../../tools/cce-validate.js"></script>
+</head>
+<body>
+  <div id="helix-root" class="ff-app-shell helix-drawer-open">
+    <div class="helix-drawer-backdrop" id="helix-drawer-backdrop" aria-hidden="true"></div>
+    <aside class="ff-sidebar" id="helix-sidebar" aria-label="Build threads">
+      <div class="ff-sidebar-head">
+        <div class="helix-sidebar-head-brand">
+          <div class="ff-logo-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2.2" stroke-linecap="round">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+              <circle cx="12" cy="12" r="3" fill="black" stroke="none"/>
+            </svg>
+          </div>
+          <span class="ff-brand-title">Helix</span>
+        </div>
+        <button type="button" class="helix-drawer-close" id="helix-drawer-close" aria-label="Close threads panel">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </div>
+
+      <div class="ff-sidebar-action-wrap">
+        <button type="button" class="ff-btn-soft" id="helix-new-build">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          New build
+        </button>
+      </div>
+
+      <div class="ff-history-scroll">
+        <div class="ff-rail-label">Build threads</div>
+        <div id="helix-thread-list"></div>
+      </div>
+
+      <div class="ff-sidebar-tools">
+        <label for="helix-provider">Model</label>
+        <select id="helix-provider" class="ff-select" aria-label="AI provider"></select>
+        <select id="helix-model" class="ff-select" aria-label="Model"></select>
+      </div>
+
+      <div class="ff-sidebar-foot">
+        <div class="ff-sidebar-foot-row">
+          <div class="ff-foot-avatar">HX</div>
+          <div class="ff-foot-meta">
+            <div class="ff-foot-title">Coffee OS CE</div>
+            <div class="ff-foot-sub">coffee.bee · helix-build</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="ff-main">
+      <header class="ff-top-bar">
+        <div class="ff-top-bar-left">
+          <button type="button" class="ff-icon-btn helix-menu-btn" id="helix-menu-btn" aria-label="Open build threads" aria-expanded="true" aria-controls="helix-sidebar">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+          </button>
+          <div class="ff-status-dot" aria-hidden="true"></div>
+          <span class="ff-status-label" id="helix-status-label">Build_Channel_Open</span>
+          <div class="helix-mode-group" role="group" aria-label="Mode">
+            <button type="button" class="helix-mode-btn helix-mode-active" id="helix-mode-build" aria-pressed="true">Build</button>
+            <button type="button" class="helix-mode-btn" id="helix-mode-chat" aria-pressed="false">Chat</button>
+          </div>
+        </div>
+        <div class="ff-top-actions">
+          <button type="button" class="ff-icon-btn" id="helix-btn-export" title="Download last HTML" aria-label="Export HTML">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          </button>
+          <button type="button" class="ff-icon-btn" id="helix-btn-keys" title="API keys" aria-label="API keys">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="helix-body" id="helix-body">
+        <div class="helix-chat-col">
+          <div class="ff-viewport" id="helix-chat-viewport">
+            <div class="ff-welcome" id="helix-welcome">
+              <div class="ff-welcome-icon" aria-hidden="true">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/></svg>
+              </div>
+              <h2 id="helix-welcome-title">What should we fold into structure?</h2>
+              <p class="ff-welcome-sub" id="helix-welcome-sub">Helix turns intent into HTML for Coffee CE. Use a starter or describe a screen; when you need a preview, ask for a full document in one <code style="font-size:0.85em">```html</code> block—or hit <strong>Chat</strong> up top to just talk.</p>
+              <div class="ff-prompt-grid" id="helix-prompt-grid"></div>
+            </div>
+            <div class="ff-thread ff-hidden" id="helix-messages" aria-live="polite"></div>
+          </div>
+
+          <div class="ff-composer-wrap" style="padding-top:8px">
+            <div class="ff-composer-box">
+              <textarea id="helix-user-input" class="ff-composer-field" placeholder="Describe the build, or paste constraints…" rows="1"></textarea>
+              <div class="ff-composer-actions">
+                <div class="ff-composer-tools">
+                  <span style="font-size:11px;color:#71717a;align-self:center">coffee.bee · threads persist</span>
+                </div>
+                <button type="button" class="ff-send-btn" id="helix-send-btn" aria-label="Send">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                </button>
+              </div>
+            </div>
+            <div class="ff-version-tag">Helix // Coffee OS Community Edition // α</div>
+          </div>
+        </div>
+
+        <aside class="helix-preview-pane" id="helix-preview-pane" aria-label="Preview">
+          <div class="helix-browser-toolbar">
+            <div class="helix-browser-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="helix-url-bar" id="helix-url-bar" title="Preview context">helix://build/preview</div>
+          </div>
+          <iframe id="helix-preview" title="Build preview" sandbox="allow-scripts allow-same-origin"></iframe>
+        </aside>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    (function () {
+      const helixRoot = document.getElementById('helix-root');
+      const drawerBackdrop = document.getElementById('helix-drawer-backdrop');
+      const menuBtn = document.getElementById('helix-menu-btn');
+      const drawerCloseBtn = document.getElementById('helix-drawer-close');
+
+      function helixDrawerIsOpen() {
+        return helixRoot && helixRoot.classList.contains('helix-drawer-open');
+      }
+
+      function setHelixDrawerOpen(open) {
+        if (!helixRoot) return;
+        helixRoot.classList.toggle('helix-drawer-open', open);
+        if (menuBtn) {
+          menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          menuBtn.setAttribute('aria-label', open ? 'Close build threads' : 'Open build threads');
+        }
+        if (drawerBackdrop) drawerBackdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+      }
+
+      function toggleHelixDrawer() {
+        setHelixDrawerOpen(!helixDrawerIsOpen());
+      }
+
+      if (helixRoot && window.matchMedia('(max-width: 900px)').matches) {
+        helixRoot.classList.remove('helix-drawer-open');
+      }
+      if (helixRoot) setHelixDrawerOpen(helixRoot.classList.contains('helix-drawer-open'));
+
+      function closeDrawerFromUi() {
+        setHelixDrawerOpen(false);
+      }
+
+      /* Capture phase: runs before bubbling handlers that might swallow clicks (Chrome). */
+      if (menuBtn) menuBtn.addEventListener('click', toggleHelixDrawer, true);
+      if (drawerCloseBtn) drawerCloseBtn.addEventListener('click', closeDrawerFromUi, true);
+      if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDrawerFromUi, true);
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && helixDrawerIsOpen()) setHelixDrawerOpen(false);
+      });
+
+      try {
+        helixBuild.getBee();
+      } catch (err) {
+        console.warn('[Helix]', err && err.message ? err.message : err);
+      }
+
+      const ff = coffee.flagship;
+      if (ff && ff.applyTokens) {
+        ff.applyTokens({
+          accent: '#22d3ee',
+          accentMuted: 'rgba(34, 211, 238, 0.12)'
+        });
+      }
+
+      const welcomeScreen = document.getElementById('helix-welcome');
+      const messageContainer = document.getElementById('helix-messages');
+      const chatViewport = document.getElementById('helix-chat-viewport');
+      const userInput = document.getElementById('helix-user-input');
+      const sendBtn = document.getElementById('helix-send-btn');
+      const threadListMount = document.getElementById('helix-thread-list');
+      const providerSelect = document.getElementById('helix-provider');
+      const modelSelect = document.getElementById('helix-model');
+      const promptGrid = document.getElementById('helix-prompt-grid');
+      const previewFrame = document.getElementById('helix-preview');
+      const previewPane = document.getElementById('helix-preview-pane');
+      const helixBody = document.getElementById('helix-body');
+      const urlBar = document.getElementById('helix-url-bar');
+      const welcomeTitle = document.getElementById('helix-welcome-title');
+      const welcomeSub = document.getElementById('helix-welcome-sub');
+      const statusLabel = document.getElementById('helix-status-label');
+      const modeBuildBtn = document.getElementById('helix-mode-build');
+      const modeChatBtn = document.getElementById('helix-mode-chat');
+
+      let currentThreadId = null;
+      let lastExtractedHtml = '';
+      /** @type {'build'|'chat'} */
+      let helixMode = 'build';
+
+      const PREVIEW_IDLE =
+        '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;color:#333">' +
+        '<div style="text-align:center">' +
+        '<h1 style="margin:0 0 8px;font-size:1.35rem;letter-spacing:0.12em;font-weight:600;color:#444">WAITING FOR DATA</h1>' +
+        '<p style="margin:0;font-size:0.8rem;color:#555">Drop a ```html block in the thread to fold it into the preview.</p>' +
+        '</div></body></html>';
+
+      function updateUrlBar() {
+        if (!urlBar || helixMode === 'chat') return;
+        if (currentThreadId) {
+          const raw = String(currentThreadId);
+          const tail = raw.length > 12 ? raw.slice(-10) : raw;
+          urlBar.textContent = 'helix://build/' + tail.replace(/[^a-zA-Z0-9_-]/g, '-');
+        } else {
+          urlBar.textContent = 'helix://build/preview';
+        }
+      }
+
+      function setMode(mode) {
+        helixMode = mode === 'chat' ? 'chat' : 'build';
+        if (helixBody) helixBody.classList.toggle('helix-body--chat-only', helixMode === 'chat');
+        modeBuildBtn.classList.toggle('helix-mode-active', helixMode === 'build');
+        modeChatBtn.classList.toggle('helix-mode-active', helixMode === 'chat');
+        modeBuildBtn.setAttribute('aria-pressed', helixMode === 'build' ? 'true' : 'false');
+        modeChatBtn.setAttribute('aria-pressed', helixMode === 'chat' ? 'true' : 'false');
+        if (helixMode === 'chat') {
+          previewPane.classList.add('ff-hidden');
+          statusLabel.textContent = 'Comm_Bench_Open';
+          welcomeTitle.textContent = 'What are we unpacking?';
+          welcomeSub.innerHTML =
+            'Chat mode — no mandatory builds. Same Helix: industrial, helpful, wit allowed. Flip <strong>Build</strong> when you want <code style="font-size:0.85em">```html</code> + live preview.';
+          userInput.placeholder = 'Say what’s on your mind…';
+        } else {
+          previewPane.classList.remove('ff-hidden');
+          statusLabel.textContent = 'Build_Channel_Open';
+          welcomeTitle.textContent = 'What should we fold into structure?';
+          welcomeSub.innerHTML =
+            'Helix turns intent into HTML for Coffee CE. Use a starter or describe a screen; full page in one <code style="font-size:0.85em">```html</code> block—or hit <strong>Chat</strong> to just talk.';
+          userInput.placeholder = 'Describe the build, or paste constraints…';
+        }
+        fillPromptCards();
+        updateUrlBar();
+      }
+
+      function extractPreviewHtml(raw) {
+        const s = String(raw || '');
+        const fence = s.match(/```(?:html)?\s*([\s\S]*?)```/i);
+        if (fence) return fence[1].trim();
+        const i = s.search(/<!DOCTYPE/i);
+        if (i >= 0) return s.slice(i).trim();
+        const j = s.search(/<html[\s>]/i);
+        if (j >= 0) return s.slice(j).trim();
+        return '';
+      }
+
+      function syncPreview(messages) {
+        const rev = [...(messages || [])].reverse();
+        const lastAsst = rev.find(m => m.role === 'assistant');
+        lastExtractedHtml = extractPreviewHtml(lastAsst && lastAsst.content);
+        if (helixMode === 'chat') return;
+        previewFrame.srcdoc = lastExtractedHtml || PREVIEW_IDLE;
+        updateUrlBar();
+      }
+
+      function autoGrow(el) {
+        el.style.height = '24px';
+        el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+      }
+
+      function showWelcome() {
+        welcomeScreen.classList.remove('ff-hidden');
+        messageContainer.classList.add('ff-hidden');
+        if (helixMode === 'build') {
+          previewFrame.srcdoc = PREVIEW_IDLE;
+          updateUrlBar();
+        }
+      }
+
+      function hideWelcome() {
+        welcomeScreen.classList.add('ff-hidden');
+        messageContainer.classList.remove('ff-hidden');
+      }
+
+      function fillProviderModel() {
+        const providers = coffee.ai.providers || {};
+        providerSelect.innerHTML = '';
+        ['github', 'openai', 'gemini', 'ollama'].forEach(key => {
+          if (!providers[key]) return;
+          const opt = document.createElement('option');
+          opt.value = key;
+          opt.textContent = key.charAt(0).toUpperCase() + key.slice(1);
+          providerSelect.appendChild(opt);
+        });
+        providerSelect.value = 'github';
+        providerSelect.onchange = () => {
+          const p = providers[providerSelect.value];
+          modelSelect.innerHTML = '';
+          (p?.models || []).forEach(m => {
+            const o = document.createElement('option');
+            o.value = m;
+            o.textContent = m;
+            modelSelect.appendChild(o);
+          });
+          if (modelSelect.options.length) modelSelect.value = modelSelect.options[0].value;
+        };
+        providerSelect.onchange();
+      }
+
+      function fillPromptCards() {
+        promptGrid.innerHTML = '';
+        if (!ff || !ff.promptCard) return;
+        helixBuild.getSuggestedPrompts(helixMode).forEach(p => {
+          promptGrid.appendChild(
+            ff.promptCard({
+              title: p.title,
+              blurb: p.blurb || '',
+              onClick: () => {
+                userInput.value = p.prompt;
+                autoGrow(userInput);
+                handleSend();
+              }
+            })
+          );
+        });
+      }
+
+      function renderMessages(messages) {
+        messageContainer.innerHTML = '';
+        if (!ff || !ff.messageRow) return;
+        (messages || []).forEach(m => {
+          const isUser = m.role === 'user';
+          messageContainer.appendChild(
+            ff.messageRow({
+              role: isUser ? 'user' : 'assistant',
+              avatarChar: isUser ? 'U' : 'H',
+              text: isUser ? (m.content || '') : '',
+              html: isUser ? null : ff.formatChatText(m.content || '')
+            })
+          );
+        });
+        chatViewport.scrollTop = chatViewport.scrollHeight;
+        syncPreview(messages);
+      }
+
+      function syncThreadHighlight() {
+        threadListMount.querySelectorAll('.ff-history-item').forEach(el => {
+          el.classList.toggle('ff-history-active', el.dataset.threadId === currentThreadId);
+        });
+      }
+
+      async function refreshThreads() {
+        threadListMount.innerHTML = '';
+        const threads = await helixBuild.listThreads();
+        threads.forEach(t => {
+          const div = document.createElement('div');
+          div.className = 'ff-history-item';
+          div.dataset.threadId = t.id;
+          div.textContent = (t.title || t.id || 'Build').slice(0, 48);
+          div.addEventListener('click', async () => {
+            currentThreadId = t.id;
+            const th = await helixBuild.loadThread(t.id);
+            hideWelcome();
+            renderMessages(th?.messages || []);
+            syncThreadHighlight();
+          });
+          threadListMount.appendChild(div);
+        });
+        syncThreadHighlight();
+      }
+
+      async function newBuild() {
+        currentThreadId = null;
+        messageContainer.innerHTML = '';
+        showWelcome();
+        userInput.value = '';
+        userInput.style.height = '24px';
+        await refreshThreads();
+      }
+
+      async function handleSend() {
+        const text = userInput.value.trim();
+        if (!text) return;
+
+        const prov = providerSelect.value;
+        const mod = modelSelect.value;
+
+        if (!welcomeScreen.classList.contains('ff-hidden')) {
+          hideWelcome();
+        }
+
+        try {
+          if (!currentThreadId) {
+            const thread = await helixBuild.createThread({
+              provider: prov,
+              model: mod,
+              system: helixBuild.getSystem(helixMode)
+            });
+            currentThreadId = thread.id;
+            await refreshThreads();
+            syncThreadHighlight();
+          }
+
+          sendBtn.disabled = true;
+
+          const before = await helixBuild.loadThread(currentThreadId);
+          renderMessages(before?.messages || []);
+
+          if (ff && ff.messageRow) messageContainer.appendChild(ff.messageRow({ role: 'user', avatarChar: 'U', text: text }));
+
+          if (ff && ff.loadingRow) {
+            messageContainer.appendChild(
+              ff.loadingRow({
+                id: 'helix-loading-row',
+                label: helixMode === 'chat' ? 'Thinking…' : 'Synthesizing structure…',
+                avatarChar: 'H'
+              })
+            );
+          }
+          chatViewport.scrollTop = chatViewport.scrollHeight;
+
+          userInput.value = '';
+          userInput.style.height = '24px';
+
+          const { thread } = await helixBuild.send(currentThreadId, text, {
+            provider: prov,
+            model: mod,
+            system: helixBuild.getSystem(helixMode)
+          });
+          const lr = document.getElementById('helix-loading-row');
+          if (lr) lr.remove();
+          renderMessages(thread.messages || []);
+          await refreshThreads();
+          syncThreadHighlight();
+          if (coffee.toast) coffee.toast(helixMode === 'chat' ? 'Sent' : 'Build step complete', 'success');
+        } catch (e) {
+          const err = e && e.message ? e.message : String(e);
+          if (coffee.toast) coffee.toast(err, 'error');
+          try {
+            if (currentThreadId) {
+              const th = await helixBuild.loadThread(currentThreadId);
+              hideWelcome();
+              renderMessages(th?.messages || []);
+            }
+          } catch (_) {}
+          if (ff && ff.messageRow) {
+            const errRow = ff.messageRow({
+              role: 'assistant',
+              avatarChar: 'H',
+              text: 'Helix channel error. Re-engage or check keys. (' + err + ')'
+            });
+            errRow.querySelector('.ff-msg-body').style.color = '#f87171';
+            messageContainer.appendChild(errRow);
+          }
+          chatViewport.scrollTop = chatViewport.scrollHeight;
+        } finally {
+          sendBtn.disabled = false;
+          chatViewport.scrollTop = chatViewport.scrollHeight;
+        }
+      }
+
+      function openApiKeysModal() {
+        const keys = helixBuild.STORAGE_KEYS;
+        const githubInput = coffee.input({ type: 'password', placeholder: 'GitHub (ghp_xxx)', value: helixBuild.getApiKey('github'), style: { width: '100%', marginBottom: '8px' } });
+        const openaiInput = coffee.input({ type: 'password', placeholder: 'OpenAI (sk-xxx)', value: helixBuild.getApiKey('openai'), style: { width: '100%', marginBottom: '8px' } });
+        const geminiInput = coffee.input({ type: 'password', placeholder: 'Gemini key', value: helixBuild.getApiKey('gemini'), style: { width: '100%', marginBottom: '12px' } });
+        const content = coffee.card([
+          coffee.para('Stored with coffee.save (local).', { style: { color: '#71717a', marginBottom: '12px' } }),
+          githubInput, openaiInput, geminiInput,
+          coffee.row([
+            coffee.button('Save', () => {
+              coffee.save(keys.github, githubInput.value);
+              coffee.save(keys.openai, openaiInput.value);
+              coffee.save(keys.gemini, geminiInput.value);
+              if (coffee.toast) coffee.toast('Keys saved', 'success');
+              modalRef.close();
+            }),
+            coffee.button('Clear', () => {
+              coffee.remove(keys.github);
+              coffee.remove(keys.openai);
+              coffee.remove(keys.gemini);
+              githubInput.value = '';
+              openaiInput.value = '';
+              geminiInput.value = '';
+              if (coffee.toast) coffee.toast('Cleared', 'info');
+            }, { backgroundColor: '#27272a' })
+          ], { style: { gap: '8px' } })
+        ], { style: { width: '100%' } });
+        const modalRef = coffee.modal(content, { title: 'API keys', closeOnOverlay: true });
+      }
+
+      function exportHtml() {
+        if (!lastExtractedHtml) {
+          if (coffee.toast) coffee.toast('No ```html block to export yet', 'info');
+          return;
+        }
+        const blob = new Blob([lastExtractedHtml], { type: 'text/html;charset=utf-8' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'helix-build.html';
+        a.click();
+        URL.revokeObjectURL(a.href);
+        if (coffee.toast) coffee.toast('Downloaded helix-build.html', 'success');
+      }
+
+      document.getElementById('helix-new-build').addEventListener('click', newBuild);
+      document.getElementById('helix-btn-keys').addEventListener('click', openApiKeysModal);
+      document.getElementById('helix-btn-export').addEventListener('click', exportHtml);
+      modeBuildBtn.addEventListener('click', () => setMode('build'));
+      modeChatBtn.addEventListener('click', () => setMode('chat'));
+
+      sendBtn.addEventListener('click', () => handleSend());
+      userInput.addEventListener('input', () => autoGrow(userInput));
+      userInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      });
+
+      fillProviderModel();
+      fillPromptCards();
+      showWelcome();
+      refreshThreads();
+    })();
+  </script>
+</body>
+</html>

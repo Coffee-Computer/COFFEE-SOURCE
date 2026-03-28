@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Sweet Tooth // Candy matcher (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0; overflow: hidden; background: #3b0a3b; color: #fff;
+      font-family: system-ui, 'Segoe UI', sans-serif; touch-action: none;
+    }
+    canvas {
+      display: block; width: 100vw; height: 100vh; background: #4c1d4c !important;
+      cursor: pointer; filter: brightness(1.2);
+    }
+    .ui-panel { position: fixed; pointer-events: none; z-index: 100; }
+    .ui-panel.tl { top: 24px; left: 24px; }
+    .ui-panel.tr { top: 24px; right: 24px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .label-box {
+      background: rgba(0,0,0,0.85); padding: 1rem 1.2rem; border-radius: 1.25rem;
+      border: 3px solid #ff00ff; box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+    }
+    .stat-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.12em; }
+    .stat-label.pink { color: #f472b6; margin-bottom: 6px; }
+    .stat-label.cyan { color: #22d3ee; margin-bottom: 6px; }
+    #score { font-size: clamp(2.5rem, 8vw, 3.5rem); font-weight: 900; line-height: 1; }
+    #level-display { font-size: 1.75rem; font-weight: 900; }
+    .juice-wrap { text-align: center; min-width: 140px; }
+    #juice-meter {
+      width: 24px; height: 250px; background: rgba(0,0,0,0.8); border-radius: 20px;
+      overflow: hidden; position: relative; border: 4px solid #00ffff;
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+    }
+    #juice-fill {
+      position: absolute; bottom: 0; width: 100%; height: 0%;
+      background: linear-gradient(to top, #ff00ff, #00ffff, #ffffff);
+      transition: height 0.3s ease-out;
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui-panel tl">
+  <div class="label-box">
+    <div class="stat-label pink">Sugar Score</div>
+    <div id="score">0</div>
+  </div>
+</div>
+
+<div class="ui-panel tr">
+  <div class="label-box juice-wrap">
+    <div class="stat-label cyan">Juice Level</div>
+    <div id="level-display">Lvl 1</div>
+  </div>
+  <div id="juice-meter" aria-hidden="true">
+    <div id="juice-fill"></div>
+  </div>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-sweet-tooth-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var scoreEl = document.getElementById('score');
+  var levelEl = document.getElementById('level-display');
+  var juiceFill = document.getElementById('juice-fill');
+  var canvasEl = document.getElementById('stage');
+
+  var sg = coffee.playSweetToothGame.create({
+    callbacks: {
+      onScore: function (n) { scoreEl.textContent = String(n); },
+      onJuice: function (j) {
+        levelEl.textContent = 'Lvl ' + j.level;
+        juiceFill.style.height = j.juice + '%';
+      }
+    }
+  });
+
+  function canvasToLocal(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width;
+    var sy = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * sx,
+      y: (clientY - rect.top) * sy
+    };
+  }
+
+  function pointerDown(clientX, clientY) {
+    var p = canvasToLocal(canvasEl, clientX, clientY);
+    sg.interactCanvas(p.x, p.y, canvasEl.width, canvasEl.height, Date.now());
+  }
+
+  canvasEl.addEventListener('mousedown', function (e) {
+    if (e.button === 0) pointerDown(e.clientX, e.clientY);
+  });
+  canvasEl.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    pointerDown(t.clientX, t.clientY);
+  }, { passive: false });
+
+  var lastT = 0;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+      sg.step(dt, {
+        now: Date.now(),
+        viewW: game.canvas.width,
+        viewH: game.canvas.height
+      });
+    },
+    onDraw: function (ctx, game) {
+      var st = sg.getState();
+      var S = coffee.playShapes;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+      var ts = st.tileSize;
+      var ox = st.offset.x;
+      var oy = st.offset.y;
+      var bw = st.cols * ts;
+      var bh = st.rows * ts;
+
+      ctx.fillStyle = '#4c1d4c';
+      ctx.fillRect(0, 0, w, h);
+
+      S.drawSweetToothBoardBorder(ctx, { x: ox, y: oy, w: bw, h: bh });
+
+      for (var r = 0; r < st.rows; r++) {
+        for (var c = 0; c < st.cols; c++) {
+          var candy = st.grid[r][c];
+          var px = ox + c * ts;
+          var py = oy + r * ts + candy.offsetY;
+
+          S.drawSweetToothCheckerCell(ctx, {
+            px: px,
+            py: py,
+            size: ts,
+            light: (r + c) % 2 === 0
+          });
+
+          if (st.selected && st.selected.r === r && st.selected.c === c) {
+            S.drawSweetToothPickHighlight(ctx, { px: px, py: py, size: ts });
+          }
+
+          S.drawSweetToothCandy(ctx, {
+            cx: px + ts / 2,
+            cy: py + ts / 2,
+            scale: candy.scale,
+            icon: candy.icon
+          });
+        }
+      }
+    }
+  });
+})();
+  </script>
+</body>
+</html>

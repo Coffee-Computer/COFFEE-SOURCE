@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "domains": [
+    { "prefix": "FLOW", "label": "Pipeline", "module": "./domains/cash-flow.js" },
+    { "prefix": "IO", "label": "VFS via coffee.save/load (localStorage)", "module": "./domains/cash-io-control.js" }
+  ]
+}

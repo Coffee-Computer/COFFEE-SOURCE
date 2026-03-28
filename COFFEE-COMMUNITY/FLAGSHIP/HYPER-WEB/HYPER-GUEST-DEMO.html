@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="cce:name" content="Hyper guest demo">
+  <meta name="cce:id" content="hyper-guest-demo">
+  <meta name="cce:icon" content="▣">
+  <meta name="cce:color" content="#8b5cf6">
+  <meta name="cce:description" content="hyper-web-guest + hyper-prop — scene2d + animate">
+  <title>Hyper guest demo</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-SCENE2D/coffee-scene2d.js"></script>
+  <script src="../../../COFFEE-ANIMATE/coffee-animate.js"></script>
+  <script src="./hyper-web-guest.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    /* Toolbar strip only — stage fills the rest */
+    #wrap {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-width: 100%;
+      height: 100%;
+      background: hsl(220, 40%, 8%);
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrap"></div>
+  <script>
+(function () {
+  coffee.injectTheme('dark');
+  var wrap = document.getElementById('wrap');
+  var bgHue = 220;
+  var lastT = 0;
+  var breatheAmt = 0;
+  var breatheState = { amount: 0 };
+
+  /* Fallback only — in Hyper-Web stretch mode the iframe is usually NOT 1280×720; host sends hyper-viewport + resize. */
+  var REF_W = 1280;
+  var REF_H = 720;
+  function viewportDims() {
+    var w = Math.round(window.innerWidth || 0);
+    var h = Math.round(window.innerHeight || 0);
+    if (w < 2) w = REF_W;
+    if (h < 2) h = REF_H;
+    return { w: w, h: h };
+  }
+  var vd = viewportDims();
+
+  /* Full-bleed shell; toolbar + overlay are position:absolute (no flex sizing fights). */
+  var stageShell = document.createElement('div');
+  stageShell.style.cssText =
+    'box-sizing:border-box;position:relative;width:100%;height:100%;min-height:100%;overflow:hidden';
+  wrap.appendChild(stageShell);
+
+  var toolbar = coffee.row(
+    [
+      coffee.text('Hyper guest', { style: { fontSize: '12px', fontWeight: '600', color: 'var(--coffee-text-primary)' } }),
+      coffee.button(
+        'Info',
+        function () {
+          document.body.appendChild(
+            coffee.msg('coffee.scene2d + coffee.animate. Timeline via hyper-tick from Hyper-Web.', 'info')
+          );
+        },
+        { style: { minHeight: '28px', fontSize: '12px', padding: '2px 8px' } }
+      )
+    ],
+    { style: { gap: '8px', alignItems: 'center', flexShrink: 0, margin: 0 } }
+  );
+  toolbar.style.cssText =
+    'position:absolute;top:0;left:0;right:0;z-index:4;box-sizing:border-box;display:flex;align-items:center;gap:8px;padding:4px 8px;pointer-events:auto;background:rgba(10,14,28,0.78);backdrop-filter:blur(8px);';
+  stageShell.appendChild(toolbar);
+
+  var n = 10;
+  var bgRect = { type: 'rect', x: 0, y: 0, width: 400, height: 300, fill: 'hsl(220, 35%, 12%)' };
+  var blobs = [];
+  var i;
+  for (i = 0; i < n; i++) {
+    blobs.push({ type: 'circle', x: 0, y: 0, radius: 48, fill: 'hsl(0, 78%, 58%)' });
+  }
+  var allShapes = [bgRect].concat(blobs);
+
+  var sceneRoot = coffee.scene2d({
+    container: stageShell,
+    width: vd.w,
+    height: vd.h,
+    shapes: allShapes,
+    background: '#07070a'
+  });
+
+  /* Pin scene2d wrapper to iframe box — avoids column flex + % height not resolving in nested iframe. */
+  sceneRoot.style.position = 'absolute';
+  sceneRoot.style.left = '0';
+  sceneRoot.style.top = '0';
+  sceneRoot.style.right = '0';
+  sceneRoot.style.bottom = '0';
+  sceneRoot.style.width = 'auto';
+  sceneRoot.style.height = 'auto';
+  sceneRoot.style.margin = '0';
+  sceneRoot.style.borderRadius = '0';
+  sceneRoot.style.aspectRatio = 'auto';
+  sceneRoot.style.maxWidth = 'none';
+  sceneRoot.style.maxHeight = 'none';
+
+  var overlay = document.createElement('div');
+  overlay.style.cssText =
+    'position:absolute;inset:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-top:40px;gap:6px;z-index:1;box-sizing:border-box';
+  var titleEl = coffee.text('CCE + coffee.scene2d + coffee.animate', {
+    style: { fontSize: '15px', fontWeight: '700', color: 'rgba(255,255,255,0.92)' }
+  });
+  var hueEl = coffee.text('hue 220', {
+    style: { fontSize: '12px', color: 'rgba(255,255,255,0.45)' }
+  });
+  overlay.appendChild(titleEl);
+  overlay.appendChild(hueEl);
+  stageShell.appendChild(overlay);
+
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(function () {
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } catch (e) {}
+    }).observe(stageShell);
+  }
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      try {
+        window.dispatchEvent(new Event('resize'));
+      } catch (e) {}
+    });
+  });
+
+  function applyBgChrome() {
+    wrap.style.background = 'hsl(' + bgHue + ', 42%, 10%)';
+  }
+  applyBgChrome();
+
+  function applyFrame(t) {
+    var sc = sceneRoot.scene2d;
+    if (!sc) return;
+    var w = sc.width;
+    var h = sc.height;
+    bgRect.width = w;
+    bgRect.height = h;
+    bgRect.fill = 'hsl(' + bgHue + ', 35%, 12%)';
+    var cx = w / 2;
+    var cy = h / 2;
+    var baseR = 48 + Math.sin(t * 0.02) * 14 + breatheAmt * 12;
+    var j;
+    for (j = 0; j < n; j++) {
+      var a = (j / n) * Math.PI * 2 + t * 0.01;
+      var b = blobs[j];
+      b.x = cx + Math.cos(a) * 160;
+      b.y = cy + Math.sin(a) * 160;
+      b.radius = baseR;
+      var hue = (j / n) * 360 + t * 2 + bgHue * 0.3;
+      b.fill = 'hsl(' + (hue % 360) + ', 78%, 58%)';
+    }
+    hueEl.textContent = 'hue ' + Math.round(bgHue);
+    sc.render();
+  }
+
+  function breatheLoop() {
+    coffee.animate(breatheState, { amount: 1 }, {
+      duration: 2200,
+      ease: 'easeInOut',
+      onUpdate: function () {
+        breatheAmt = breatheState.amount;
+        applyFrame(lastT);
+      },
+      onComplete: function () {
+        coffee.animate(breatheState, { amount: 0 }, {
+          duration: 2200,
+          ease: 'easeInOut',
+          onUpdate: function () {
+            breatheAmt = breatheState.amount;
+            applyFrame(lastT);
+          },
+          onComplete: breatheLoop
+        });
+      }
+    });
+  }
+
+  breatheLoop();
+
+  function drawAt(timeSeconds) {
+    lastT = timeSeconds * 60;
+    applyFrame(lastT);
+  }
+
+  var lastRaf = 0;
+  var localSecs = 0;
+  function standaloneLoop(ts) {
+    if (!lastRaf) lastRaf = ts;
+    localSecs += (ts - lastRaf) / 1000;
+    lastRaf = ts;
+    drawAt(localSecs);
+    requestAnimationFrame(standaloneLoop);
+  }
+
+  if (window !== window.parent) {
+    hyperWebGuest.start({
+      onTick: function (timeSeconds) {
+        drawAt(timeSeconds);
+      },
+      onProp: function (key, value) {
+        if (key !== 'bgHue') return;
+        var v = parseFloat(value);
+        if (Number.isFinite(v)) {
+          bgHue = Math.max(0, Math.min(360, v));
+          applyBgChrome();
+          applyFrame(lastT);
+        }
+      }
+    });
+    applyFrame(lastT);
+  } else {
+    requestAnimationFrame(standaloneLoop);
+  }
+})();
+  </script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Manny // Platformer template (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #5c94fc; overflow: hidden; font-family: system-ui, Arial, sans-serif; touch-action: none; }
+    canvas { display: block; width: 100vw; image-rendering: pixelated; image-rendering: crisp-edges; }
+    #hud {
+      position: fixed; left: 0; right: 0; top: 0; padding: 16px 20px;
+      pointer-events: none; color: #fff; font-weight: 800; font-size: 14px;
+      text-shadow: 2px 2px 0 #000; z-index: 10;
+    }
+    #game-over {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.85); z-index: 20; pointer-events: auto; color: #fff;
+    }
+    #game-over .panel {
+      border: 4px solid #fff; padding: 36px 40px; text-align: center; max-width: 90vw;
+    }
+    #game-over button {
+      margin-top: 20px; padding: 10px 22px; border: none; background: #ff4500; color: #fff;
+      font-weight: 800; cursor: pointer; border-radius: 4px; font-family: inherit;
+    }
+    .manny-touch {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding: 24px 16px calc(20px + env(safe-area-inset-bottom)); pointer-events: auto;
+      gap: 12px;
+    }
+    .manny-touch-row { display: flex; gap: 12px; }
+    .manny-touch-btn {
+      width: 64px; height: 64px; border-radius: 50%; border: none;
+      background: rgba(255,255,255,0.35); color: #fff; font-weight: 800; font-size: 13px;
+      touch-action: manipulation; user-select: none; cursor: pointer;
+    }
+    .manny-touch-btn:active { background: rgba(255,255,255,0.5); }
+    @media (min-width: 768px) {
+      .manny-touch { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div>MANNY</div>
+    <div>SCORE: <span id="score">000000</span></div>
+  </div>
+  <canvas id="stage"></canvas>
+
+  <div class="manny-touch" id="manny-touch" aria-label="Touch controls">
+    <div class="manny-touch-row">
+      <button type="button" class="manny-touch-btn" data-dir="left">L</button>
+      <button type="button" class="manny-touch-btn" data-dir="right">R</button>
+    </div>
+    <button type="button" class="manny-touch-btn" data-dir="jump">JUMP</button>
+  </div>
+
+  <div id="game-over">
+    <div class="panel">
+      <h1 id="status-title">GAME OVER</h1>
+      <p>Try again, Manny!</p>
+      <button type="button" id="restart">START NEW JOURNEY</button>
+    </div>
+  </div>
+
+  <script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+  <script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+  <script src="../../shapes/coffee-play-shapes.js"></script>
+  <script src="../../logic/coffee-play-platformer-game.js"></script>
+  <script src="../../coffee-play.js"></script>
+  <script>
+(function () {
+  var LEVEL_DATA = [
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,2,3,2,0,0,0,0,0,0,0,0,0,3,3,3,0,0,0,0,0,0,0,0,0,0,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+    [1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,5]
+  ];
+
+  var scoreEl = document.getElementById('score');
+  var gameOverEl = document.getElementById('game-over');
+  var statusTitle = document.getElementById('status-title');
+  var restartBtn = document.getElementById('restart');
+
+  function padScore(n) {
+    return String(Math.max(0, Math.floor(n))).padStart(6, '0');
+  }
+
+  var pg = coffee.playPlatformerGame.create({
+    levelData: LEVEL_DATA,
+    callbacks: {
+      onScore: function (n) { scoreEl.textContent = padScore(n); },
+      onGameEnd: function (title) {
+        statusTitle.textContent = title;
+        gameOverEl.style.display = 'flex';
+      }
+    }
+  });
+
+  var touchLeft = false;
+  var touchRight = false;
+  var touchJump = false;
+  var touchRoot = document.getElementById('manny-touch');
+  touchRoot.querySelectorAll('[data-dir]').forEach(function (btn) {
+    var dir = btn.getAttribute('data-dir');
+    function down(e) { e.preventDefault(); setDir(dir, true); }
+    function up(e) { e.preventDefault(); setDir(dir, false); }
+    function setDir(d, v) {
+      if (d === 'left') touchLeft = v;
+      if (d === 'right') touchRight = v;
+      if (d === 'jump') touchJump = v;
+    }
+    btn.addEventListener('touchstart', down, { passive: false });
+    btn.addEventListener('touchend', up);
+    btn.addEventListener('touchcancel', up);
+    btn.addEventListener('mousedown', down);
+    btn.addEventListener('mouseup', up);
+    btn.addEventListener('mouseleave', up);
+  });
+
+  restartBtn.addEventListener('click', function () {
+    gameOverEl.style.display = 'none';
+    pg.reset();
+  });
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var worldH = pg.getState().rows * pg.config.tileSize;
+      var vw = window.innerWidth;
+      if (game.canvas.width !== vw || game.canvas.height !== worldH) {
+        game.canvas.width = vw;
+        game.canvas.height = worldH;
+        game.cup.resize(vw, worldH);
+      }
+
+      var k = {};
+      var key;
+      for (key in game.keys) {
+        if (Object.prototype.hasOwnProperty.call(game.keys, key)) k[key] = game.keys[key];
+      }
+      if (touchLeft) k['arrowleft'] = true;
+      if (touchRight) k['arrowright'] = true;
+      if (touchJump) k['arrowup'] = true;
+
+      pg.step(16, {
+        viewW: game.canvas.width,
+        viewH: game.canvas.height,
+        keys: k
+      });
+    },
+    onDraw: function (ctx, game) {
+      var st = pg.getState();
+      var S = coffee.playShapes;
+      var T = st.tileSize;
+      var cam = st.cameraX;
+
+      S.drawPlatformSky(ctx, { w: game.canvas.width, h: game.canvas.height });
+
+      for (var r = 0; r < st.rows; r++) {
+        for (var c = 0; c < st.cols; c++) {
+          var tile = st.levelData[r][c];
+          if (!tile) continue;
+          var tx = c * T - cam;
+          var ty = r * T;
+          if (tx < -T || tx > game.canvas.width) continue;
+          S.drawPlatformTile(ctx, { type: tile, x: tx, y: ty, size: T });
+        }
+      }
+
+      for (var i = 0; i < st.enemies.length; i++) {
+        var e = st.enemies[i];
+        if (e.dead) continue;
+        S.drawEnemyGoomba(ctx, {
+          sx: e.x - cam,
+          sy: e.y,
+          w: e.width,
+          h: e.height
+        });
+      }
+
+      if (st.manny) {
+        var m = st.manny;
+        S.drawMannyHero(ctx, {
+          sx: m.x - cam,
+          sy: m.y,
+          w: m.width,
+          h: m.height,
+          facingRight: m.facingRight
+        });
+      }
+    }
+  });
+})();
+  </script>
+</body>
+</html>

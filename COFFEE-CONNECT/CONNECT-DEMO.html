@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.connect() Demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="https://unpkg.com/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="./coffee-connect.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 24px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .card h2 { margin: 0 0 12px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .status.connected { background: #065f46; color: #6ee7b7; }
+    .status.disconnected { background: #7f1d1d; color: #fca5a5; }
+    .status.connecting { background: #422006; color: #fcd34d; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .status.connected .dot { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+    button { background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+    button:hover { background: #4f46e5; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input { background: #0f172a; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; color: #f8fafc; width: 100%; max-width: 300px; }
+    .log { background: #0f172a; border-radius: 8px; padding: 12px; font-family: monospace; font-size: 11px; max-height: 200px; overflow-y: auto; }
+    .log div { margin-bottom: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <h1 style="margin:0 0 8px">coffee.connect()</h1>
+  <p style="color:#94a3b8;margin:0 0 24px">Unified API for Nostr and PeerJS</p>
+
+  <div class="grid">
+    <!-- Nostr -->
+    <div class="card">
+      <h2>Nostr (Relay)</h2>
+      <div style="margin-bottom:12px">
+        <span id="nostr-status" class="status disconnected"><span class="dot"></span> Disconnected</span>
+      </div>
+      <div style="margin-bottom:12px">
+        <input type="text" id="nostr-relay" value="wss://relay.damus.io" placeholder="Relay URL">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button id="nostr-connect">Connect</button>
+        <button id="nostr-sub" disabled>Subscribe (kind 0)</button>
+        <button id="nostr-close" disabled>Close</button>
+      </div>
+      <div class="log" id="nostr-log"></div>
+    </div>
+
+    <!-- Peer -->
+    <div class="card">
+      <h2>PeerJS (Room)</h2>
+      <div style="margin-bottom:12px">
+        <span id="peer-status" class="status disconnected"><span class="dot"></span> Disconnected</span>
+      </div>
+      <div style="margin-bottom:12px">
+        <input type="text" id="peer-room" value="coffee-demo" placeholder="Room key">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button id="peer-connect">Connect</button>
+        <button id="peer-scan" disabled>Scan</button>
+        <button id="peer-send" disabled>Broadcast</button>
+        <button id="peer-close" disabled>Close</button>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-bottom:8px">Peers: <span id="peer-count">0</span></div>
+      <div class="log" id="peer-log"></div>
+    </div>
+  </div>
+
+  <script>
+    function log(el, msg, type) {
+      const div = document.createElement('div');
+      div.style.color = type === 'err' ? '#f87171' : type === 'ok' ? '#6ee7b7' : '#94a3b8';
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      el.appendChild(div);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    let nostrConn = null;
+    let peerConn = null;
+
+    document.getElementById('nostr-connect').onclick = () => {
+      const relay = document.getElementById('nostr-relay').value;
+      const logEl = document.getElementById('nostr-log');
+      logEl.innerHTML = '';
+      log(logEl, 'Connecting to ' + relay);
+      nostrConn = coffee.connect({
+        method: 'nostr',
+        relay,
+        onOpen: () => {
+          document.getElementById('nostr-status').className = 'status connected';
+          document.getElementById('nostr-status').lastChild.textContent = 'Connected';
+          document.getElementById('nostr-sub').disabled = false;
+          document.getElementById('nostr-close').disabled = false;
+          log(logEl, 'Connected', 'ok');
+        },
+        onMessage: (ev) => {
+          log(logEl, `Event kind=${ev.kind} from ${ev.pubkey?.slice(0,8)}...`);
+        },
+        onClose: () => {
+          document.getElementById('nostr-status').className = 'status disconnected';
+          document.getElementById('nostr-status').lastChild.textContent = 'Disconnected';
+          document.getElementById('nostr-sub').disabled = true;
+          document.getElementById('nostr-close').disabled = true;
+          log(logEl, 'Disconnected');
+        },
+        autoReconnect: true
+      });
+    };
+
+    document.getElementById('nostr-sub').onclick = () => {
+      if (!nostrConn) return;
+      nostrConn.subscribe({ kinds: [0], limit: 5 });
+      log(document.getElementById('nostr-log'), 'Subscribed to kind 0', 'ok');
+    };
+
+    document.getElementById('nostr-close').onclick = () => {
+      if (nostrConn) {
+        nostrConn.close();
+        nostrConn = null;
+      }
+    };
+
+    document.getElementById('peer-connect').onclick = () => {
+      const room = document.getElementById('peer-room').value || 'coffee-demo';
+      const logEl = document.getElementById('peer-log');
+      logEl.innerHTML = '';
+      log(logEl, 'Connecting to room: ' + room);
+      peerConn = coffee.connect({
+        method: 'peer',
+        room,
+        scanRange: 15,
+        onOpen: (id) => {
+          document.getElementById('peer-status').className = 'status connected';
+          document.getElementById('peer-status').lastChild.textContent = 'Connected';
+          document.getElementById('peer-scan').disabled = false;
+          document.getElementById('peer-send').disabled = false;
+          document.getElementById('peer-close').disabled = false;
+          log(logEl, 'My ID: ' + id, 'ok');
+        },
+        onMessage: (peerId, data) => {
+          log(logEl, `From ${peerId}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+        },
+        onPeerJoin: (peerId) => {
+          document.getElementById('peer-count').textContent = peerConn.peers.size;
+          log(logEl, 'Peer joined: ' + peerId, 'ok');
+        },
+        onPeerLeave: (peerId) => {
+          document.getElementById('peer-count').textContent = peerConn.peers.size;
+          log(logEl, 'Peer left: ' + peerId);
+        },
+        onClose: () => {
+          document.getElementById('peer-status').className = 'status disconnected';
+          document.getElementById('peer-status').lastChild.textContent = 'Disconnected';
+          document.getElementById('peer-scan').disabled = true;
+          document.getElementById('peer-send').disabled = true;
+          document.getElementById('peer-close').disabled = true;
+          document.getElementById('peer-count').textContent = '0';
+          log(logEl, 'Disconnected');
+        }
+      });
+    };
+
+    document.getElementById('peer-scan').onclick = () => {
+      if (peerConn) peerConn.scan();
+      log(document.getElementById('peer-log'), 'Scanning...');
+    };
+
+    document.getElementById('peer-send').onclick = () => {
+      if (peerConn) {
+        peerConn.send({ type: 'ping', t: Date.now() });
+        log(document.getElementById('peer-log'), 'Broadcast sent', 'ok');
+      }
+    };
+
+    document.getElementById('peer-close').onclick = () => {
+      if (peerConn) {
+        peerConn.close();
+        peerConn = null;
+      }
+    };
+  </script>
+</body>
+</html>

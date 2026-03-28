@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Community App Store</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="../../COFFEE-GIT/coffee-git.js"></script>
+  <script src="../tools/cce-validate.js"></script>
+  <script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../../COFFEE-INSTALL/coffee-install.js"></script>
+  <style>
+    body { margin: 0; padding: 0; background: var(--coffee-bg-surface); min-height: 100%; box-sizing: border-box; }
+    #app { padding: 16px; }
+    .store-header { margin-bottom: 20px; }
+    .store-header h1 { margin: 0; font-size: 24px; color: var(--coffee-text-primary); }
+    .store-header p { margin: 8px 0 0; font-size: 14px; color: var(--coffee-text-muted); }
+    .app-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .app-card {
+      background: var(--coffee-bg-elev);
+      border: 1px solid var(--coffee-panel);
+      border-radius: var(--coffee-radius-md);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      box-shadow: var(--coffee-shadow-soft);
+    }
+    .app-card-icon {
+      width: 56px; height: 56px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+    .app-card-name { font-weight: 600; font-size: 15px; color: var(--coffee-text-primary); text-align: center; }
+    .app-card-desc { font-size: 12px; color: var(--coffee-text-muted); text-align: center; line-height: 1.3; }
+    .app-card-actions { display: flex; gap: 8px; width: 100%; justify-content: center; }
+    .app-card-actions button { flex: 1; max-width: 120px; }
+    .loading { display: flex; justify-content: center; padding: 40px; }
+    .error { color: #dc2626; padding: 16px; }
+    .upload-area { margin-bottom: 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .github-row { margin-top: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%; }
+    .github-row input[type="text"] {
+      flex: 1; min-width: 200px; max-width: 480px;
+      padding: 10px 12px; border-radius: var(--coffee-radius-md);
+      border: 1px solid var(--coffee-panel); background: var(--coffee-bg-surface);
+      color: var(--coffee-text-primary); font-size: 14px;
+    }
+    .upload-area input[type="file"] { display: none; }
+    .result-card { padding: 16px; border-radius: var(--coffee-radius-md); margin-bottom: 16px; }
+    .result-card.valid { background: rgba(34, 197, 94, 0.15); border: 1px solid #22c55e; }
+    .result-card.rejected { background: rgba(220, 38, 38, 0.15); border: 1px solid #dc2626; }
+    .installed-section { margin-bottom: 24px; }
+    .installed-section h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: var(--coffee-text-primary);
+      font-weight: 600;
+    }
+    .installed-empty {
+      font-size: 13px;
+      color: var(--coffee-text-muted);
+      padding: 8px 0;
+    }
+    .section-title { margin: 20px 0 12px 0; font-size: 16px; color: var(--coffee-text-primary); font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <input type="file" id="upload-input" accept=".html,.zip,.cce" />
+  <script>
+    coffee.injectTheme('dark');
+
+    const REGISTRY_URL = '../community-app-registry.json';
+    /** Resolved by parent shell / desktop (Community folder = origin path). */
+    const PARENT_LOADER = './apps/installed-app-loader.html';
+
+    function openApp(app) {
+      window.parent.postMessage({ type: 'openCommunityApp', app }, '*');
+    }
+
+    function renderAppCard(app) {
+      const card = document.createElement('div');
+      card.className = 'app-card';
+      card.innerHTML = `
+        <div class="app-card-icon" style="background:${app.color}">${app.icon}</div>
+        <div class="app-card-name">${app.name}</div>
+        <div class="app-card-desc">${app.description || ''}</div>
+        <div class="app-card-actions"></div>
+      `;
+      const actions = card.querySelector('.app-card-actions');
+      actions.appendChild(coffee.button('Open', () => openApp(app), { flex: 1 }));
+      return card;
+    }
+
+    function renderInstalledCard(gridApp) {
+      const card = document.createElement('div');
+      card.className = 'app-card';
+      card.dataset.storageId = gridApp.id;
+      card.innerHTML = `
+        <div class="app-card-icon" style="background:${gridApp.color}">${gridApp.icon}</div>
+        <div class="app-card-name">${gridApp.name}</div>
+        <div class="app-card-desc">Installed on this device</div>
+        <div class="app-card-actions"></div>
+      `;
+      const actions = card.querySelector('.app-card-actions');
+      const shellApp = {
+        id: gridApp.id,
+        name: gridApp.name,
+        icon: gridApp.icon,
+        color: gridApp.color,
+        description: gridApp.description || '',
+        url: PARENT_LOADER + '?id=' + encodeURIComponent(gridApp.id)
+      };
+      actions.appendChild(coffee.button('Open', () => openApp(shellApp), { flex: 1, maxWidth: '100px' }));
+      actions.appendChild(
+        coffee.button(
+          'Remove',
+          () => {
+            if (!window.coffee || !coffee.install) return;
+            const msg =
+              'Remove “' + gridApp.name + '” from this device? This cannot be undone.';
+            const runUninstall = async () => {
+              const ur = await coffee.install.uninstall(gridApp.id);
+              if (ur.ok) {
+                coffee.install.notifyParentInstallChanged();
+                await refreshInstalledSection();
+              }
+            };
+            if (typeof coffee.dialog === 'function') {
+              coffee.dialog(msg, {
+                title: 'Remove app',
+                confirm: 'Remove',
+                cancel: 'Cancel',
+                onConfirm: () => {
+                  runUninstall();
+                }
+              });
+            } else if (typeof confirm === 'function' && confirm(msg)) {
+              runUninstall();
+            }
+          },
+          { flex: 1, maxWidth: '100px', backgroundColor: 'rgba(220,38,38,0.25)' }
+        )
+      );
+      return card;
+    }
+
+    async function refreshInstalledSection() {
+      const wrap = document.getElementById('installed-section');
+      const inner = document.getElementById('installed-grid');
+      if (!wrap || !inner) return;
+      inner.innerHTML = '';
+      if (!window.coffee || !coffee.install || typeof coffee.install.listInstalledForGrid !== 'function') {
+        inner.innerHTML = '<p class="installed-empty">Install API not loaded.</p>';
+        return;
+      }
+      try {
+        const rows = await coffee.install.listInstalledForGrid(PARENT_LOADER);
+        if (!rows.length) {
+          inner.innerHTML = '<p class="installed-empty">No installed apps yet. Upload or add from GitHub to install.</p>';
+          return;
+        }
+        rows.forEach((r) => inner.appendChild(renderInstalledCard(r)));
+      } catch (err) {
+        inner.innerHTML =
+          '<p class="installed-empty">Could not list installed apps.</p>';
+        console.warn(err);
+      }
+    }
+
+    function mountInstalledSection(appRoot) {
+      const section = document.createElement('div');
+      section.id = 'installed-section';
+      section.className = 'installed-section';
+      section.innerHTML =
+        '<h2>On this device</h2><div id="installed-grid" class="app-grid" style="margin-bottom:8px"></div>';
+      const browseTitle = document.createElement('div');
+      browseTitle.className = 'section-title';
+      browseTitle.textContent = 'Browse catalog';
+      const grid = appRoot.querySelector('.app-grid');
+      appRoot.insertBefore(section, grid);
+      appRoot.insertBefore(browseTitle, grid);
+      refreshInstalledSection();
+    }
+
+    async function validateUpload(file) {
+      const ext = (file.name.split('.').pop() || '').toLowerCase();
+      let content = '';
+      let manifestRaw = null;
+
+      if (ext === 'html') {
+        content = await file.text();
+        if (!window.cceValidate) return { valid: false, errors: ['Validator not loaded'] };
+        const vr = window.cceValidate.validateHtml(content);
+        if (vr.valid) return Object.assign({}, vr, { htmlContent: content });
+        return vr;
+      } else if (ext === 'zip' || ext === 'cce') {
+        const buf = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buf);
+        let entryName = 'index.html';
+        for (const [p, entry] of Object.entries(zip.files)) {
+          if (p.endsWith('manifest.json')) {
+            manifestRaw = await entry.async('string');
+            try {
+              const m = JSON.parse(manifestRaw);
+              entryName = m.entry || 'index.html';
+            } catch (_) {}
+            break;
+          }
+        }
+        const entryPath = Object.keys(zip.files).find(p => p === entryName || p.endsWith('/' + entryName));
+        if (entryPath) {
+          content = await zip.files[entryPath].async('string');
+        }
+        const appJsPath = Object.keys(zip.files).find(p => p.endsWith('app.js'));
+        if (appJsPath) {
+          content += await zip.files[appJsPath].async('string');
+        }
+        if (!content) return { valid: false, errors: ['Could not read entry HTML'] };
+        if (!window.cceValidate) return { valid: false, errors: ['Validator not loaded'] };
+        const contentResult = window.cceValidate.validateContent(content);
+        if (!contentResult.valid) return contentResult;
+        if (manifestRaw) {
+          const manifestResult = window.cceValidate.validateManifest(manifestRaw);
+          if (!manifestResult.valid) return manifestResult;
+          return {
+            valid: true,
+            errors: [],
+            metadata: manifestResult.manifest,
+            htmlContent: content
+          };
+        }
+        const meta = window.cceValidate.parseHtmlMetadata(content);
+        const metaErrors = window.cceValidate.validateMetadata(meta);
+        if (metaErrors.length) {
+          return { valid: false, errors: metaErrors };
+        }
+        return {
+          valid: true,
+          errors: [],
+          metadata: meta,
+          htmlContent: content
+        };
+      }
+
+      return { valid: false, errors: ['Unsupported file type'] };
+    }
+
+    function showUploadResult(result, fileName, opts) {
+      opts = opts || {};
+      let el = document.getElementById('upload-result');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'upload-result';
+        const catalog = document.getElementById('catalog-grid');
+        if (catalog && catalog.parentNode) {
+          catalog.parentNode.insertBefore(el, catalog);
+        } else {
+          document.getElementById('app').appendChild(el);
+        }
+      }
+      el.className = 'result-card ' + (result.valid ? 'valid' : 'rejected');
+      let msg = result.valid
+        ? `<strong>✓ Valid</strong> — ${fileName} passes CCE validation.`
+        : `<strong>❌ Rejected</strong> — ${fileName}<ul style="margin:8px 0 0 16px;color:var(--coffee-text-muted)">${result.errors.map(e => '<li>' + e + '</li>').join('')}</ul>`;
+      if (result.valid && result.metadata) {
+        msg += `<div style="margin-top:12px;font-size:12px;opacity:0.9">${result.metadata.name || result.metadata.id || ''} ${result.metadata.icon ? result.metadata.icon : ''}</div>`;
+      }
+      if (opts.installed) {
+        msg += `<div style="margin-top:10px;font-size:13px;color:var(--coffee-text-primary)"><strong>Installed</strong> — added to this device’s Community grid (IndexedDB). Open home to launch.</div>`;
+      }
+      el.innerHTML = msg;
+    }
+
+    async function installIfPossible(html, metadata, source, label) {
+      if (!html || !metadata || !window.coffee || !coffee.install) {
+        return { skipped: true };
+      }
+      const ir = await coffee.install.install({
+        html,
+        validate: false,
+        metadata,
+        source
+      });
+      if (ir.ok) {
+        coffee.install.notifyParentInstallChanged();
+        refreshInstalledSection();
+        return { installed: true };
+      }
+      return { installed: false, errors: ir.errors || ['Install failed'] };
+    }
+
+    function setupUpload() {
+      const btn = coffee.button('Upload HTML / .cce', () => document.getElementById('upload-input').click(), { backgroundColor: 'var(--coffee-panel)' });
+      const input = document.getElementById('upload-input');
+      input.onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const result = await validateUpload(file);
+        input.value = '';
+        if (!result.valid) {
+          showUploadResult(result, file.name);
+          return;
+        }
+        const opts = {};
+        if (result.htmlContent && result.metadata) {
+          const ins = await installIfPossible(
+            result.htmlContent,
+            result.metadata,
+            { type: 'upload', file: file.name },
+            file.name
+          );
+          if (ins.installed) opts.installed = true;
+          else if (ins.errors && !ins.skipped) {
+            showUploadResult({ valid: false, errors: ins.errors }, file.name + ' (install)');
+            return;
+          }
+        }
+        showUploadResult(result, file.name, opts);
+      };
+      const uploadArea = document.createElement('div');
+      uploadArea.className = 'upload-area';
+      uploadArea.appendChild(btn);
+      uploadArea.appendChild(document.createTextNode(' Upload .html, .zip, or .cce to validate'));
+      return uploadArea;
+    }
+
+    function setupGitHub() {
+      const row = document.createElement('div');
+      row.className = 'github-row';
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = 'owner/repo or path, raw URL, or github.com/.../blob/...';
+      input.setAttribute('aria-label', 'GitHub repo or URL');
+      const btn = coffee.button('Add from GitHub', async () => {
+        const q = input.value.trim();
+        if (!q) {
+          showUploadResult({ valid: false, errors: ['Enter a repo or URL'] }, 'GitHub');
+          return;
+        }
+        if (!window.coffee || !coffee.git || typeof coffee.git.fetchFromInput !== 'function') {
+          showUploadResult({ valid: false, errors: ['coffee.git not loaded'] }, 'GitHub');
+          return;
+        }
+        if (!window.cceValidate) {
+          showUploadResult({ valid: false, errors: ['Validator not loaded'] }, 'GitHub');
+          return;
+        }
+        btn.disabled = true;
+        const label = q.length > 48 ? q.slice(0, 45) + '…' : q;
+        try {
+          const fetched = await coffee.git.fetchFromInput(q);
+          if (!fetched.ok) {
+            showUploadResult(
+              { valid: false, errors: [fetched.error || 'Fetch failed'] },
+              'GitHub: ' + label
+            );
+            return;
+          }
+          const result = window.cceValidate.validateHtml(fetched.text);
+          if (!result.valid) {
+            showUploadResult(result, 'GitHub: ' + (fetched.url || label));
+            return;
+          }
+          const opts = {};
+          if (result.metadata) {
+            const ins = await installIfPossible(
+              fetched.text,
+              result.metadata,
+              { type: 'github', url: fetched.url },
+              label
+            );
+            if (ins.installed) opts.installed = true;
+            else if (ins.errors && !ins.skipped) {
+              showUploadResult(
+                { valid: false, errors: ins.errors },
+                'GitHub install: ' + label
+              );
+              return;
+            }
+          }
+          showUploadResult(result, 'GitHub: ' + (fetched.url || label), opts);
+        } finally {
+          btn.disabled = false;
+        }
+      }, { backgroundColor: 'var(--coffee-panel)' });
+      row.appendChild(input);
+      row.appendChild(btn);
+      return row;
+    }
+
+    function render() {
+      const app = document.getElementById('app');
+      app.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'store-header';
+      header.innerHTML = `
+        <h1>☕ Community App Store</h1>
+        <p>Browse and open apps. Coffee stack only.</p>
+      `;
+      header.appendChild(setupUpload());
+      header.appendChild(setupGitHub());
+      app.appendChild(header);
+
+      const grid = document.createElement('div');
+      grid.id = 'catalog-grid';
+      grid.className = 'app-grid';
+
+      fetch(REGISTRY_URL)
+        .then(r => r.ok ? r.json() : [])
+        .then(registry => {
+          registry.forEach(a => grid.appendChild(renderAppCard(a)));
+          app.appendChild(grid);
+          mountInstalledSection(app);
+        })
+        .catch(() => {
+          const builtin = [
+            { id: 'notes', name: 'Notes', icon: '📝', color: '#eab308', url: './apps/notes.html', description: 'Quick notes' },
+            { id: 'calc', name: 'Calculator', icon: '🧮', color: '#f97316', url: './apps/calculator.html', description: 'Calculator' },
+            { id: 'camera', name: 'Camera', icon: '📷', color: '#71717a', url: './apps/camera.html', description: 'Take photos' },
+            { id: 'terminal', name: 'Terminal', icon: '⌘', color: '#27272a', url: './apps/terminal.html', description: 'Terminal' },
+            { id: 'settings', name: 'Settings', icon: '⚙️', color: '#64748b', url: './apps/settings.html', description: 'Settings' },
+            { id: 'files', name: 'Files', icon: '📁', color: '#b45309', url: './apps/files.html', description: 'Files' }
+          ];
+          builtin.forEach(a => grid.appendChild(renderAppCard(a)));
+          app.appendChild(grid);
+          mountInstalledSection(app);
+        });
+    }
+
+    render();
+  </script>
+</body>
+</html>

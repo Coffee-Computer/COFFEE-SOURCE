@@ -1,0 +1,22 @@
+[
+  {
+    "id": "store",
+    "tag": "Community",
+    "tagTone": "blue",
+    "title": "Store",
+    "description": "Browse and install Coffee apps — community storefront.",
+    "footer": "α · apps/store",
+    "buttonLabel": "OPEN",
+    "url": "../apps/store.html"
+  },
+  {
+    "id": "temp",
+    "tag": "Flagship",
+    "tagTone": "green",
+    "title": "TEMP",
+    "description": "Maintainer job board — roles from temp-jobs.json.",
+    "footer": "α · FLAGSHIP/TEMP",
+    "buttonLabel": "OPEN",
+    "url": "../FLAGSHIP/TEMP/TEMP-ALPHA.html"
+  }
+]

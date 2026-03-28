@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.drive() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+    #app { width: 100%; min-height: 100vh; box-sizing: border-box; }
+    .drive-item:hover { background: rgba(255,255,255,0.05); border-radius: 6px; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-BLOB/coffee-blob.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-drive.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const drive = coffee.drive('drive-demo');
+    const header = coffee.heading('coffee.drive()', 1);
+    const sub = coffee.para('Simple IndexedDB storage for Community apps. No schema, no export/import.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const keyInput = coffee.input({ placeholder: 'Key (id)', value: 'note-1', style: { width: '120px', marginRight: '8px' } });
+    const valInput = coffee.input({ placeholder: 'Value', value: 'Hello from drive', style: { flex: 1, marginRight: '8px' } });
+    const saveBtn = coffee.button('Save', null);
+    const loadBtn = coffee.button('Load', null);
+    const listBtn = coffee.button('List All', null);
+    const clearBtn = coffee.button('Clear', null);
+
+    const infoEl = document.createElement('div');
+    infoEl.style.cssText = 'font-size:11px;color:var(--coffee-text-muted);margin-top:8px';
+
+    const outEl = document.createElement('div');
+    outEl.id = 'output';
+    outEl.style.cssText = 'background:var(--coffee-bg-surface);padding:var(--coffee-space-md);border-radius:var(--coffee-radius-sm);font-size:12px;overflow:auto;min-height:80px;margin-top:var(--coffee-space-md)';
+    const previewEl = document.createElement('div');
+    previewEl.id = 'preview';
+    previewEl.style.cssText = 'margin-top:8px;max-width:200px';
+
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+
+    const uploadBtn = coffee.button('Upload image', null);
+    uploadBtn.onclick = () => fileInput.click();
+
+    fileInput.onchange = async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      try {
+        const blob = await coffee.imageToBlob(file, { maxWidth: 1200, quality: 0.85, preserve: true });
+        const id = 'img-' + Date.now();
+        await drive.save({ id, blob, name: file.name, type: file.type, added: Date.now() });
+        outEl.innerHTML = '<pre>Saved: ' + id + ' (' + (blob.size / 1024).toFixed(1) + ' KB)</pre>';
+        previewEl.innerHTML = '';
+        if (coffee.toast) coffee.toast('Image saved', 'success');
+      } catch (err) {
+        outEl.innerHTML = '<pre>Error: ' + (err.message || err).replace(/</g, '&lt;') + '</pre>';
+        if (coffee.toast) coffee.toast(err.message || 'Upload failed', 'error');
+      }
+      fileInput.value = '';
+    };
+
+    const row = coffee.row([keyInput, valInput, saveBtn, loadBtn, listBtn, clearBtn], { style: { flexWrap: 'wrap', gap: '8px', marginBottom: '8px' } });
+    const uploadRow = coffee.row([uploadBtn], { style: { flexWrap: 'wrap', gap: '8px', marginBottom: '8px' } });
+
+    saveBtn.onclick = async () => {
+      const id = keyInput.value.trim() || 'item-' + Date.now();
+      const val = valInput.value;
+      await drive.save({ id, value: val, updated: Date.now() });
+      outEl.innerHTML = '<pre>Saved: ' + id + '</pre>';
+      previewEl.innerHTML = '';
+      if (coffee.toast) coffee.toast('Saved', 'success');
+    };
+
+    loadBtn.onclick = async () => {
+      const id = keyInput.value.trim();
+      if (!id) { outEl.innerHTML = '<pre>Enter a key</pre>'; return; }
+      const item = await drive.load(id);
+      if (!item) { outEl.innerHTML = '<pre>Not found</pre>'; previewEl.innerHTML = ''; if (coffee.toast) coffee.toast('Not found', 'warning'); return; }
+      const copy = { ...item };
+      if (copy.blob instanceof Blob) {
+        copy.blob = `[Blob ${(copy.blob.size / 1024).toFixed(1)} KB]`;
+        previewEl.innerHTML = '<img src="' + URL.createObjectURL(item.blob) + '" style="max-width:100%;border-radius:6px">';
+      } else {
+        previewEl.innerHTML = '';
+      }
+      outEl.innerHTML = '<pre>' + JSON.stringify(copy, null, 2).replace(/</g, '&lt;') + '</pre>';
+    };
+
+    listBtn.onclick = async () => {
+      const items = await drive.list();
+      previewEl.innerHTML = '';
+      if (items.length === 0) {
+        outEl.innerHTML = '<div style="color:var(--coffee-text-muted);padding:12px 0">No items stored.</div>';
+        return;
+      }
+      const listHtml = items.map(item => {
+        const isImg = item.blob instanceof Blob && (item.type || '').startsWith('image/');
+        const thumb = isImg
+          ? '<img src="' + URL.createObjectURL(item.blob) + '" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0">'
+          : '<div style="width:48px;height:48px;background:var(--coffee-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">📝</div>';
+        const name = item.name || item.id || '—';
+        const meta = item.blob instanceof Blob
+          ? (item.type || 'blob') + ' · ' + (item.blob.size / 1024).toFixed(1) + ' KB'
+          : (item.value ? 'note' : '');
+        const metaStr = meta ? '<span style="font-size:10px;color:var(--coffee-text-muted)">' + meta + '</span>' : '';
+        return '<div class="drive-item" data-id="' + item.id + '" style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--coffee-border);cursor:pointer" title="Click to load">' + thumb + '<div style="flex:1;min-width:0"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + name + '</div>' + metaStr + '</div><span style="font-size:10px;color:var(--coffee-text-muted)">' + item.id + '</span></div>';
+      }).join('');
+      outEl.innerHTML = '<div class="drive-list">' + listHtml + '</div>';
+      outEl.querySelectorAll('.drive-item').forEach(el => {
+        el.onclick = () => {
+          keyInput.value = el.dataset.id;
+          loadBtn.click();
+        };
+      });
+    };
+
+    clearBtn.onclick = async () => {
+      await drive.clear();
+      outEl.innerHTML = '<pre>Cleared</pre>';
+      previewEl.innerHTML = '';
+      if (coffee.toast) coffee.toast('Cleared', 'info');
+    };
+
+    (async () => {
+      const info = await drive.getInfo();
+      infoEl.textContent = info.supported
+        ? `Storage: ${(info.usage / 1024).toFixed(1)} KB / ${(info.quota / 1024 / 1024).toFixed(1)} MB (${info.percent}%)`
+        : 'Storage estimate not supported';
+    })();
+
+    const card = coffee.card([row, uploadRow, infoEl, outEl, previewEl], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(header);
+    app.appendChild(sub);
+    app.appendChild(card);
+  </script>
+</body>
+</html>

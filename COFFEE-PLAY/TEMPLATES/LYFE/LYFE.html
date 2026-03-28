@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LYFE // Life sim (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #1a1a1a; color: #1a1a1a;
+      font-family: system-ui, 'Segoe UI', sans-serif; user-select: none; touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; background: #2c3e50; cursor: pointer; }
+    #action-bubble {
+      position: fixed; left: 0; top: 0; transform: translate(-50%, -100%);
+      background: #fff; padding: 8px 12px; border-radius: 20px; font-weight: 700;
+      font-size: 14px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); pointer-events: none;
+      display: none; z-index: 200; white-space: nowrap;
+    }
+    .ui-panel {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 800px; background: rgba(255, 255, 255, 0.92);
+      border-radius: 15px; padding: 15px; display: flex; justify-content: space-around;
+      align-items: flex-end; flex-wrap: wrap; gap: 12px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 4px solid #4ade80; z-index: 100;
+    }
+    .need-col { display: flex; flex-direction: column; align-items: center; }
+    .need-label { font-size: 10px; font-weight: 800; color: #374151; text-transform: uppercase; }
+    .need-bar {
+      width: 120px; max-width: 28vw; height: 15px; background: #ddd; border-radius: 10px;
+      overflow: hidden; margin-top: 5px;
+    }
+    .need-fill { height: 100%; transition: width 0.2s ease-out; }
+    .need-fill.hunger { background: #f97316; }
+    .need-fill.energy { background: #3b82f6; }
+    .need-fill.fun { background: #ec4899; }
+    .money-col {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-left: 1px solid #e5e7eb; padding-left: 1.25rem; margin-left: 0.5rem; min-height: 48px;
+    }
+    .money-val { font-size: 1.5rem; font-weight: 900; color: #16a34a; }
+    .hint {
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.85); font-size: 13px; text-align: center;
+      pointer-events: none; text-shadow: 0 1px 4px #000; z-index: 50; max-width: 90vw;
+    }
+  </style>
+</head>
+<body>
+
+<div id="action-bubble" aria-live="polite"></div>
+<div class="hint">Click an object to use it · Click empty floor to move</div>
+
+<div class="ui-panel">
+  <div class="need-col">
+    <span class="need-label">Hunger</span>
+    <div class="need-bar"><div id="hunger-bar" class="need-fill hunger" style="width:80%;"></div></div>
+  </div>
+  <div class="need-col">
+    <span class="need-label">Energy</span>
+    <div class="need-bar"><div id="energy-bar" class="need-fill energy" style="width:100%;"></div></div>
+  </div>
+  <div class="need-col">
+    <span class="need-label">Fun</span>
+    <div class="need-bar"><div id="fun-bar" class="need-fill fun" style="width:60%;"></div></div>
+  </div>
+  <div class="money-col">
+    <span class="money-val">$<span id="money-val">100</span></span>
+  </div>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-lyfe-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var bubble = document.getElementById('action-bubble');
+  var hungerBar = document.getElementById('hunger-bar');
+  var energyBar = document.getElementById('energy-bar');
+  var funBar = document.getElementById('fun-bar');
+  var moneyEl = document.getElementById('money-val');
+  var canvasEl = document.getElementById('stage');
+
+  function canvasToLocal(canvas, clientX, clientY) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = canvas.width / rect.width;
+    var sy = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * sx,
+      y: (clientY - rect.top) * sy
+    };
+  }
+
+  function canvasPointToClient(canvas, cx, cy) {
+    var rect = canvas.getBoundingClientRect();
+    var sx = rect.width / canvas.width;
+    var sy = rect.height / canvas.height;
+    return {
+      x: rect.left + cx * sx,
+      y: rect.top + cy * sy
+    };
+  }
+
+  var lg = coffee.playLyfeGame.create({
+    callbacks: {
+      onNeeds: function (n) {
+        hungerBar.style.width = n.hunger + '%';
+        energyBar.style.width = n.energy + '%';
+        funBar.style.width = n.fun + '%';
+        moneyEl.textContent = String(Math.floor(n.money));
+      }
+    }
+  });
+
+  function pointerDown(clientX, clientY) {
+    var p = canvasToLocal(canvasEl, clientX, clientY);
+    lg.click(p.x, p.y);
+  }
+
+  canvasEl.addEventListener('mousedown', function (e) {
+    if (e.button === 0) pointerDown(e.clientX, e.clientY);
+  });
+  canvasEl.addEventListener('touchstart', function (e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    pointerDown(t.clientX, t.clientY);
+  }, { passive: false });
+
+  var lastT = 0;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+      lg.step(dt, { now: t });
+    },
+    onDraw: function (ctx, game) {
+      var st = lg.getState();
+      var S = coffee.playShapes;
+      var w = game.canvas.width;
+      var h = game.canvas.height;
+      var ts = st.tileSize;
+
+      ctx.fillStyle = '#2c3e50';
+      ctx.fillRect(0, 0, w, h);
+
+      S.drawLyfeFloorGrid(ctx, { w: w, h: h, tileSize: ts });
+      S.drawLyfeRoomBorder(ctx, {
+        w: w,
+        h: h,
+        margin: st.roomMargin,
+        bottomInset: st.roomBottomInset
+      });
+
+      st.objects.forEach(function (obj) {
+        S.drawLyfeAppliance(ctx, {
+          x: obj.x,
+          y: obj.y,
+          w: obj.w,
+          h: obj.h,
+          color: obj.color,
+          name: obj.name
+        });
+      });
+
+      var L = st.lyfer;
+      S.drawLyfeCharacter(ctx, {
+        cx: L.x,
+        cy: L.y,
+        radius: st.characterRadius,
+        color: L.color,
+        targetX: L.targetX,
+        targetY: L.targetY,
+        now: st.now,
+        ringColor: st.ringColor
+      });
+
+      if (st.bubble.visible) {
+        var client = canvasPointToClient(game.canvas, st.bubble.x, st.bubble.y);
+        bubble.style.display = 'block';
+        bubble.style.left = client.x + 'px';
+        bubble.style.top = client.y + 'px';
+        bubble.textContent = st.bubble.text;
+      } else {
+        bubble.style.display = 'none';
+      }
+    }
+  });
+})();
+</script>
+</body>
+</html>

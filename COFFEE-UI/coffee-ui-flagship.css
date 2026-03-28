@@ -1,0 +1,558 @@
+/**
+ * coffee-ui-flagship — shared “flagship app” chrome (chat sidebar, neural bar, prompt grid, composer).
+ * Load after coffee-ui.js. Optional: coffee.flagship.applyTokens(opts) for accent overrides.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --flagship-bg: #050507;
+  --flagship-sidebar: #0a0a0f;
+  --flagship-panel: #0d0d12;
+  --flagship-accent: #c084fc;
+  --flagship-accent-muted: rgba(192, 132, 252, 0.1);
+  --flagship-border: rgba(255, 255, 255, 0.08);
+  --flagship-text: #f1f1f1;
+  --flagship-muted: #888;
+}
+
+html.coffee-flagship-root,
+html.coffee-flagship-root body {
+  background: var(--flagship-bg);
+  color: var(--flagship-text);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}
+
+.ff-hidden {
+  display: none !important;
+}
+
+.ff-app-shell {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Sidebar */
+.ff-sidebar {
+  width: 280px;
+  background: var(--flagship-sidebar);
+  border-right: 1px solid var(--flagship-border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.ff-sidebar-head {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ff-logo-mark {
+  width: 32px;
+  height: 32px;
+  background: var(--flagship-accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 15px var(--flagship-accent-muted);
+}
+
+.ff-logo-mark svg {
+  display: block;
+}
+
+.ff-brand-title {
+  font-weight: 700;
+  font-size: 1.125rem;
+  letter-spacing: -0.02em;
+}
+
+.ff-sidebar-action-wrap {
+  padding: 0 16px 8px;
+}
+
+.ff-btn-soft {
+  width: 100%;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--flagship-text);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s;
+}
+
+.ff-btn-soft:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ff-history-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  min-height: 0;
+}
+
+.ff-rail-label {
+  padding: 0 12px 8px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+
+.ff-history-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--flagship-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ff-history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--flagship-text);
+}
+
+.ff-history-item.ff-history-active {
+  background: var(--flagship-accent-muted);
+  color: var(--flagship-accent);
+  border: 1px solid rgba(192, 132, 252, 0.2);
+}
+
+.ff-sidebar-tools {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ff-sidebar-tools label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #71717a;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+}
+
+.ff-select {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--flagship-border);
+  background: var(--flagship-panel);
+  color: var(--flagship-text);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ff-select:focus {
+  outline: none;
+  border-color: var(--flagship-accent);
+}
+
+.ff-sidebar-foot {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  margin-top: auto;
+}
+
+.ff-sidebar-foot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ff-foot-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ff-foot-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.ff-foot-title {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ff-foot-sub {
+  font-size: 10px;
+  color: #71717a;
+}
+
+/* Main */
+.ff-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--flagship-bg);
+  position: relative;
+  min-width: 0;
+}
+
+.ff-top-bar {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--flagship-border);
+  background: rgba(5, 5, 7, 0.8);
+  backdrop-filter: blur(10px);
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+.ff-top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ff-status-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--flagship-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--flagship-accent);
+  animation: ff-pulse 2s infinite;
+}
+
+@keyframes ff-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+.ff-status-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  opacity: 0.6;
+}
+
+.ff-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ff-icon-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  color: #a1a1aa;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.ff-icon-btn:hover {
+  color: #fff;
+}
+
+.ff-viewport {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  min-height: 0;
+}
+
+.ff-thread {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ff-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  margin-top: 6vh;
+  width: 100%;
+  max-width: 720px;
+}
+
+.ff-welcome-icon {
+  width: 64px;
+  height: 64px;
+  background: rgba(192, 132, 252, 0.1);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  border: 1px solid rgba(192, 132, 252, 0.2);
+}
+
+.ff-welcome h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.ff-welcome-sub {
+  color: #71717a;
+  max-width: 28rem;
+  margin: 0;
+  line-height: 1.5;
+  font-size: 0.95rem;
+}
+
+.ff-prompt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 36px;
+  width: 100%;
+  max-width: 700px;
+}
+
+@media (max-width: 640px) {
+  .ff-prompt-grid {
+    grid-template-columns: 1fr;
+  }
+  .ff-sidebar {
+    width: 100%;
+    max-width: 100%;
+  }
+}
+
+[data-coffee="flagship-prompt-card"],
+.ff-prompt-card {
+  background: var(--flagship-panel);
+  border: 1px solid var(--flagship-border);
+  padding: 16px;
+  border-radius: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+[data-coffee="flagship-prompt-card"]:hover,
+.ff-prompt-card:hover {
+  border-color: var(--flagship-accent);
+  background: rgba(192, 132, 252, 0.05);
+}
+
+[data-coffee="flagship-prompt-card"] h4,
+.ff-prompt-card h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--flagship-accent);
+}
+
+[data-coffee="flagship-prompt-card"] p,
+.ff-prompt-card p {
+  font-size: 13px;
+  color: var(--flagship-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Messages */
+[data-coffee="flagship-msg"],
+.ff-msg {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.ff-msg-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ff-msg-avatar.ff-assistant {
+  background: var(--flagship-accent-muted);
+  color: var(--flagship-accent);
+  border: 1px solid rgba(192, 132, 252, 0.2);
+}
+
+.ff-msg-avatar.ff-user {
+  background: #222;
+  color: #eee;
+}
+
+.ff-msg-body {
+  flex: 1;
+  font-size: 16px;
+  line-height: 1.6;
+  color: #e0e0e0;
+  min-width: 0;
+}
+
+.ff-msg-body.pre-wrap {
+  white-space: pre-wrap;
+}
+
+.ff-msg-body code {
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.ff-pending-text {
+  animation: ff-blink 1s ease-in-out infinite;
+}
+
+@keyframes ff-blink {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* Composer */
+.ff-composer-wrap {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  flex-shrink: 0;
+}
+
+.ff-composer-box {
+  background: var(--flagship-panel);
+  border: 1px solid var(--flagship-border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.ff-composer-box:focus-within {
+  border-color: var(--flagship-accent);
+  box-shadow: 0 0 20px rgba(192, 132, 252, 0.05);
+}
+
+textarea.ff-composer-field {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  resize: none;
+  font-family: inherit;
+  font-size: 15px;
+  width: 100%;
+  min-height: 24px;
+  max-height: 200px;
+  line-height: 1.5;
+}
+
+.ff-composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ff-composer-tools {
+  display: flex;
+  gap: 16px;
+}
+
+.ff-composer-tools button {
+  background: none;
+  border: none;
+  padding: 4px;
+  color: #71717a;
+  cursor: pointer;
+  border-radius: 6px;
+  display: flex;
+  transition: color 0.2s;
+}
+
+.ff-composer-tools button:hover:not(:disabled) {
+  color: var(--flagship-accent);
+}
+
+.ff-send-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--flagship-accent);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+
+.ff-send-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.ff-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ff-version-tag {
+  font-size: 10px;
+  color: #52525b;
+  text-align: center;
+  margin-top: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 500;
+}
+
+body .coffee-modal-overlay {
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+}

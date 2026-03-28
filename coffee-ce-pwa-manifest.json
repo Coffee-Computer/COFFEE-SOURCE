@@ -1,0 +1,45 @@
+{
+  "name": "Coffee Community Edition",
+  "short_name": "Coffee CE",
+  "description": "Coffee OS — Community Edition source stack (offline-friendly, live-first updates)",
+  "id": "/COFFEE-SOURCE/coffee-ce-pwa-manifest.json",
+  "start_url": "COFFEE-COMMUNITY/COMMUNITY-SPLASH/COMMUNITY-SPLASH-SCREEN.html",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#071124",
+  "theme_color": "#8B5E46",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%238B5E46'/%3E%3Ctext x='50%25' y='50%25' font-size='88' text-anchor='middle' dominant-baseline='central'%3E☕%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%238B5E46'/%3E%3Ctext x='50%25' y='50%25' font-size='240' text-anchor='middle' dominant-baseline='central'%3E☕%3C/text%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["developer", "productivity"],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    {
+      "name": "My Apps",
+      "short_name": "Apps",
+      "url": "COFFEE-COMMUNITY/COMMUNITY-HOMESCREEN/coffee-community-homescreen.html"
+    },
+    {
+      "name": "Community Desk",
+      "short_name": "Desk",
+      "url": "COFFEE-COMMUNITY/COMMUNITY-DESKTOP/COMMUNITY-DESKTOP-ALPHA.html"
+    },
+    {
+      "name": "Terminal α",
+      "short_name": "Terminal",
+      "url": "COFFEE-TERMINAL/COFFEE-TERMINAL-ALPHA.html"
+    }
+  ]
+}

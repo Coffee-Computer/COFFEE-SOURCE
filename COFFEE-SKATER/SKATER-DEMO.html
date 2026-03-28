@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.skater — CSS shader engine</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    .code-editor { font-family: 'Fira Code', monospace; background: #1e1e1e; color: #f0f0f0; resize: none; }
+    .skater-stage { width: 280px; height: 280px; background: linear-gradient(45deg, #ff0080, #7928ca); border-radius: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 50px rgba(236, 72, 153, 0.3); position: relative; }
+    .glossy { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 50%); pointer-events: none; border-radius: inherit; }
+    .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--coffee-panel); border-radius: 4px; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-skater.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+
+    const stage = document.createElement('div');
+    stage.id = 'skater-stage';
+    stage.className = 'skater-stage';
+    stage.innerHTML = '<div class="glossy"></div><div style="color:white;font-weight:800;font-size:48px;opacity:0.3;font-style:italic;user-select:none">SKATE</div>';
+
+    const telemetryEl = document.createElement('div');
+    telemetryEl.id = 'skater-telemetry';
+    telemetryEl.style.cssText = 'fontFamily:monospace;fontSize:11px;color:var(--coffee-text-muted)';
+
+    const skater = coffee.skater({
+      target: stage,
+      onState: (state) => {
+        if (!state) {
+          telemetryEl.innerHTML = '<div style="color:var(--coffee-text-muted)">Stopped</div>';
+          return;
+        }
+        telemetryEl.innerHTML = `
+          <div style="color:#ec4899;border-bottom:1px solid var(--coffee-panel);padding-bottom:8px;margin-bottom:8px">MODE: OBJECT_INTERPOLATION</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>HUE:</span><span style="color:var(--coffee-text-primary)">${Math.round(state.hue ?? 0)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>SCALE:</span><span style="color:var(--coffee-text-primary)">${(state.scale ?? 1).toFixed(2)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>SKEW:</span><span style="color:var(--coffee-text-primary)">${Math.round(state.skew ?? 0)}</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>BLUR:</span><span style="color:var(--coffee-text-primary)">${Math.round(state.blur ?? 0)}</span></div>
+          <div style="display:flex;justify-content:space-between"><span>INVERT:</span><span style="color:var(--coffee-text-primary)">${(state.invert ?? 0).toFixed(2)}</span></div>
+        `;
+      }
+    });
+
+    const defaultJson = skater.loadPreset('default');
+    const editor = coffee.textarea({
+      placeholder: '# JSON keyframes: hue, scale, skew, blur, invert',
+      value: defaultJson,
+      rows: 10,
+      style: { fontFamily: "'Fira Code', monospace", fontSize: '13px', background: '#1e1e1e', color: '#f0f0f0', border: '1px solid #333', flex: 1, minHeight: 0 }
+    });
+
+    function compile() {
+      const ok = skater.compile(editor.value);
+      if (!ok && coffee.toast) coffee.toast('Invalid JSON', 'error', 2000);
+    }
+
+    function loadPreset(key) {
+      editor.value = skater.loadPreset(key);
+      skater.compile(editor.value);
+      if (coffee.toast) coffee.toast('Loaded ' + key, 'info', 1500);
+    }
+
+    // Sidebar
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:260px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px;background:var(--coffee-bg-surface)';
+
+    const header = coffee.heading('coffee.skater()', 1);
+    const sub = coffee.para('Object-based CSS shader. hue, scale, skew, blur, invert.');
+    sub.style.color = 'var(--coffee-text-muted)';
+    sub.style.fontSize = '11px';
+
+    sidebar.appendChild(header);
+    sidebar.appendChild(sub);
+    sidebar.appendChild(coffee.para('Presets', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', fontWeight: '700', textTransform: 'uppercase', marginTop: '8px' } }));
+    sidebar.appendChild(coffee.col([
+      coffee.button('🌈 Psycho Brew', () => loadPreset('psycho'), { style: { justifyContent: 'flex-start', textAlign: 'left', backgroundColor: '#fdf2f8', color: '#be185d' } }),
+      coffee.button('👻 Ghost Steam', () => loadPreset('ghost'), { style: { justifyContent: 'flex-start', textAlign: 'left' } }),
+      coffee.button('Default', () => loadPreset('default'), { style: { justifyContent: 'flex-start', textAlign: 'left' } })
+    ], { style: { gap: '6px' } }));
+    sidebar.appendChild(coffee.para('Schema', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', fontWeight: '700', textTransform: 'uppercase', marginTop: '12px' } }));
+    const schemaBox = document.createElement('div');
+    schemaBox.style.cssText = 'fontSize:10px;padding:8px;background:var(--coffee-bg-elev);borderRadius:var(--coffee-radius-sm);fontFamily:monospace';
+    schemaBox.innerHTML = 'hue: 0–360<br>scale: 0.5–2<br>skew: -90–90<br>blur: px<br>invert: 0–1';
+    sidebar.appendChild(schemaBox);
+
+    // Main
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:column;min-width:0;background:#0a0a0a';
+
+    const viewport = document.createElement('div');
+    viewport.style.cssText = 'flex:1;display:flex;align-items:center;justify-content:center;padding:40px';
+    viewport.appendChild(stage);
+    main.appendChild(viewport);
+
+    const footer = document.createElement('footer');
+    footer.style.cssText = 'height:200px;background:#1a1a1a;border-top:4px solid #ec4899;display:flex;overflow:hidden';
+    const editorCol = document.createElement('div');
+    editorCol.style.cssText = 'flex:1;display:flex;flex-direction:column;padding:16px;min-width:0';
+    editorCol.appendChild(coffee.row([
+      coffee.para('shader.json', { style: { fontSize: '10px', color: '#ec4899', fontWeight: '700', margin: 0 } }),
+      coffee.row([
+        coffee.button('Stop', () => skater.stop()),
+        coffee.button('Re-Brew', compile, { style: { backgroundColor: '#ec4899', color: '#fff' } })
+      ], { style: { gap: '8px' } })
+    ], { style: { justifyContent: 'space-between', marginBottom: '8px' } }));
+    editorCol.appendChild(editor);
+    const telemetryCol = document.createElement('div');
+    telemetryCol.style.cssText = 'width:200px;padding:16px;border-left:1px solid #333;background:#000';
+    telemetryCol.appendChild(coffee.para('Active State', { style: { fontSize: '10px', color: 'var(--coffee-text-muted)', marginBottom: '8px', textTransform: 'uppercase' } }));
+    telemetryCol.appendChild(telemetryEl);
+    footer.appendChild(editorCol);
+    footer.appendChild(telemetryCol);
+    main.appendChild(footer);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+
+    document.getElementById('app').appendChild(layout);
+    skater.compile(editor.value);
+  </script>
+</body>
+</html>

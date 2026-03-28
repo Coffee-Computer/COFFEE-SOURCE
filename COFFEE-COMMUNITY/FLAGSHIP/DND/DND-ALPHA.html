@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="DND">
+  <meta name="cce:id" content="dnd">
+  <meta name="cce:icon" content="🛡">
+  <meta name="cce:color" content="#f43f5e">
+  <meta name="cce:description" content="P2P signals — coffee.peer + PeerJS">
+  <title>DND α — DO_NOT_DISTURB</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="DND-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="../../../COFFEE-PEER/coffee-peer.js"></script>
+</head>
+<body>
+  <div class="dnd-scanline" aria-hidden="true"></div>
+
+  <div class="dnd-container" id="dnd-root">
+    <aside id="dnd-sidebar" class="dnd-sidebar">
+      <div class="dnd-sidebar-top">
+        <div class="dnd-sidebar-brand">
+          <div class="dnd-logo">dnd</div>
+          <span>THREADS</span>
+        </div>
+        <div class="dnd-peer-row dnd-panel-form">
+          <div class="dnd-field-wrap" id="dnd-peer-input-mount"></div>
+          <button type="button" class="dnd-connect-icon" id="dnd-btn-connect" title="Connect" aria-label="Connect">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          </button>
+        </div>
+      </div>
+      <div id="dnd-thread-list" class="dnd-thread-list">
+        <div class="dnd-thread-empty" id="dnd-thread-empty">No active links</div>
+      </div>
+      <div class="dnd-sidebar-footer">
+        <div class="dnd-my-id-label">
+          <span class="dnd-mono">Your_Signal</span>
+          <button type="button" class="dnd-copy-btn dnd-mono" id="dnd-copy-id">COPY</button>
+        </div>
+        <div id="dnd-my-id" class="dnd-my-id-value dnd-mono">…</div>
+      </div>
+    </aside>
+
+    <div class="dnd-chat">
+      <header class="dnd-header">
+        <div class="dnd-header-left">
+          <button type="button" class="dnd-menu-btn" id="dnd-menu-btn" aria-label="Open threads">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          </button>
+          <div>
+            <h2 class="dnd-title" id="dnd-active-title">DO_NOT_DISTURB</h2>
+            <div class="dnd-status dnd-mono" id="dnd-connection-status">Initializing…</div>
+          </div>
+        </div>
+        <div class="dnd-header-actions dnd-hidden" id="dnd-header-actions">
+          <button type="button" class="dnd-kill-btn" id="dnd-kill-btn" title="Kill link" aria-label="Disconnect">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="dnd-messages" class="dnd-messages">
+        <div id="dnd-welcome" class="dnd-welcome">
+          <div class="dnd-welcome-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <h3>P2P_COMMS_HUB</h3>
+          <p class="dnd-mono">
+            Direct browser signals via <strong>coffee.peer</strong> + PeerJS. Enter a peer ID in the sidebar or share yours.
+          </p>
+        </div>
+        <div id="dnd-chat-content"></div>
+      </main>
+
+      <footer class="dnd-footer dnd-disabled dnd-panel-form" id="dnd-footer">
+        <form id="dnd-msg-form" class="dnd-msg-form">
+          <div class="dnd-field-wrap" id="dnd-msg-input-mount"></div>
+          <button type="submit" class="dnd-send-btn" aria-label="Send">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg) translate(-1px,-2px)"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </form>
+        <p class="dnd-footer-hint dnd-mono">End-to-end · Ephemeral</p>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  const CTRL_LAST = 'dnd_last_peer_id';
+
+  coffee.injectTheme('dark');
+
+  const statusEl = document.getElementById('dnd-connection-status');
+  const myIdEl = document.getElementById('dnd-my-id');
+  const chatContent = document.getElementById('dnd-chat-content');
+  const welcomeEl = document.getElementById('dnd-welcome');
+  const messagesEl = document.getElementById('dnd-messages');
+  const threadListEl = document.getElementById('dnd-thread-list');
+  const threadEmptyEl = document.getElementById('dnd-thread-empty');
+  const footerEl = document.getElementById('dnd-footer');
+  const activeTitle = document.getElementById('dnd-active-title');
+  const headerActions = document.getElementById('dnd-header-actions');
+  const sidebar = document.getElementById('dnd-sidebar');
+
+  const peerInput = coffee.input({
+    id: 'dnd-peer-in',
+    placeholder: 'Peer ID…',
+    autocomplete: 'off',
+    style: { width: '100%', boxSizing: 'border-box', fontSize: '11px' }
+  });
+  document.getElementById('dnd-peer-input-mount').appendChild(peerInput);
+
+  const msgInput = coffee.input({
+    id: 'dnd-msg-in',
+    placeholder: 'Transmit signal…',
+    autocomplete: 'off',
+    style: { width: '100%', boxSizing: 'border-box' }
+  });
+  document.getElementById('dnd-msg-input-mount').appendChild(msgInput);
+
+  const last = coffee.load(CTRL_LAST);
+  if (last && typeof last === 'string') peerInput.value = last;
+
+  /** @type {Record<string, { messages: Array, active: boolean, api: object|null }>} */
+  const threads = {};
+  let activePeerId = null;
+  /** @type {ReturnType<typeof coffee.peer.open>} */
+  let pHandle = null;
+
+  function toggleSidebar() {
+    sidebar.classList.toggle('dnd-sidebar-open');
+  }
+
+  document.getElementById('dnd-menu-btn').onclick = toggleSidebar;
+  document.getElementById('dnd-btn-connect').onclick = connectToPeer;
+
+  function normalizeId(s) {
+    return String(s || '').trim();
+  }
+
+  function makeMsgData(text) {
+    return {
+      text: text,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+  }
+
+  function appendBubble(data, dir) {
+    const bubble = document.createElement('div');
+    bubble.className = 'dnd-bubble ' + (dir === 'in' ? 'dnd-bubble-in' : 'dnd-bubble-out');
+    const text = document.createElement('div');
+    text.className = 'dnd-bubble-text';
+    text.textContent = data.text || '';
+    const time = document.createElement('div');
+    time.className = 'dnd-bubble-time dnd-mono';
+    time.textContent = data.time || '';
+    bubble.appendChild(text);
+    bubble.appendChild(time);
+    chatContent.appendChild(bubble);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function updateThreadList() {
+    const ids = Object.keys(threads);
+    threadListEl.querySelectorAll('.dnd-thread-item').forEach(function (n) {
+      n.remove();
+    });
+    if (ids.length === 0) {
+      threadEmptyEl.classList.remove('dnd-hidden');
+      return;
+    }
+    threadEmptyEl.classList.add('dnd-hidden');
+    ids.forEach(function (id) {
+      const t = threads[id];
+      const lastMsg =
+        t.messages.length > 0 ? t.messages[t.messages.length - 1].text : 'No messages';
+      const row = document.createElement('div');
+      row.className =
+        'dnd-thread-item' + (activePeerId === id ? ' dnd-active' : '');
+      row.onclick = function () {
+        switchThread(id);
+      };
+      const top = document.createElement('div');
+      top.style.cssText =
+        'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px';
+      const name = document.createElement('span');
+      name.className =
+        'dnd-thread-peer dnd-mono ' + (t.active ? 'dnd-online' : 'dnd-offline');
+      name.textContent = id;
+      const dot = document.createElement('span');
+      dot.className = 'dnd-dot ' + (t.active ? 'dnd-dot-online' : 'dnd-dot-offline');
+      top.appendChild(name);
+      top.appendChild(dot);
+      const preview = document.createElement('div');
+      preview.className = 'dnd-thread-preview dnd-mono';
+      preview.textContent = lastMsg;
+      row.appendChild(top);
+      row.appendChild(preview);
+      threadListEl.appendChild(row);
+    });
+  }
+
+  function switchThread(peerId) {
+    activePeerId = peerId;
+    welcomeEl.classList.add('dnd-hidden');
+    footerEl.classList.remove('dnd-disabled');
+    headerActions.classList.remove('dnd-hidden');
+    activeTitle.textContent = peerId;
+
+    const t = threads[peerId];
+    if (t.active) {
+      statusEl.textContent = 'LINK_ACTIVE';
+      statusEl.classList.add('dnd-ok');
+    } else {
+      statusEl.textContent = 'LINK_OFFLINE';
+      statusEl.classList.remove('dnd-ok');
+      footerEl.classList.add('dnd-disabled');
+    }
+
+    chatContent.innerHTML = '';
+    t.messages.forEach(function (m) {
+      appendBubble(m, m.dir);
+    });
+    updateThreadList();
+    if (window.innerWidth <= 768) sidebar.classList.remove('dnd-sidebar-open');
+  }
+
+  function connectionHandlers(peerId) {
+    return {
+      onOpen: function () {
+        coffee.toast('LINK · ' + peerId, 'success');
+        threads[peerId].active = true;
+        updateThreadList();
+        if (!activePeerId) switchThread(peerId);
+        else if (activePeerId === peerId) {
+          statusEl.textContent = 'LINK_ACTIVE';
+          statusEl.classList.add('dnd-ok');
+          footerEl.classList.remove('dnd-disabled');
+        }
+      },
+      onData: function (data) {
+        const text = data && typeof data.text === 'string' ? data.text : String(data || '');
+        const time =
+          data && data.time
+            ? data.time
+            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const msg = { text: text, time: time, dir: 'in' };
+        threads[peerId].messages.push(msg);
+        if (activePeerId === peerId) appendBubble(msg, 'in');
+        updateThreadList();
+      },
+      onClose: function () {
+        coffee.toast('LOST · ' + peerId, 'warning');
+        threads[peerId].active = false;
+        threads[peerId].api = null;
+        updateThreadList();
+        if (activePeerId === peerId) {
+          statusEl.textContent = 'LINK_SEVERED';
+          statusEl.classList.remove('dnd-ok');
+          footerEl.classList.add('dnd-disabled');
+        }
+      },
+      onError: function (err) {
+        coffee.toast((err && err.message) || 'Channel error', 'error');
+      }
+    };
+  }
+
+  function ensureThread(peerId) {
+    if (!threads[peerId]) {
+      threads[peerId] = { messages: [], active: false, api: null };
+    }
+    return threads[peerId];
+  }
+
+  function connectToPeer() {
+    const raw = normalizeId(peerInput.value);
+    const remoteId = raw.toUpperCase();
+    if (!remoteId || !pHandle || !pHandle.id) {
+      coffee.toast('Wait for your ID', 'warning');
+      return;
+    }
+    if (remoteId === pHandle.id) {
+      coffee.toast('That is your ID', 'warning');
+      return;
+    }
+    coffee.save(CTRL_LAST, remoteId);
+    const t = ensureThread(remoteId);
+    if (t.api) {
+      try {
+        t.api.close();
+      } catch (_) {}
+      t.api = null;
+    }
+    const api = pHandle.connect(remoteId, connectionHandlers(remoteId));
+    if (api) t.api = api;
+    peerInput.value = '';
+    statusEl.textContent = 'Establishing…';
+    statusEl.classList.remove('dnd-ok');
+  }
+
+  document.getElementById('dnd-msg-form').onsubmit = function (e) {
+    e.preventDefault();
+    const text = normalizeId(msgInput.value);
+    if (!text || !activePeerId) return;
+    const t = threads[activePeerId];
+    if (!t || !t.active || !t.api) return;
+    const msgData = makeMsgData(text);
+    const out = { text: msgData.text, time: msgData.time, dir: 'out' };
+    t.api.send(msgData);
+    t.messages.push(out);
+    appendBubble(out, 'out');
+    msgInput.value = '';
+    updateThreadList();
+  };
+
+  document.getElementById('dnd-kill-btn').onclick = function () {
+    if (activePeerId && threads[activePeerId] && threads[activePeerId].api) {
+      threads[activePeerId].api.close();
+    }
+  };
+
+  document.getElementById('dnd-copy-id').onclick = function () {
+    const id = pHandle && pHandle.id;
+    if (!id) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(id).then(function () {
+        coffee.toast('ID copied', 'success');
+      });
+      return;
+    }
+    const ta = document.createElement('textarea');
+    ta.value = id;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    coffee.toast('ID copied', 'success');
+  };
+
+  pHandle = coffee.peer.open({
+    generateId: function () {
+      return 'dnd-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+    },
+    debug: 1,
+    onOpen: function (id) {
+      myIdEl.textContent = id;
+      statusEl.textContent = 'System_Ready';
+      statusEl.classList.add('dnd-ok');
+    },
+    onError: function (err) {
+      statusEl.textContent = 'ERR · ' + (err.type || 'unknown');
+      statusEl.classList.remove('dnd-ok');
+      coffee.toast('Peer: ' + (err.type || err), 'error');
+    },
+    onIncoming: function (conn, handle) {
+      const pid = conn.peer;
+      const t = ensureThread(pid);
+      if (t.api) {
+        try {
+          conn.close();
+        } catch (_) {}
+        coffee.toast('Duplicate link ignored', 'warning');
+        return;
+      }
+      t.api = handle.bind(conn, connectionHandlers(pid));
+    }
+  });
+
+  if (!pHandle) {
+    statusEl.textContent = 'PeerJS missing';
+    myIdEl.textContent = '—';
+  }
+})();
+  </script>
+</body>
+</html>

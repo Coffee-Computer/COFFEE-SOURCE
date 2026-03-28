@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.bee Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-MODAL/coffee-modal.js"></script>
+  <script src="../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../COFFEE-DRIVE/coffee-drive.js"></script>
+  <script src="../COFFEE-AI/coffee-ai.js"></script>
+  <script src="../COFFEE-CONTEXT/coffee-context.js"></script>
+  <script src="./coffee-bee.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const STORAGE_KEYS = { github: 'ai-api-key-github', openai: 'ai-api-key-openai', gemini: 'ai-api-key-gemini' };
+    function getApiKey(provider) {
+      return STORAGE_KEYS[provider] ? (coffee.load(STORAGE_KEYS[provider]) || '') : '';
+    }
+
+    const bee = coffee.bee({
+      driveName: 'bee-demo',
+      getApiKey,
+      defaultSystem: 'You are a helpful assistant. Reply briefly.'
+    });
+
+    let currentThreadId = null;
+
+    const header = coffee.heading('coffee.bee', 1);
+    const sub = coffee.para('Chat with context. Threads persisted via coffee.context.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const threadSelect = coffee.select({
+      id: 'thread-select',
+      options: [{ value: '', label: '(no thread)' }],
+      style: { minWidth: '160px' }
+    });
+
+    const systemInput = coffee.textarea({
+      id: 'system-instruction',
+      placeholder: 'System instruction (personality, behavior)...',
+      rows: 2,
+      style: { width: '100%', resize: 'vertical', marginBottom: 0 }
+    });
+    systemInput.value = 'You are a helpful assistant. Reply briefly.';
+
+    const newThreadBtn = coffee.button('New thread', async () => {
+      const thread = await bee.createThread({ system: systemInput.value.trim() || undefined });
+      currentThreadId = thread.id;
+      await refreshThreadList();
+      threadSelect.value = thread.id;
+      renderMessages(thread.messages || []);
+      if (coffee.toast) coffee.toast('Thread created', 'success');
+    });
+
+    const providerSelect = coffee.select({
+      options: [
+        { value: 'github', label: 'GitHub' },
+        { value: 'openai', label: 'OpenAI' },
+        { value: 'gemini', label: 'Gemini' },
+        { value: 'ollama', label: 'Ollama' }
+      ],
+      value: 'github',
+      style: { minWidth: '100px' }
+    });
+
+    providerSelect.onchange = () => {
+      const p = coffee.ai.providers[providerSelect.value];
+      modelSelect.innerHTML = '';
+      (p?.models || []).forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.textContent = m;
+        modelSelect.appendChild(opt);
+      });
+      if (modelSelect.options.length) modelSelect.value = modelSelect.options[0].value;
+    };
+
+    const modelSelect = coffee.select({
+      options: coffee.ai.providers.github.models.map(m => ({ value: m, label: m })),
+      value: 'gpt-4o',
+      style: { minWidth: '140px' }
+    });
+
+    function openApiKeysModal() {
+      const githubInput = coffee.input({ id: 'key-github', type: 'password', placeholder: 'GitHub (ghp_xxx)', value: getApiKey('github'), style: { width: '100%', marginBottom: '8px' } });
+      const openaiInput = coffee.input({ id: 'key-openai', type: 'password', placeholder: 'OpenAI (sk-xxx)', value: getApiKey('openai'), style: { width: '100%', marginBottom: '8px' } });
+      const geminiInput = coffee.input({ id: 'key-gemini', type: 'password', placeholder: 'Gemini key', value: getApiKey('gemini'), style: { width: '100%', marginBottom: '12px' } });
+      const content = coffee.card([
+        coffee.para('API keys per provider. Stored via coffee.save.', { style: { color: 'var(--coffee-text-muted)', marginBottom: '12px' } }),
+        githubInput, openaiInput, geminiInput,
+        coffee.row([
+          coffee.button('Save', () => {
+            coffee.save(STORAGE_KEYS.github, githubInput.value);
+            coffee.save(STORAGE_KEYS.openai, openaiInput.value);
+            coffee.save(STORAGE_KEYS.gemini, geminiInput.value);
+            if (coffee.toast) coffee.toast('Saved', 'success');
+            modalRef.close();
+          }),
+          coffee.button('Clear', () => {
+            coffee.remove(STORAGE_KEYS.github);
+            coffee.remove(STORAGE_KEYS.openai);
+            coffee.remove(STORAGE_KEYS.gemini);
+            githubInput.value = '';
+            openaiInput.value = '';
+            geminiInput.value = '';
+            if (coffee.toast) coffee.toast('Cleared', 'info');
+          }, { backgroundColor: 'var(--coffee-panel)' })
+        ], { style: { gap: '8px' } })
+      ], { style: { width: '100%' } });
+      const modalRef = coffee.modal(content, { title: 'API Keys', closeOnOverlay: true });
+    }
+
+    const apiKeysBtn = coffee.button('⚙ Keys', openApiKeysModal, { backgroundColor: 'var(--coffee-panel)' });
+
+    const chatArea = document.createElement('div');
+    chatArea.style.cssText = 'flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:var(--coffee-space-md);min-height:200px;max-height:400px;background:var(--coffee-bg-surface);border-radius:var(--coffee-radius-sm)';
+
+    const { el: chatInputEl, input: msgInput, sendBtn } = coffee.chatInput({
+      placeholder: 'Type a message...',
+      onSend: async (text) => {
+        if (!currentThreadId) {
+          const thread = await bee.createThread({ system: systemInput.value.trim() || undefined });
+          currentThreadId = thread.id;
+          await refreshThreadList();
+          threadSelect.value = thread.id;
+        }
+        sendBtn.disabled = true;
+        const loadingBubble = coffee.chatBubble('...', false);
+        chatArea.appendChild(loadingBubble);
+        chatArea.scrollTop = chatArea.scrollHeight;
+        try {
+          const { thread } = await bee.send(currentThreadId, text, {
+            provider: providerSelect.value,
+            model: modelSelect.value,
+            system: systemInput.value.trim() || undefined
+          });
+          loadingBubble.remove();
+          renderMessages(thread.messages || []);
+          if (coffee.toast) coffee.toast('Sent', 'success');
+        } catch (e) {
+          loadingBubble.textContent = 'Error: ' + (e.message || e);
+          loadingBubble.style.color = '#f87171';
+          if (coffee.toast) coffee.toast(e.message || 'Failed', 'error');
+        } finally {
+          sendBtn.disabled = false;
+        }
+      }
+    });
+
+    function renderMessages(messages) {
+      chatArea.innerHTML = '';
+      messages.forEach(m => {
+        const bubble = coffee.chatBubble(String(m.content || ''), m.role === 'user');
+        chatArea.appendChild(bubble);
+      });
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    async function refreshThreadList() {
+      const threads = await bee.listThreads();
+      threadSelect.innerHTML = '';
+      threadSelect.appendChild(new Option('(new)', ''));
+      threads.forEach(t => {
+        const label = (t.title || t.id || 'Thread').slice(0, 30) + (threads.length > 1 ? ' (' + (t.messages?.length || 0) + ')' : '');
+        threadSelect.appendChild(new Option(label, t.id));
+      });
+      if (currentThreadId) threadSelect.value = currentThreadId;
+    }
+
+    threadSelect.onchange = async () => {
+      const id = threadSelect.value;
+      currentThreadId = id || null;
+      if (id) {
+        const thread = await bee.loadThread(id);
+        renderMessages(thread?.messages || []);
+        if (thread?.system) systemInput.value = thread.system;
+      } else {
+        renderMessages([]);
+      }
+    };
+
+    const topRow = coffee.row([
+      coffee.label('Thread', threadSelect),
+      threadSelect,
+      newThreadBtn,
+      providerSelect,
+      modelSelect,
+      apiKeysBtn
+    ], { style: { flexWrap: 'wrap', gap: '8px', alignItems: 'center' } });
+
+    const systemRow = coffee.col([
+      coffee.label('System instruction', systemInput),
+      systemInput
+    ], { style: { width: '100%', marginTop: '4px' } });
+
+    const card = coffee.card([
+      header,
+      sub,
+      topRow,
+      systemRow,
+      chatArea,
+      chatInputEl
+    ], { style: { width: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', minHeight: '400px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;height:100%;box-sizing:border-box;background:var(--coffee-bg-surface);display:flex;flex-direction:column';
+    app.appendChild(card);
+
+    refreshThreadList();
+  </script>
+</body>
+</html>

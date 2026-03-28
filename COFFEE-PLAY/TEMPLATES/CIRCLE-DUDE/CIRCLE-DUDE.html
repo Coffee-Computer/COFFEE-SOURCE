@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Circle-Dude // Pac template (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #000; color: #ffe135; font-family: system-ui, sans-serif; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    #hud {
+      position: fixed; left: 0; right: 0; top: 0; padding: 10px 16px;
+      display: flex; justify-content: space-between; align-items: flex-start;
+      pointer-events: none; font-size: 12px; font-weight: 800; letter-spacing: 0.06em;
+      text-shadow: 0 0 8px #000, 0 0 2px #000;
+    }
+    /* Touch D-pad (same idea as CIRCLE-DUDE-POC1) — hidden on wide screens */
+    .cd-touch {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+      pointer-events: auto;
+      gap: 10px;
+    }
+    .cd-touch-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(72px, 1fr));
+      gap: 10px;
+      max-width: 280px;
+      width: 100%;
+    }
+    .cd-touch-btn {
+      background: #1a1a2e;
+      color: #fff;
+      border: 1px solid rgba(76, 76, 255, 0.35);
+      border-radius: 12px;
+      padding: 14px 8px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-align: center;
+      user-select: none;
+      touch-action: manipulation;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(0, 255, 255, 0.08);
+    }
+    .cd-touch-btn:active {
+      transform: scale(0.96);
+      background: #252540;
+    }
+    .cd-touch-hint {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.35);
+      font-weight: 600;
+    }
+    @media (min-width: 768px) {
+      .cd-touch { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="hud"><span id="score">0</span><span id="lives">♥♥♥</span><span>ARROWS / WASD · TOUCH PAD (PHONE) · POWER DOTS</span></div>
+  <canvas id="stage"></canvas>
+
+  <div class="cd-touch" id="cd-touch" aria-label="Touch controls">
+    <div class="cd-touch-grid">
+      <span></span>
+      <button type="button" class="cd-touch-btn" data-dir="up">UP</button>
+      <span></span>
+      <button type="button" class="cd-touch-btn" data-dir="left">LEFT</button>
+      <button type="button" class="cd-touch-btn" data-dir="down">DOWN</button>
+      <button type="button" class="cd-touch-btn" data-dir="right">RIGHT</button>
+    </div>
+    <span class="cd-touch-hint">Same as POC1 — tap to queue direction</span>
+  </div>
+
+  <script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+  <script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+  <script src="../../shapes/coffee-play-shapes.js"></script>
+  <script src="../../logic/coffee-play-maze-game.js"></script>
+  <script src="../../coffee-play.js"></script>
+  <script>
+(function () {
+  /**
+   * Pac-style demo: logic in coffee.playMazeGame · loop/keys in coffee.play · draws in
+   * coffee.playShapes. DOT still runs underneath (empty entities).
+   */
+  const RAW = [
+    '###############',
+    '#.............#',
+    '#.###.#.#.###.#',
+    '#o...........o#',
+    '#.###.#.#.###.#',
+    '#....G#G#G....#',
+    '#.###.#.#.###.#',
+    '#o...........o#',
+    '#.###.#.#.###.#',
+    '#.....S.......#',
+    '###############'
+  ];
+
+  var readIntent = coffee.playMazeGame.readIntent;
+
+  /** Sticky intent from touch D-pad (POC1-style); keyboard overrides while keys held */
+  var touchIntent = null;
+
+  function setTouchIntent(dir) {
+    switch (dir) {
+      case 'up':
+        touchIntent = { wdr: -1, wdc: 0 };
+        break;
+      case 'down':
+        touchIntent = { wdr: 1, wdc: 0 };
+        break;
+      case 'left':
+        touchIntent = { wdr: 0, wdc: -1 };
+        break;
+      case 'right':
+        touchIntent = { wdr: 0, wdc: 1 };
+        break;
+      default:
+        break;
+    }
+  }
+
+  function mergeIntent(keys) {
+    var k = readIntent(keys);
+    if (k.wdr !== 0 || k.wdc !== 0) return k;
+    if (touchIntent) return touchIntent;
+    return k;
+  }
+
+  (function bindTouchPad() {
+    var root = document.getElementById('cd-touch');
+    if (!root) return;
+    function onGo(dir, ev) {
+      if (ev.type === 'touchstart') ev.preventDefault();
+      setTouchIntent(dir);
+    }
+    root.querySelectorAll('[data-dir]').forEach(function (btn) {
+      var dir = btn.getAttribute('data-dir');
+      btn.addEventListener('touchstart', onGo.bind(null, dir), { passive: false });
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        setTouchIntent(dir);
+      });
+    });
+  })();
+
+  window.addEventListener(
+    'keydown',
+    function (e) {
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].indexOf(e.key) >= 0) e.preventDefault();
+    },
+    { passive: false }
+  );
+
+  var mg = coffee.playMazeGame.create({
+    raw: RAW,
+    callbacks: {
+      onScore: function (sum) {
+        var el = document.getElementById('score');
+        if (el) el.textContent = String(sum);
+      },
+      onLives: function (n) {
+        var el = document.getElementById('lives');
+        if (el) el.textContent = '♥'.repeat(Math.max(0, n));
+      },
+      onWin: function () {},
+      onGameOver: function () {}
+    }
+  });
+
+  var layout = { cell: 24, ox: 0, oy: 0 };
+
+  function drawWorld(ctx, w, h) {
+    var st = mg.getState();
+    var cell = layout.cell;
+    var ox = layout.ox;
+    var oy = layout.oy;
+    var ROWS = mg.rows;
+    var COLS = mg.cols;
+    var walls = mg.mazeWalls;
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, w, h);
+
+    for (var r = 0; r < ROWS; r++) {
+      for (var c = 0; c < COLS; c++) {
+        if (!walls[r][c]) continue;
+        var wx = ox + c * cell;
+        var wy = oy + r * cell;
+        coffee.playShapes.drawWallFilled(ctx, { x: wx, y: wy, size: cell });
+      }
+    }
+
+    st.pellets.forEach(function (p) {
+      var pcx = ox + p.c * cell + cell / 2;
+      var pcy = oy + p.r * cell + cell / 2;
+      coffee.playShapes.drawPellet(ctx, {
+        cx: pcx,
+        cy: pcy,
+        r: p.power ? cell * 0.18 : cell * 0.1,
+        power: !!p.power
+      });
+    });
+
+    var pac = st.pac;
+    var pr = cell * 0.38;
+    var fdr = pac.dr || pac.wantDr;
+    var fdc = pac.dc || pac.wantDc;
+    coffee.playShapes.drawPac(ctx, {
+      cx: ox + pac.c * cell,
+      cy: oy + pac.r * cell,
+      radius: pr,
+      dirX: fdc,
+      dirY: fdr,
+      mouthOpen: 0.22 + Math.sin(st.tick * 0.012) * 0.12,
+      fill: '#ffe135'
+    });
+
+    st.ghosts.forEach(function (g) {
+      coffee.playShapes.drawGhost(ctx, {
+        cx: ox + g.c * cell,
+        cy: oy + g.r * cell,
+        radius: cell * 0.36,
+        color: g.color,
+        scared: g.scared > 0,
+        dirX: Math.sign(g.dc) || 0,
+        dirY: Math.sign(g.dr) || 0
+      });
+    });
+
+    if (st.gameOver || st.win) {
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = st.win ? '#ffe135' : '#ff4444';
+      ctx.font = 'bold ' + Math.min(48, cell * 1.2) + 'px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(st.win ? 'YOU WIN' : 'GAME OVER', w / 2, h / 2 - 20);
+      ctx.fillStyle = '#fff';
+      ctx.font = '14px system-ui';
+      ctx.fillText('Refresh page to replay', w / 2, h / 2 + 24);
+    }
+  }
+
+  coffee.play('#stage', {
+    friction: 1,
+    gravity: 0,
+    onUpdate: function (game) {
+      var canvas = game.canvas;
+      layout = mg.layoutForCanvas(canvas.width, canvas.height);
+      mg.step(16, mergeIntent(game.keys));
+      game.entities.length = 0;
+      game.projectiles.length = 0;
+    },
+    onDraw: function (ctx, game) {
+      drawWorld(ctx, game.canvas.width, game.canvas.height);
+    }
+  });
+})();
+  </script>
+</body>
+</html>

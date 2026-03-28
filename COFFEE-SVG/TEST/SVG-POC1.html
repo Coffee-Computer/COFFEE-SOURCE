@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee SVG - Vector Graphics Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee-cream: #fdfaf6;
+            --coffee-deep: #1b130c;
+            --svg-accent: #10b981;
+        }
+        body {
+            background-color: #f1f5f9;
+            color: var(--coffee-deep);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .canvas-area {
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        .tool-btn {
+            @apply p-3 rounded-xl transition-all flex items-center justify-center;
+        }
+        .tool-btn.active {
+            @apply bg-emerald-100 text-emerald-700 shadow-sm border-2 border-emerald-500;
+        }
+        .tool-btn:not(.active) {
+            @apply hover:bg-stone-100 border-2 border-transparent;
+        }
+        #artboard {
+            box-shadow: 0 0 40px rgba(0,0,0,0.1);
+            background: white;
+            cursor: crosshair;
+        }
+        .layer-item.selected {
+            @apply border-emerald-500 bg-emerald-50;
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Tool Toolbar (Left) -->
+    <aside class="w-20 bg-white border-r border-stone-200 flex flex-col items-center py-6 gap-4 z-20">
+        <div class="mb-4 text-2xl">☕</div>
+        <button onclick="svgEngine.setTool('rect')" id="tool-rect" class="tool-btn active" title="Rectangle">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" stroke-width="2"/></svg>
+        </button>
+        <button onclick="svgEngine.setTool('circle')" id="tool-circle" class="tool-btn" title="Circle">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" stroke-width="2"/></svg>
+        </button>
+        <button onclick="svgEngine.setTool('text')" id="tool-text" class="tool-btn" title="Text">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M10 11h4M8 15h8"/></svg>
+        </button>
+        <button onclick="svgEngine.setTool('select')" id="tool-select" class="tool-btn" title="Select">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5"/></svg>
+        </button>
+        <div class="mt-auto flex flex-col gap-4">
+            <input type="color" id="fillColor" value="#10b981" class="w-10 h-10 rounded-full cursor-pointer border-none">
+            <button onclick="svgEngine.clear()" class="tool-btn text-red-500 hover:bg-red-50" title="Clear">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Workspace -->
+    <main class="flex-1 flex items-center justify-center canvas-area relative overflow-auto p-20">
+        <svg id="artboard" width="800" height="600" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                    <feOffset dx="2" dy="2" />
+                    <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
+                    <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+                </filter>
+            </defs>
+            <!-- Rendered Elements Go Here -->
+        </svg>
+    </main>
+
+    <!-- Properties Panel (Right) -->
+    <aside class="w-72 bg-white border-l border-stone-200 p-6 flex flex-col gap-6 z-20 overflow-y-auto shadow-sm">
+        <div>
+            <h1 class="text-2xl font-black text-stone-800 italic">coffee<span class="text-emerald-600">.svg()</span></h1>
+            <p class="text-[10px] text-stone-400 font-bold uppercase tracking-widest">Scalable Graphics Engine</p>
+        </div>
+
+        <div id="inspector" class="space-y-6">
+            <div class="text-center py-10 text-stone-300 border-2 border-dashed border-stone-100 rounded-xl">
+                <p class="text-sm">Select an element to inspect</p>
+            </div>
+        </div>
+
+        <div class="mt-auto">
+            <button onclick="svgEngine.export()" class="w-full bg-stone-900 text-white py-3 rounded-xl font-bold hover:bg-emerald-600 transition shadow-lg text-sm">
+                Export SVG Code
+            </button>
+        </div>
+    </aside>
+
+    <script>
+        const svgEngine = (() => {
+            const artboard = document.getElementById('artboard');
+            const inspector = document.getElementById('inspector');
+            const fillColorInput = document.getElementById('fillColor');
+            
+            let currentTool = 'rect';
+            let selectedElement = null;
+            let isDragging = false;
+            let startPos = { x: 0, y: 0 };
+            let tempShape = null;
+
+            const getMousePos = (e) => {
+                const CTM = artboard.getScreenCTM();
+                return {
+                    x: (e.clientX - CTM.e) / CTM.a,
+                    y: (e.clientY - CTM.f) / CTM.d
+                };
+            };
+
+            const setTool = (tool) => {
+                currentTool = tool;
+                document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(`tool-${tool}`).classList.add('active');
+                if (tool !== 'select') deselect();
+            };
+
+            const deselect = () => {
+                if (selectedElement) {
+                    selectedElement.style.outline = 'none';
+                    selectedElement = null;
+                    updateInspector();
+                }
+            };
+
+            const updateInspector = () => {
+                if (!selectedElement) {
+                    inspector.innerHTML = `<div class="text-center py-10 text-stone-300 border-2 border-dashed border-stone-100 rounded-xl"><p class="text-sm">Select an element to inspect</p></div>`;
+                    return;
+                }
+
+                const isText = selectedElement.tagName === 'text';
+                const color = selectedElement.getAttribute('fill');
+
+                inspector.innerHTML = `
+                    <div class="space-y-4">
+                        <h3 class="text-xs font-black text-stone-400 uppercase">Properties</h3>
+                        ${isText ? `
+                            <label class="block">
+                                <span class="text-xs font-bold text-stone-600">Text Content</span>
+                                <input type="text" value="${selectedElement.textContent}" oninput="svgEngine.updateSelected('text', this.value)" class="w-full mt-1 p-2 bg-stone-50 border border-stone-200 rounded-lg text-sm">
+                            </label>
+                            <label class="block">
+                                <span class="text-xs font-bold text-stone-600">Font Size</span>
+                                <input type="range" min="10" max="200" value="${selectedElement.getAttribute('font-size')}" oninput="svgEngine.updateSelected('fontSize', this.value)" class="w-full accent-emerald-500">
+                            </label>
+                        ` : ''}
+                        <label class="block">
+                            <span class="text-xs font-bold text-stone-600">Opacity</span>
+                            <input type="range" min="0" max="1" step="0.1" value="${selectedElement.getAttribute('fill-opacity') || 1}" oninput="svgEngine.updateSelected('opacity', this.value)" class="w-full accent-emerald-500">
+                        </label>
+                        <button onclick="svgEngine.deleteSelected()" class="w-full py-2 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 transition">Delete Element</button>
+                    </div>
+                `;
+            };
+
+            artboard.addEventListener('mousedown', (e) => {
+                const pos = getMousePos(e);
+                startPos = pos;
+                isDragging = true;
+
+                if (currentTool === 'select') {
+                    if (e.target !== artboard) {
+                        deselect();
+                        selectedElement = e.target;
+                        selectedElement.style.outline = '2px solid #10b981';
+                        selectedElement.style.outlineOffset = '2px';
+                        updateInspector();
+                    } else {
+                        deselect();
+                    }
+                    return;
+                }
+
+                const color = fillColorInput.value;
+                if (currentTool === 'rect') {
+                    tempShape = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+                    tempShape.setAttribute('x', pos.x);
+                    tempShape.setAttribute('y', pos.y);
+                    tempShape.setAttribute('fill', color);
+                    tempShape.setAttribute('rx', '4');
+                } else if (currentTool === 'circle') {
+                    tempShape = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                    tempShape.setAttribute('cx', pos.x);
+                    tempShape.setAttribute('cy', pos.y);
+                    tempShape.setAttribute('fill', color);
+                } else if (currentTool === 'text') {
+                    tempShape = document.createElementNS("http://www.w3.org/2000/svg", "text");
+                    tempShape.setAttribute('x', pos.x);
+                    tempShape.setAttribute('y', pos.y);
+                    tempShape.setAttribute('fill', color);
+                    tempShape.setAttribute('font-size', '40');
+                    tempShape.setAttribute('font-weight', 'bold');
+                    tempShape.setAttribute('style', 'font-family: Inter, sans-serif; user-select: none;');
+                    tempShape.textContent = "Type...";
+                }
+
+                if (tempShape) artboard.appendChild(tempShape);
+            });
+
+            artboard.addEventListener('mousemove', (e) => {
+                if (!isDragging || !tempShape) return;
+                const pos = getMousePos(e);
+
+                if (currentTool === 'rect') {
+                    const x = Math.min(pos.x, startPos.x);
+                    const y = Math.min(pos.y, startPos.y);
+                    const w = Math.abs(pos.x - startPos.x);
+                    const h = Math.abs(pos.y - startPos.y);
+                    tempShape.setAttribute('x', x);
+                    tempShape.setAttribute('y', y);
+                    tempShape.setAttribute('width', w);
+                    tempShape.setAttribute('height', h);
+                } else if (currentTool === 'circle') {
+                    const r = Math.sqrt(Math.pow(pos.x - startPos.x, 2) + Math.pow(pos.y - startPos.y, 2));
+                    tempShape.setAttribute('r', r);
+                }
+            });
+
+            artboard.addEventListener('mouseup', () => {
+                isDragging = false;
+                tempShape = null;
+            });
+
+            return {
+                setTool,
+                updateSelected: (prop, val) => {
+                    if (!selectedElement) return;
+                    if (prop === 'text') selectedElement.textContent = val;
+                    if (prop === 'fontSize') selectedElement.setAttribute('font-size', val);
+                    if (prop === 'opacity') selectedElement.setAttribute('fill-opacity', val);
+                },
+                deleteSelected: () => {
+                    if (selectedElement) {
+                        selectedElement.remove();
+                        deselect();
+                    }
+                },
+                clear: () => {
+                    while (artboard.childNodes.length > 2) { // Keep defs
+                        artboard.removeChild(artboard.lastChild);
+                    }
+                    deselect();
+                },
+                export: () => {
+                    const svgData = new XMLSerializer().serializeToString(artboard);
+                    console.log(svgData);
+                    const blob = new Blob([svgData], {type: "image/svg+xml"});
+                    const url = URL.createObjectURL(blob);
+                    const win = window.open(url, '_blank');
+                    win.focus();
+                }
+            };
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+/* Snap Shot α — Y2K / Win95 chrome + Coffee theme tokens */
+
+:root {
+  --ss-win-bg: #008080;
+  --ss-retro-gray: #c0c0c0;
+  --ss-title-start: #000080;
+  --ss-title-end: #1084d0;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+  background-color: var(--ss-win-bg);
+  color: var(--coffee-text-primary, #fff);
+  font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+}
+
+.ss-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ss-theme-fab {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  z-index: 200;
+}
+
+.ss-win-border {
+  border: 3px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  background: var(--ss-retro-gray);
+  padding: 4px;
+}
+
+.ss-header {
+  margin: 4px;
+  flex-shrink: 0;
+}
+
+.ss-win-titlebar {
+  background: linear-gradient(90deg, var(--ss-title-start), var(--ss-title-end));
+  color: white;
+  padding: 3px 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.ss-title-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ss-title-sm {
+  font-size: 12px;
+}
+
+@media (min-width: 640px) {
+  .ss-title-sm {
+    font-size: 14px;
+  }
+}
+
+.ss-title-deco {
+  display: flex;
+  gap: 4px;
+}
+
+.ss-deco-btn {
+  border: 3px solid;
+  border-color: #ffffff #808080 #808080 #ffffff;
+  background: var(--ss-retro-gray);
+  color: #000;
+  font-size: 10px;
+  padding: 0 6px;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.ss-main-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.ss-main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.ss-camera-box {
+  position: relative;
+  background: #000;
+  border: 4px solid #000;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.2);
+  width: 100%;
+  max-width: 500px;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ss-camera-box video,
+.ss-camera-box .ss-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.ss-preview-img {
+  display: none;
+}
+
+.ss-preview-img.ss-visible {
+  display: block;
+}
+
+.ss-camera-box video.ss-hidden {
+  display: none;
+}
+
+.ss-shutter-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.ss-shutter-flash.ss-flash-anim {
+  animation: ss-flash 0.4s ease-out;
+}
+
+@keyframes ss-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.ss-shutter-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.ss-shutter-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ss-mode-text {
+  color: #fff;
+  font-weight: 700;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+
+.ss-preview-actions {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 8px;
+  z-index: 60;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.ss-preview-actions.ss-visible {
+  display: flex;
+}
+
+.ss-filter-bar {
+  width: 100%;
+  background: var(--ss-retro-gray);
+  border-top: 2px solid #808080;
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: nowrap;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  scrollbar-width: none;
+}
+
+.ss-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.ss-filmstrip {
+  height: 110px;
+  background: #222;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 15px;
+  overflow-x: auto;
+  border-top: 3px solid #444;
+  flex-shrink: 0;
+}
+
+.ss-filmstrip-empty {
+  font-size: 10px;
+  font-style: italic;
+  color: #71717a;
+}
+
+.ss-photo-card {
+  min-width: 80px;
+  height: 80px;
+  background: #fff;
+  padding: 3px 3px 12px;
+  transform: rotate(-2deg);
+  cursor: pointer;
+  transition: transform 0.2s;
+  box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+  border: none;
+  font: inherit;
+}
+
+.ss-photo-card img {
+  width: 100%;
+  height: 60px;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.ss-photo-card:active {
+  transform: rotate(0deg) scale(0.98);
+}
+
+/* coffee.button overrides for shutter + pills */
+button.ss-shutter {
+  background: #ff4d4d !important;
+  border: 4px solid #990000 !important;
+  border-radius: 50% !important;
+  width: 65px !important;
+  height: 65px !important;
+  min-width: 65px !important;
+  min-height: 65px !important;
+  padding: 0 !important;
+  box-shadow: 0 4px 0 #660000 !important;
+  color: transparent !important;
+  font-size: 0 !important;
+}
+
+button.ss-shutter:active {
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 #660000 !important;
+}
+
+button.ss-pill {
+  background: #eee !important;
+  border: 2px solid !important;
+  border-color: #fff #808080 #808080 #fff !important;
+  color: #000 !important;
+  padding: 4px 12px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  min-height: auto !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  flex-shrink: 0;
+}
+
+button.ss-pill.ss-pill-active {
+  background: #000080 !important;
+  color: #fff !important;
+  border-color: #808080 #fff #fff #808080 !important;
+}
+
+button.ss-action-btn {
+  font-size: 10px !important;
+  padding: 4px 10px !important;
+  min-height: auto !important;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.5) !important;
+  border-radius: 0 !important;
+}
+
+button.ss-action-save {
+  background: #bbf7d0 !important;
+  color: #14532d !important;
+}
+
+button.ss-action-retack {
+  background: #bfdbfe !important;
+  color: #1e3a8a !important;
+}

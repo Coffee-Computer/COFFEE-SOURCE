@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Cash() // CASH engine POC</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;700&display=swap');
+
+        :root {
+            --coffee-gold: #d4a373;
+            --coffee-dark: #09090b;
+            --coffee-accent: #1c1c1f;
+            --coffee-panel: #0c0c0e;
+            --terminal-green: #a3e635;
+        }
+
+        body {
+            background-color: var(--coffee-dark);
+            color: #d1d1d6;
+            font-family: 'Fira Code', monospace;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: var(--coffee-accent);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #27272a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .dot-red { background: #ef4444; }
+        .dot-amber { background: #f59e0b; }
+        .dot-green { background: #10b981; }
+
+        .status-pill {
+            font-family: 'Fira Code', monospace;
+            background: rgba(163, 230, 53, 0.1);
+            border: 1px solid rgba(163, 230, 53, 0.35);
+            color: var(--terminal-green);
+            padding: 0.35rem 0.85rem;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+        }
+
+        #terminal {
+            flex-grow: 1;
+            padding: 1.75rem 2rem;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+            background: linear-gradient(180deg, var(--coffee-panel) 0%, var(--coffee-dark) 100%);
+            border-top: 1px solid #27272a;
+        }
+
+        .prompt-line {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .prompt-user { color: var(--coffee-gold); font-weight: bold; }
+        .prompt-dir { color: #71717a; }
+        .prompt-symbol { color: #f4f4f5; }
+
+        input#cmd-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #fafafa;
+            flex-grow: 1;
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+        }
+
+        .output-line {
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .cmd-history { color: #52525b; font-style: italic; }
+
+        #terminal::-webkit-scrollbar { width: 6px; }
+        #terminal::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+
+        .dir-text { color: #60a5fa; font-weight: bold; }
+        .file-text { color: #d1d1d6; }
+        .error-text { color: #f87171; }
+        .success-text { color: var(--terminal-green); }
+        .warn-text { color: #facc15; }
+        .info-text { color: #a5b4fc; }
+        .muted-text { color: #a1a1aa; }
+
+        .coffee-os-banner-wrap { margin-bottom: 1rem; overflow-x: auto; }
+        .coffee-os-banner-pre {
+            margin: 0;
+            font-size: clamp(0.45rem, 1.8vw, 0.65rem);
+            line-height: 1.12;
+            color: var(--coffee-gold);
+            font-family: 'Fira Code', monospace;
+            letter-spacing: -0.02em;
+        }
+
+        .f-green { color: var(--terminal-green); }
+        .f-red { color: #f87171; }
+        .f-gold { color: var(--coffee-gold); }
+    </style>
+</head>
+<body>
+    <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+    <script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+    <script src="../../COFFEE-BRAND/coffee-os-ascii.js"></script>
+
+    <div class="header">
+        <div class="flex items-center gap-2">
+            <div class="flex gap-1.5 mr-4">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-amber"></span>
+                <span class="dot dot-green"></span>
+            </div>
+            <div>
+                <span class="text-sm font-bold tracking-tight text-zinc-100">Coffee<span class="text-amber-600/90">.Cash</span></span>
+                <div class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">cash-core.js · cash-cli.js · CASH JSON</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <span class="text-[10px] text-zinc-500 uppercase tracking-widest hidden sm:inline">coffee stack</span>
+            <div id="cash-status" class="status-pill">INIT</div>
+        </div>
+    </div>
+
+    <div id="terminal" onclick="document.getElementById('cmd-input').focus()">
+        <div id="coffee-os-banner" class="coffee-os-banner-wrap" aria-hidden="true"></div>
+
+        <div id="output-log">
+            <div class="output-line">Welcome to <strong class="text-zinc-100">Coffee.Cash</strong> — canonical <span class="success-text">CASH</span> steps (<code class="text-xs text-zinc-500">action</code> + <code class="text-xs text-zinc-500">params</code>).</div>
+            <div class="output-line muted-text">Stack: <span class="success-text">coffee-control</span> · <span class="success-text">coffee.drive</span> · IO: <code class="text-xs text-zinc-500">?io=</code> at load, or <span class="success-text">io drive</span> · <span class="success-text">io control</span> · <span class="success-text">io memory</span>. <span class="success-text">io mode</span> = current backend.</div>
+            <div class="output-line muted-text">Type <span class="success-text">help</span> for shortcuts, <span class="success-text">cash list</span> / <span class="success-text">cash help</span> for <strong class="text-zinc-400">cash-cli</strong>, or a line starting with <code class="text-xs text-zinc-500">{</code> for raw JSON.</div>
+            <div class="output-line muted-text">—</div>
+        </div>
+
+        <div class="prompt-line">
+            <span class="prompt-user">cash@coffee</span>
+            <span class="prompt-symbol">:</span>
+            <span class="prompt-dir">~</span>
+            <span class="prompt-symbol">$</span>
+            <input type="text" id="cmd-input" spellcheck="false" autocomplete="off" autofocus>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const terminalEl = document.getElementById('terminal');
+            const outputLog = document.getElementById('output-log');
+            const cmdInput = document.getElementById('cmd-input');
+            const statusEl = document.getElementById('cash-status');
+
+            (function renderCoffeeOsBanner() {
+                const wrap = document.getElementById('coffee-os-banner');
+                const text = typeof window.COFFEE_OS_ASCII_BANNER === 'string' ? window.COFFEE_OS_ASCII_BANNER : '';
+                if (!wrap || !text) return;
+                const pre = document.createElement('pre');
+                pre.className = 'coffee-os-banner-pre';
+                pre.textContent = text;
+                wrap.appendChild(pre);
+            })();
+
+            function setStatus(text) {
+                if (statusEl) statusEl.textContent = text;
+            }
+
+            function escHtml(t) {
+                const d = document.createElement('div');
+                d.textContent = t;
+                return d.innerHTML;
+            }
+
+            function print(text, className) {
+                const div = document.createElement('div');
+                div.className = 'output-line' + (className ? ' ' + className : '');
+                div.innerHTML = text;
+                outputLog.appendChild(div);
+                terminalEl.scrollTop = terminalEl.scrollHeight;
+            }
+
+            function printCliHelp() {
+                const t = (window.coffee && window.coffee.cash && window.coffee.cash.cliHelpText) || '';
+                if (!t) {
+                    print('<span class="muted-text">cash-cli reference loads after CASH core (wait for READY).</span>', 'muted-text');
+                    return;
+                }
+                print(
+                    '<span class="f-gold font-bold">cash-cli</span> <span class="muted-text">(human → canonical step)</span>' +
+                    '<pre class="muted-text" style="white-space:pre-wrap;font-size:0.75rem;margin:0.35rem 0 0 0;font-family:inherit">' +
+                    escHtml(t) +
+                    '</pre>'
+                );
+            }
+
+            const commands = {
+                help: function () {
+                    print(
+                        '<span class="f-gold font-bold">Shortcuts</span>\n' +
+                        '  <span class="success-text">clear</span> — Clear output\n' +
+                        '  <span class="success-text">exit</span> — Reload page\n' +
+                        '\n<span class="muted-text">CASH JSON:</span> line starts with <code class="text-xs text-zinc-500">{</code>\n' +
+                        '\n<span class="muted-text">cash-cli:</span> <code class="text-xs text-zinc-500">cash</code> · <code class="text-xs text-zinc-500">flow</code> · <code class="text-xs text-zinc-500">io</code> — <span class="success-text">io drive|control|memory</span>, <span class="success-text">cash help</span>\n' +
+                        '\n<span class="muted-text">API:</span> <code class="text-xs text-zinc-500">coffee.cash.parseLine(line)</code> → <code class="text-xs text-zinc-500">execute(step, ctx)</code>'
+                    );
+                    printCliHelp();
+                },
+                clear: function () {
+                    outputLog.innerHTML = '';
+                },
+                exit: function () {
+                    print('Reload…', 'warn-text');
+                    setTimeout(function () { location.reload(); }, 600);
+                }
+            };
+
+            cmdInput.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter') return;
+                const raw = cmdInput.value.trim();
+                const parts = raw.split(/\s+/);
+                const cmd = parts[0] && parts[0].toLowerCase();
+                const args = parts.slice(1);
+
+                if (raw) {
+                    print(
+                        '<span class="prompt-user">cash@coffee</span><span class="prompt-symbol">:</span>' +
+                        '<span class="prompt-dir">~</span><span class="prompt-symbol">$</span> ' +
+                        '<span class="cmd-history">' + escHtml(raw) + '</span>'
+                    );
+
+                    if (raw.charAt(0) === '{') {
+                        (async function () {
+                            const run = (window.coffee && window.coffee.cash && typeof window.coffee.cash.execute === 'function')
+                                ? window.coffee.cash.execute
+                                : window.__cashExecute;
+                            const ctx = (window.coffee && window.coffee.cash && window.coffee.cash.ctx) || window.__cashCtx;
+                            if (typeof run !== 'function') {
+                                print('<span class="error-text">CASH core not ready.</span> Serve over HTTP (not file://).', 'error-text');
+                                return;
+                            }
+                            try {
+                                const step = JSON.parse(raw);
+                                const r = await run(step, ctx);
+                                print('<span class="muted-text">CASH →</span> ' + JSON.stringify(r, null, 2), r.ok ? 'success-text' : 'error-text');
+                            } catch (err) {
+                                print('<span class="error-text">CASH error:</span> ' + (err && err.message ? err.message : String(err)), 'error-text');
+                            }
+                        })();
+                        cmdInput.value = '';
+                        return;
+                    }
+
+                    var cc = window.coffee && window.coffee.cash;
+                    if (cc && typeof cc.isCliLine === 'function' && cc.isCliLine(raw)) {
+                        (async function () {
+                            var run = typeof cc.execute === 'function' ? cc.execute : window.__cashExecute;
+                            var ctx = cc.ctx || window.__cashCtx;
+                            if (typeof cc.parseLine !== 'function') {
+                                print('<span class="error-text">cash-cli not loaded yet.</span>', 'error-text');
+                                return;
+                            }
+                            var pr = cc.parseLine(raw);
+                            if (pr && pr.showCliHelp) {
+                                printCliHelp();
+                                return;
+                            }
+                            if (!pr || !pr.ok) {
+                                print('<span class="error-text">' + escHtml((pr && pr.error) || 'parse error') + '</span>', 'error-text');
+                                if (pr && pr.hint) print('<span class="muted-text">' + escHtml(pr.hint) + '</span>', 'muted-text');
+                                return;
+                            }
+                            if (typeof run !== 'function') {
+                                print('<span class="error-text">CASH core not ready.</span> Serve over HTTP.', 'error-text');
+                                return;
+                            }
+                            try {
+                                var r = await run(pr.step, ctx);
+                                print('<span class="muted-text">CASH →</span> ' + JSON.stringify(r, null, 2), r.ok ? 'success-text' : 'error-text');
+                            } catch (err) {
+                                print('<span class="error-text">CASH error:</span> ' + escHtml(err && err.message ? err.message : String(err)), 'error-text');
+                            }
+                        })();
+                        cmdInput.value = '';
+                        return;
+                    }
+
+                    if (commands[cmd]) commands[cmd](args);
+                    else print('command not found: ' + escHtml(cmd) + ' — type help, cash help, or paste CASH JSON', 'error-text');
+                }
+
+                cmdInput.value = '';
+            });
+
+            window.__cashSetStatus = setStatus;
+        })();
+    </script>
+
+    <script type="module">
+        import { initCash, execute, listActions, registerHandlers } from '../cash-core.js';
+        import { parseCashCliLine, isCashCliLine, CASH_CLI_HELP } from '../cash-cli.js';
+        import { attachCashIoContext, ioParamToMode } from '../cash-context.js';
+
+        const cashOutputEl = document.getElementById('output-log');
+        const cashTerminalEl = document.getElementById('terminal');
+        const setStatus = typeof window.__cashSetStatus === 'function' ? window.__cashSetStatus : function () {};
+
+        function cashPrint(text, className) {
+            if (!cashOutputEl || !cashTerminalEl) return;
+            const div = document.createElement('div');
+            div.className = 'output-line' + (className ? ' ' + className : '');
+            div.innerHTML = text;
+            cashOutputEl.appendChild(div);
+            cashTerminalEl.scrollTop = cashTerminalEl.scrollHeight;
+        }
+
+        const qp = new URLSearchParams(window.location.search);
+        const ioParam = qp.get('io');
+        const currentIoMode = ioParamToMode(ioParam);
+
+        const cashCtx = {
+            print: function (msg, cls) {
+                cashPrint(msg, cls || '');
+            },
+            session: { vfs: {} }
+        };
+
+        const baseCashUrl = new URL('../', import.meta.url);
+
+        const ioContext = attachCashIoContext({
+            registerHandlers: registerHandlers,
+            initCash: initCash,
+            baseCashUrl: baseCashUrl,
+            ctx: cashCtx,
+            initialMode: currentIoMode
+        });
+
+        const manifestName = ioContext.getManifestForCurrentMode();
+
+        window.__cashCtx = cashCtx;
+        window.__cashExecute = execute;
+        window.__cashIoMode = currentIoMode;
+
+        window.coffee = window.coffee || {};
+        window.coffee.cash = Object.assign(window.coffee.cash || {}, {
+            execute: execute,
+            listActions: listActions,
+            ctx: cashCtx,
+            init: function (baseUrl, opts) {
+                return initCash(baseUrl || new URL('../', import.meta.url), opts);
+            },
+            parseLine: parseCashCliLine,
+            isCliLine: isCashCliLine,
+            cliHelpText: CASH_CLI_HELP
+        });
+
+        const ioLabel =
+            ioParam === 'control' ? 'control (localStorage)' :
+            ioParam === 'memory' ? 'memory (RAM)' :
+            'drive (IndexedDB)';
+
+        try {
+            await initCash(baseCashUrl, { manifest: manifestName });
+            setStatus('READY');
+            cashPrint(
+                '<span class="success-text">coffee.cash</span> ready — <code class="text-xs text-zinc-500">' +
+                    manifestName +
+                    '</code> · IO: <span class="success-text">' +
+                    ioLabel +
+                    '</span>',
+                'file-text'
+            );
+            await execute({ action: 'FLOW.LOG', params: { message: 'POC heartbeat', level: 'info' } }, cashCtx);
+        } catch (err) {
+            setStatus('ERR');
+            cashPrint(
+                '<span class="error-text">CASH init failed:</span> ' +
+                    (err && err.message ? err.message : String(err)) +
+                    ' — use <code class="text-xs">npx serve</code> (not file://)',
+                'error-text'
+            );
+            window.__cashExecute = null;
+            window.coffee.cash.execute = function () {
+                return Promise.resolve({ ok: false, error: 'CASH core not initialized' });
+            };
+        }
+    </script>
+</body>
+</html>

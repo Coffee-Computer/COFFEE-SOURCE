@@ -1,0 +1,88 @@
+{
+  "ceProfileVersion": 1,
+  "pageTitle": "Coffee.Profile() // Community Edition",
+  "badgeLabel": "Community Edition",
+  "status": {
+    "label": "ONLINE",
+    "showDot": true
+  },
+  "avatar": {
+    "provider": "dicebear",
+    "style": "adventurer",
+    "seed": "CoffeeMaster",
+    "backgroundColor": "b6e3f4,c0aede,d1d4f9",
+    "imageUrl": ""
+  },
+  "name": "Kyle\"Coffee\" Richardz",
+  "handle": "@coffee_master_99",
+  "meta": [
+    { "label": "Member Since", "value": "MAR 2024" },
+    { "label": "OS Knowledge", "type": "bars", "filled": 3, "total": 5 },
+    { "label": "Security Clear.", "value": "LEVEL 4" }
+  ],
+  "qrImageUrl": "",
+  "qrUseCurrentPage": true,
+  "qrTargetUrl": "",
+  "showAchievements": false,
+  "achievementsSectionTitle": "Achievements",
+  "achievements": [
+    { "icon": "git-pull", "color": "emerald", "title": "First PR Merged" },
+    { "icon": "flame", "color": "orange", "title": "100 Days of Code" },
+    { "icon": "bug", "color": "blue", "title": "Bug Hunter" },
+    { "icon": "coffee", "color": "gold", "title": "Coffee Addict" }
+  ],
+  "about": {
+    "title": "About Me",
+    "body": "Full-stack architect building the future of decentralized coffee orchestration. I believe in open-source everything and dark-mode by default. Currently obsessed with Rust and Ollama local deployments."
+  },
+  "goals": {
+    "title": "2024 Goals",
+    "items": [
+      { "text": "Build a custom Coffee sidecar", "dim": false },
+      { "text": "Reach 500 OSS Contributions", "dim": false },
+      { "text": "Master Neovim (In progress…)", "dim": true }
+    ]
+  },
+  "snippet": {
+    "title": "Snippet Bin",
+    "filename": "snippet_v2.coffee",
+    "code": "// Initialize Coffee Community Engine\nconst coffee = new CommunityEngine({\n    id: \"alex_bean\",\n    modules: [\"ollama\", \"docker\"],\n    brewing: true\n});\n\ncoffee.on('ignite', () => {\n    console.log(\"System Ready. ☕\");\n});"
+  },
+  "pings": {
+    "title": "Recent Pings",
+    "items": [
+      {
+        "handle": "@dev_felix",
+        "time": "2 hours ago",
+        "text": "Just finished the Llama 3 sidecar integration. The performance is insane! Coffee.OS is leveling up. 🚀",
+        "avatarSeed": "Felix"
+      },
+      {
+        "handle": "@sarah_codes",
+        "time": "5 hours ago",
+        "text": "Anyone attending the Brew-Hackathon tonight? I'm looking for a partner to build a custom scheduler module.",
+        "avatarSeed": "Sarah"
+      }
+    ],
+    "moreButtonLabel": "View All Activity…"
+  },
+  "ceReserved": {
+    "__spec": "CE roadmap placeholders — not rendered by COMMUNITY-PROFILE.html; expand as identity/presence ships.",
+    "identity": {
+      "did": null,
+      "verificationProofs": [],
+      "primaryFediverse": null
+    },
+    "presence": {
+      "activityPubActorUrl": null,
+      "lastPublishedAt": null
+    },
+    "links": {
+      "canonicalProfileUrl": null,
+      "sameAs": []
+    },
+    "wallet": {
+      "chains": []
+    }
+  }
+}

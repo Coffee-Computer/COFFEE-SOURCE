@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- POC: standalone RAF. Stack: MY-FARM.html — see README.md -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>myFARM - Cozy Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #2d5a27;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            color: #fff;
+        }
+        canvas {
+            display: block;
+            background: #4a7c44;
+            cursor: pointer;
+        }
+        .ui-panel {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .shop-item {
+            pointer-events: auto;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #6b4423;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 70px;
+        }
+        .shop-item:hover { transform: translateY(-5px); background: rgba(0, 0, 0, 0.8); }
+        .shop-item.active { border-color: #facc15; background: rgba(50, 50, 0, 0.8); box-shadow: 0 0 15px rgba(250, 204, 21, 0.4); }
+        
+        #inventory {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+            background: rgba(0,0,0,0.3);
+            padding: 10px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui-layer" class="ui-panel top-6 left-6">
+    <div class="bg-black/50 p-4 rounded-xl border-2 border-white/20 backdrop-blur-md">
+        <div class="text-xs uppercase font-bold text-yellow-400 mb-1 tracking-widest">Farm Treasury</div>
+        <div class="text-4xl font-black text-white flex items-center gap-2">
+            <span id="coins">10</span> <span class="text-2xl text-yellow-500">🪙</span>
+        </div>
+    </div>
+</div>
+
+<div id="inventory">
+    <div id="tool-hoe" class="shop-item active" onclick="selectTool('hoe')">
+        <div class="text-3xl">⛏️</div>
+        <div class="text-[10px] uppercase font-bold text-center mt-1">Hoe</div>
+    </div>
+    <div id="tool-water" class="shop-item" onclick="selectTool('water')">
+        <div class="text-3xl">💧</div>
+        <div class="text-[10px] uppercase font-bold text-center mt-1">Water</div>
+    </div>
+    <div id="seed-wheat" class="shop-item" onclick="selectTool('seed-wheat')">
+        <div class="text-3xl">🌾</div>
+        <div class="text-[10px] uppercase font-bold text-center mt-1">Wheat (2)</div>
+    </div>
+    <div id="seed-carrot" class="shop-item" onclick="selectTool('seed-carrot')">
+        <div class="text-3xl">🥕</div>
+        <div class="text-[10px] uppercase font-bold text-center mt-1">Carrot (5)</div>
+    </div>
+</div>
+
+<div class="ui-panel top-6 right-6 text-right">
+    <div class="bg-black/50 p-4 rounded-xl border-2 border-white/20 backdrop-blur-md">
+        <div class="text-xs uppercase font-bold text-green-400 mb-1">Status</div>
+        <div id="status-msg" class="text-sm font-medium">Ready to farm!</div>
+    </div>
+</div>
+
+<canvas id="farmCanvas"></canvas>
+
+<script>
+/**
+ * myFARM
+ * A minimalist cozy farming simulator.
+ * Updated: Responsive centering and hit-detection.
+ */
+
+const canvas = document.getElementById('farmCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+let coins = 10;
+let currentTool = 'hoe';
+const tileSize = 64; // Slightly larger tiles
+const gridRows = 8;
+const gridCols = 8;
+let farmGrid = [];
+
+const CROPS = {
+    'wheat': { name: 'Wheat', cost: 2, sell: 6, time: 5000, color: '#f5d142', icon: '🌾' },
+    'carrot': { name: 'Carrot', cost: 5, sell: 15, time: 10000, color: '#f59e42', icon: '🥕' }
+};
+
+// Initialization
+function init() {
+    resize();
+    
+    // Create the logical grid
+    for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+            farmGrid.push({
+                r, c,
+                tilled: false,
+                watered: false,
+                crop: null,
+                growth: 0,
+                plantedAt: 0
+            });
+        }
+    }
+    loop();
+}
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+
+// Calculate the current offset based on screen size
+function getGridOffset() {
+    return {
+        x: (canvas.width - gridCols * tileSize) / 2,
+        y: (canvas.height - gridRows * tileSize) / 2
+    };
+}
+
+function selectTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.shop-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(tool.startsWith('seed') ? tool : 'tool-' + tool).classList.add('active');
+}
+
+function updateStatus(msg) {
+    document.getElementById('status-msg').innerText = msg;
+}
+
+function handleInteract(e) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const offset = getGridOffset();
+
+    // Find if we clicked within the grid area
+    const gridX = Math.floor((mx - offset.x) / tileSize);
+    const gridY = Math.floor((my - offset.y) / tileSize);
+
+    if (gridX < 0 || gridX >= gridCols || gridY < 0 || gridY >= gridRows) return;
+
+    const plot = farmGrid.find(p => p.r === gridY && p.c === gridX);
+    if (!plot) return;
+
+    if (currentTool === 'hoe') {
+        if (!plot.tilled) {
+            plot.tilled = true;
+            updateStatus("Tilled the soil.");
+        } else if (plot.crop && plot.growth >= 1) {
+            // Harvest logic
+            coins += CROPS[plot.crop].sell;
+            updateStatus(`Harvested ${CROPS[plot.crop].name}! +${CROPS[plot.crop].sell}🪙`);
+            plot.crop = null;
+            plot.growth = 0;
+            plot.watered = false;
+            document.getElementById('coins').innerText = coins;
+        }
+    } else if (currentTool === 'water') {
+        if (plot.tilled && !plot.watered) {
+            plot.watered = true;
+            updateStatus("Watered the plot.");
+        }
+    } else if (currentTool.startsWith('seed-')) {
+        const type = currentTool.split('-')[1];
+        const cropData = CROPS[type];
+
+        if (plot.tilled && !plot.crop) {
+            if (coins >= cropData.cost) {
+                coins -= cropData.cost;
+                plot.crop = type;
+                plot.growth = 0;
+                plot.plantedAt = Date.now();
+                document.getElementById('coins').innerText = coins;
+                updateStatus(`Planted ${cropData.name}.`);
+            } else {
+                updateStatus("Not enough coins!");
+            }
+        }
+    }
+}
+
+function update() {
+    const now = Date.now();
+    farmGrid.forEach(plot => {
+        if (plot.crop && plot.watered && plot.growth < 1) {
+            const elapsed = now - plot.plantedAt;
+            plot.growth = Math.min(1, elapsed / CROPS[plot.crop].time);
+        }
+    });
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Background pattern
+    ctx.fillStyle = '#4a7c44';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const offset = getGridOffset();
+
+    farmGrid.forEach(plot => {
+        const px = offset.x + plot.c * tileSize;
+        const py = offset.y + plot.r * tileSize;
+
+        // Draw soil base
+        // If not tilled: grass color. If tilled: brown. If watered: dark brown.
+        if (!plot.tilled) {
+            ctx.fillStyle = '#568a4d';
+        } else {
+            ctx.fillStyle = plot.watered ? '#4d3319' : '#6b4423';
+        }
+        
+        ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+        ctx.lineWidth = 1;
+        
+        ctx.beginPath();
+        ctx.roundRect(px + 2, py + 2, tileSize - 4, tileSize - 4, 8);
+        ctx.fill();
+        ctx.stroke();
+
+        // Draw crop
+        if (plot.crop) {
+            const data = CROPS[plot.crop];
+            
+            if (plot.growth < 1) {
+                // Growing sprout
+                const sproutSize = (tileSize * 0.4) * plot.growth + 5;
+                ctx.fillStyle = '#4ade80';
+                ctx.beginPath();
+                ctx.arc(px + tileSize/2, py + tileSize/2, sproutSize/2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Growth bar
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fillRect(px + 12, py + tileSize - 12, tileSize - 24, 4);
+                ctx.fillStyle = '#fbbf24';
+                ctx.fillRect(px + 12, py + tileSize - 12, (tileSize - 24) * plot.growth, 4);
+            } else {
+                // Mature crop
+                ctx.font = '36px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(data.icon, px + tileSize/2, py + tileSize/2);
+                
+                // Harvest indicator
+                ctx.strokeStyle = '#facc15';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([4, 4]);
+                ctx.strokeRect(px + 6, py + 6, tileSize - 12, tileSize - 12);
+                ctx.setLineDash([]);
+            }
+        }
+    });
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+
+window.addEventListener('mousedown', handleInteract);
+// Support touch for mobile
+window.addEventListener('touchstart', (e) => {
+    handleInteract(e.touches[0]);
+});
+window.addEventListener('resize', resize);
+window.onload = init;
+
+</script>
+</body>
+</html>

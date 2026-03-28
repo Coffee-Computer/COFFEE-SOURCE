@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.nebula</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="./coffee-nebula.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.nebula', 1);
+    const sub = coffee.para('Wikipedia + DuckDuckGo. No API keys.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const searchInput = coffee.input({
+      type: 'text',
+      placeholder: 'Search for a topic...',
+      id: 'nebula-input',
+      style: { flex: 1, minWidth: '160px' }
+    });
+    searchInput.onkeydown = (e) => {
+      if (e.key === 'Enter') doSearch();
+    };
+
+    const resultsEl = document.createElement('div');
+    resultsEl.id = 'nebula-results';
+    resultsEl.style.cssText = 'min-height:120px';
+
+    let loadingEl = null;
+
+    async function doSearch() {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      if (coffee.toast) coffee.toast('Searching...', 'info', 1500);
+
+      if (loadingEl) loadingEl.remove();
+      loadingEl = coffee.spinner ? coffee.spinner() : document.createElement('div');
+      if (loadingEl.nodeType) {
+        loadingEl.style.margin = '24px auto';
+        resultsEl.innerHTML = '';
+        resultsEl.appendChild(loadingEl);
+      }
+
+      try {
+        const { results } = await coffee.nebula(q, { target: resultsEl });
+        if (loadingEl?.parentNode) loadingEl.remove();
+        if (results.length > 0 && coffee.toast) coffee.toast(`Found ${results.length} result(s)`, 'success', 2000);
+      } catch (e) {
+        if (loadingEl?.parentNode) loadingEl.remove();
+        resultsEl.innerHTML = '';
+        const err = coffee.msg ? coffee.msg(e.message || 'Search failed.', 'error') : document.createElement('div');
+        const el = err?.nodeType ? err : document.createElement('div');
+        if (!el.nodeType) el.textContent = 'Search failed.';
+        resultsEl.appendChild(el);
+        if (coffee.toast) coffee.toast('Search failed', 'error', 2000);
+      }
+    }
+
+    const searchBtn = coffee.button('Search', doSearch);
+    const searchRow = coffee.row([searchInput, searchBtn], {
+      style: { gap: '12px', flexWrap: 'wrap', width: '100%', alignItems: 'stretch' }
+    });
+
+    const card = coffee.card([
+      header,
+      sub,
+      searchRow,
+      resultsEl
+    ], { style: { width: '100%', maxWidth: '640px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box;display:flex;justify-content:center';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script type="application/json" data-cce-config>
+{"name":"Notes JSON","id":"notes-json","icon":"📋","color":"#10b981","description":"Notes with JSON config"}
+  </script>
+  <title>Notes (JSON Config)</title>
+  <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../COFFEE-UI/coffee-ui.js"></script>
+  <style>body{margin:0;padding:16px;background:var(--coffee-bg-surface);min-height:100%;box-sizing:border-box}</style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+    const ta = coffee.textarea({ placeholder: 'Start typing...', id: 'notes-json-content', rows: 12 });
+    const saveBtn = coffee.button('Save', () => {
+      coffee.save('notes_json_content', ta.value);
+      if (coffee.msg) document.body.appendChild(coffee.msg('Saved.', 'success'));
+    });
+    const loaded = coffee.load('notes_json_content');
+    if (loaded) ta.value = loaded;
+    document.getElementById('app').appendChild(coffee.stack([ta, coffee.row([saveBtn])]));
+  </script>
+</body>
+</html>

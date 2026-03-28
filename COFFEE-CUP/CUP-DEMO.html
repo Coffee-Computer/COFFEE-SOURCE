@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.cup + coffee.dot — Game Framework Demo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;700;900&display=swap');
+    body { margin: 0; background: #050505; color: white; font-family: 'Inter', sans-serif; overflow: hidden; user-select: none; cursor: crosshair; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; padding: 1.5rem; display: flex; flex-direction: column; justify-content: space-between; }
+    .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.1); border-radius: 0.5rem; padding: 0.5rem 1rem; font-size: 10px; }
+    .controls { opacity: 0.6; font-family: 'Fira Code', monospace; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div class="hud">
+    <div class="flex justify-between items-start">
+      <div class="glass">
+        <strong>coffee.cup</strong> + <strong>coffee.dot</strong><br>
+        CUP (logic) → state → DOT (render)
+      </div>
+      <div id="leaderboard" class="glass flex flex-col gap-1"></div>
+    </div>
+    <div></div>
+    <div class="flex justify-between items-end">
+      <div class="glass">
+        <span id="hp-label">HP</span> <span id="hp-value" class="font-bold">100</span>
+      </div>
+      <div class="controls">
+        WASD MOVE · CLICK SHOOT
+      </div>
+    </div>
+  </div>
+
+  <script src="../COFFEE-DOT/coffee-dot.js"></script>
+  <script src="./coffee-cup.js"></script>
+  <script>
+    const canvas = document.getElementById('stage');
+    const dot = coffee.dot.create(canvas);
+    const cup = coffee.cup.create({ width: 800, height: 600 });
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      cup.resize(canvas.width, canvas.height);
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Setup: player + enemies
+    const player = cup.spawn({ name: 'Pilot', color: '#00ff88', speed: 1.2, maxSpeed: 10 });
+    for (let i = 0; i < 5; i++) {
+      cup.spawn({
+        name: 'Drone ' + (i + 1),
+        color: '#ff3366',
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        tags: ['enemy'],
+        radius: 14
+      });
+    }
+
+    let lastTime = 0;
+    function loop(timestamp) {
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+
+      // 1. Input → CUP
+      const { keys, mouse } = cup;
+      if (keys['w'] || keys['arrowup']) player.vy -= player.speed;
+      if (keys['s'] || keys['arrowdown']) player.vy += player.speed;
+      if (keys['a'] || keys['arrowleft']) player.vx -= player.speed;
+      if (keys['d'] || keys['arrowright']) player.vx += player.speed;
+
+      const speed = Math.sqrt(player.vx ** 2 + player.vy ** 2);
+      if (speed > player.maxSpeed) {
+        const r = player.maxSpeed / speed;
+        player.vx *= r;
+        player.vy *= r;
+      }
+
+      // Shoot
+      if (mouse.down && Date.now() - player.lastShot > 150) {
+        cup.shoot(player, mouse.x, mouse.y);
+        player.lastShot = Date.now();
+      }
+
+      // AI: enemies chase player
+      cup.entities.forEach(ent => {
+        if (ent.tags?.includes('enemy')) {
+          const dx = player.x - ent.x;
+          const dy = player.y - ent.y;
+          const dist = cup.getDistance(player, ent);
+          if (dist > 0) {
+            ent.vx += (dx / dist) * 0.2;
+            ent.vy += (dy / dist) * 0.2;
+          }
+          if (cup.checkCollision(player, ent)) {
+            player.health -= 0.4;
+            ent.vx *= -2;
+            ent.vy *= -2;
+          }
+        }
+      });
+
+      // Projectile collision
+      cup.projectiles.forEach((p, i) => {
+        cup.entities.forEach(ent => {
+          if (ent.id !== p.owner && cup.checkCollision(p, ent)) {
+            ent.health -= 25;
+            p.life = 0;
+            if (ent.health <= 0 && p.owner === player.id) player.score += 100;
+          }
+        });
+      });
+
+      // Death / respawn
+      cup.entities.forEach((ent, idx) => {
+        if (ent.health <= 0) {
+          if (ent === player) {
+            player.health = 100;
+            player.x = canvas.width / 2;
+            player.y = canvas.height / 2;
+          } else {
+            cup.removeEntity(ent);
+            setTimeout(() => {
+              cup.spawn({
+                name: 'Drone ' + Math.floor(Math.random() * 99),
+                color: '#ff3366',
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                tags: ['enemy'],
+                radius: 14
+              });
+            }, 2000);
+          }
+        }
+      });
+
+      // 2. CUP step → state
+      const state = cup.step(dt);
+
+      // 3. DOT draw state
+      dot.draw(state);
+
+      // UI
+      document.getElementById('hp-value').textContent = Math.ceil(player.health);
+      document.getElementById('hp-value').style.color = player.health < 30 ? '#ef4444' : '#10b981';
+      const lb = document.getElementById('leaderboard');
+      const sorted = [...cup.entities].sort((a, b) => (b.score || 0) - (a.score || 0));
+      lb.innerHTML = sorted.slice(0, 5).map(e => `
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:${e.color}"></span>
+          <span>${e.name}</span>
+          <span style="opacity:0.6">${e.score || 0}</span>
+        </div>
+      `).join('');
+
+      requestAnimationFrame(loop);
+    }
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

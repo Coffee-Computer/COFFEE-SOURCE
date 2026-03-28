@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snow Shoes - Web DAW</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --panel-bg: #1e1e1e;
+            --border: #333;
+            --accent: #4ade80;
+            --text-dim: #999;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #eee;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        /* --- UI Components --- */
+        .window-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .plugin-window {
+            position: absolute;
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            min-width: 300px;
+            min-height: 200px;
+            z-index: 10;
+        }
+
+        .window-header {
+            background: #2a2a2a;
+            padding: 8px 12px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            border-radius: 6px 6px 0 0;
+        }
+
+        .window-content {
+            flex-grow: 1;
+            padding: 12px;
+            overflow: auto;
+        }
+
+        .resizer {
+            width: 10px;
+            height: 10px;
+            background: transparent;
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            cursor: nwse-resize;
+        }
+
+        /* --- Mixer Styles --- */
+        .mixer-strip {
+            width: 80px;
+            background: #252525;
+            border: 1px solid #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            gap: 10px;
+        }
+
+        .fader-container {
+            height: 200px;
+            width: 30px;
+            background: #111;
+            position: relative;
+            border-radius: 3px;
+        }
+
+        .fader-thumb {
+            width: 100%;
+            height: 15px;
+            background: #555;
+            border: 1px solid #777;
+            position: absolute;
+            bottom: 50%;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .fader-thumb:hover { background: var(--accent); }
+
+        .meter-container {
+            width: 8px;
+            height: 200px;
+            background: #050505;
+            margin-left: 5px;
+            position: relative;
+        }
+
+        .meter-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #4ade80, #facc15, #f87171);
+            transition: height 0.05s ease-out;
+        }
+
+        /* --- Virtual Instrument Styles --- */
+        .keys-container {
+            display: flex;
+            gap: 2px;
+            height: 120px;
+        }
+
+        .key {
+            background: white;
+            color: black;
+            width: 30px;
+            height: 100%;
+            border-radius: 0 0 4px 4px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 5px;
+            font-size: 10px;
+            cursor: pointer;
+        }
+
+        .key.black {
+            background: #222;
+            color: white;
+            height: 60%;
+            width: 20px;
+            margin-left: -11px;
+            margin-right: -11px;
+            z-index: 2;
+        }
+
+        .key.active { background: var(--accent); }
+
+        .pad-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .pad {
+            aspect-ratio: 1/1;
+            background: #333;
+            border: 2px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .pad:active, .pad.active {
+            background: var(--accent);
+            color: black;
+            transform: scale(0.95);
+        }
+
+        /* --- Scrollbars --- */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+    </style>
+</head>
+<body class="flex flex-col">
+
+    <!-- Header / Transport -->
+    <header class="h-16 bg-[#1a1a1a] border-b border-[#333] flex items-center px-6 justify-between z-50">
+        <div class="flex items-center gap-4">
+            <h1 class="text-xl font-black tracking-tighter italic text-green-400">SNOW SHOES</h1>
+            <div class="h-8 w-[1px] bg-[#333]"></div>
+            <div class="flex items-center gap-2 bg-black px-3 py-1 rounded border border-[#444]">
+                <button id="btn-play" class="hover:text-green-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
+                    </svg>
+                </button>
+                <button id="btn-stop" class="hover:text-red-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M5 3.5h6A1.5 1.5 0 0 1 12.5 5v6a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 11V5A1.5 1.5 0 0 1 5 3.5z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="text-xs font-mono text-gray-500">
+                120 BPM | 4/4
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button onclick="createPlugin('synth')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 text-xs rounded font-bold transition"> + SUB-ZERO SYNTH</button>
+            <button onclick="createPlugin('drums')" class="bg-orange-600 hover:bg-orange-500 px-3 py-1 text-xs rounded font-bold transition"> + TREAD PADS</button>
+        </div>
+    </header>
+
+    <!-- Main Arranger / Workspace -->
+    <main class="flex-grow flex overflow-hidden relative">
+        <!-- Sidebar Tracks -->
+        <div id="track-list" class="w-64 bg-[#181818] border-r border-[#333] overflow-y-auto">
+            <!-- Dynamic tracks added here -->
+        </div>
+
+        <!-- Grid -->
+        <div class="flex-grow bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] bg-repeat relative overflow-hidden">
+            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: linear-gradient(#333 1px, transparent 1px), linear-gradient(90deg, #333 1px, transparent 1px); background-size: 100px 100px;"></div>
+            
+            <!-- Window Layer -->
+            <div id="window-container" class="window-container"></div>
+        </div>
+    </main>
+
+    <!-- Mixer Console -->
+    <footer class="h-64 bg-[#1a1a1a] border-t border-[#333] flex p-4 gap-2 overflow-x-auto">
+        <div id="mixer-channels" class="flex gap-2">
+            <!-- Master Strip -->
+            <div class="mixer-strip border-r-2 border-green-900/30">
+                <span class="text-[10px] text-green-400 font-bold">MASTER</span>
+                <div class="flex">
+                    <div class="fader-container">
+                        <div id="master-fader" class="fader-thumb"></div>
+                    </div>
+                    <div class="meter-container">
+                        <div id="master-meter" class="meter-fill"></div>
+                    </div>
+                </div>
+                <span id="master-db" class="text-[9px] font-mono">-0.0dB</span>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * SNOW SHOES CORE ENGINE
+         */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const masterBus = audioCtx.createGain();
+        const masterAnalyzer = audioCtx.createAnalyser();
+        masterAnalyzer.fftSize = 256;
+        masterBus.connect(masterAnalyzer);
+        masterAnalyzer.connect(audioCtx.destination);
+
+        const tracks = [];
+        let windowZIndex = 100;
+
+        // Window Management
+        function makeDraggable(el, header) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            header.onmousedown = dragMouseDown;
+
+            function dragMouseDown(e) {
+                e.preventDefault();
+                el.style.zIndex = ++windowZIndex;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX;
+                pos2 = pos4 - e.clientY;
+                pos3 = e.clientX;
+                pos4 = e.clientY;
+                el.style.top = (el.offsetTop - pos2) + "px";
+                el.style.left = (el.offsetLeft - pos1) + "px";
+            }
+
+            function closeDragElement() {
+                document.onmouseup = null;
+                document.onmousemove = null;
+            }
+        }
+
+        // Logic for Resizing
+        function makeResizable(el, resizer) {
+            resizer.onmousedown = (e) => {
+                e.preventDefault();
+                let startWidth = el.offsetWidth;
+                let startHeight = el.offsetHeight;
+                let startX = e.clientX;
+                let startY = e.clientY;
+
+                document.onmousemove = (e) => {
+                    el.style.width = startWidth + (e.clientX - startX) + 'px';
+                    el.style.height = startHeight + (e.clientY - startY) + 'px';
+                };
+                document.onmouseup = () => {
+                    document.onmousemove = null;
+                };
+            };
+        }
+
+        // Audio Track Class
+        class Track {
+            constructor(name, type) {
+                this.name = name;
+                this.type = type;
+                this.gainNode = audioCtx.createGain();
+                this.gainNode.connect(masterBus);
+                this.analyzer = audioCtx.createAnalyser();
+                this.gainNode.connect(this.analyzer);
+                
+                this.createUI();
+                this.startMetering();
+            }
+
+            createUI() {
+                // Mixer Strip
+                const strip = document.createElement('div');
+                strip.className = 'mixer-strip';
+                strip.innerHTML = `
+                    <span class="text-[10px] text-gray-400 font-bold truncate px-1 w-full text-center">${this.name.toUpperCase()}</span>
+                    <div class="flex">
+                        <div class="fader-container">
+                            <div class="fader-thumb" style="bottom: 80%"></div>
+                        </div>
+                        <div class="meter-container">
+                            <div class="meter-fill"></div>
+                        </div>
+                    </div>
+                    <span class="text-[9px] font-mono text-gray-500">-6.0dB</span>
+                `;
+                document.getElementById('mixer-channels').appendChild(strip);
+                this.meterFill = strip.querySelector('.meter-fill');
+                
+                const thumb = strip.querySelector('.fader-thumb');
+                const container = strip.querySelector('.fader-container');
+                
+                // Track List Entry
+                const trackItem = document.createElement('div');
+                trackItem.className = 'p-3 border-b border-[#222] hover:bg-[#222] flex flex-col gap-1 transition cursor-pointer';
+                trackItem.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-sm font-bold">${this.name}</span>
+                        <div class="flex gap-1">
+                            <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                            <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                        </div>
+                    </div>
+                    <div class="text-[10px] text-gray-500 uppercase">${this.type}</div>
+                `;
+                document.getElementById('track-list').appendChild(trackItem);
+
+                // Fader Logic
+                let isDragging = false;
+                thumb.onmousedown = (e) => { isDragging = true; e.stopPropagation(); };
+                window.addEventListener('mousemove', (e) => {
+                    if(!isDragging) return;
+                    const rect = container.getBoundingClientRect();
+                    let val = 1 - ((e.clientY - rect.top) / rect.height);
+                    val = Math.max(0, Math.min(1, val));
+                    thumb.style.bottom = (val * 100) + '%';
+                    this.gainNode.gain.value = val;
+                });
+                window.addEventListener('mouseup', () => isDragging = false);
+            }
+
+            startMetering() {
+                const data = new Uint8Array(this.analyzer.frequencyBinCount);
+                const update = () => {
+                    this.analyzer.getByteFrequencyData(data);
+                    let sum = 0;
+                    for(let i=0; i<data.length; i++) sum += data[i];
+                    let avg = sum / data.length;
+                    this.meterFill.style.height = (avg * 1.5) + '%';
+                    requestAnimationFrame(update);
+                };
+                update();
+            }
+        }
+
+        // Plugin Factory
+        function createPlugin(type) {
+            const track = new Track(type === 'synth' ? 'Sub-Zero' : 'Tread Pads', type);
+            const win = document.createElement('div');
+            win.className = 'plugin-window';
+            win.style.left = '300px';
+            win.style.top = '100px';
+            win.style.zIndex = ++windowZIndex;
+
+            const header = document.createElement('div');
+            header.className = 'window-header';
+            header.innerHTML = `<span class="text-xs font-bold text-gray-300 tracking-widest">${type.toUpperCase()}</span> <button onclick="this.closest('.plugin-window').remove()" class="text-gray-500 hover:text-white">✕</button>`;
+            
+            const content = document.createElement('div');
+            content.className = 'window-content';
+
+            if(type === 'synth') {
+                content.innerHTML = `
+                    <div class="flex flex-col gap-4">
+                        <div class="flex gap-4">
+                           <div class="flex flex-col"><label class="text-[10px] text-gray-500">CUTOFF</label><input type="range" class="accent-blue-500"></div>
+                           <div class="flex flex-col"><label class="text-[10px] text-gray-500">RESO</label><input type="range" class="accent-blue-500"></div>
+                        </div>
+                        <div class="keys-container">
+                            <div class="key" data-note="261.63">C</div>
+                            <div class="key black" data-note="277.18"></div>
+                            <div class="key" data-note="293.66">D</div>
+                            <div class="key black" data-note="311.13"></div>
+                            <div class="key" data-note="329.63">E</div>
+                            <div class="key" data-note="349.23">F</div>
+                            <div class="key black" data-note="369.99"></div>
+                            <div class="key" data-note="392.00">G</div>
+                            <div class="key black" data-note="415.30"></div>
+                            <div class="key" data-note="440.00">A</div>
+                            <div class="key black" data-note="466.16"></div>
+                            <div class="key" data-note="493.88">B</div>
+                            <div class="key" data-note="523.25">C</div>
+                        </div>
+                    </div>
+                `;
+                
+                // Synth Logic
+                const keys = content.querySelectorAll('.key');
+                keys.forEach(k => {
+                    k.onmousedown = () => {
+                        k.classList.add('active');
+                        playTone(parseFloat(k.dataset.note), track.gainNode);
+                    };
+                    k.onmouseup = () => k.classList.remove('active');
+                    k.onmouseleave = () => k.classList.remove('active');
+                });
+
+            } else {
+                content.innerHTML = `
+                    <div class="pad-grid">
+                        <div class="pad" data-freq="100">KICK</div>
+                        <div class="pad" data-freq="800">SNARE</div>
+                        <div class="pad" data-freq="2500">HAT</div>
+                        <div class="pad" data-freq="400">TOM</div>
+                        <div class="pad" data-freq="150">KICK 2</div>
+                        <div class="pad" data-freq="600">CLAP</div>
+                        <div class="pad" data-freq="3000">CYM</div>
+                        <div class="pad" data-freq="200">TOM 2</div>
+                    </div>
+                `;
+                const pads = content.querySelectorAll('.pad');
+                pads.forEach(p => {
+                    p.onmousedown = () => {
+                        p.classList.add('active');
+                        playDrum(parseFloat(p.dataset.freq), track.gainNode);
+                    };
+                    p.onmouseup = () => p.classList.remove('active');
+                });
+            }
+
+            win.appendChild(header);
+            win.appendChild(content);
+            const resizer = document.createElement('div');
+            resizer.className = 'resizer';
+            win.appendChild(resizer);
+
+            document.getElementById('window-container').appendChild(win);
+            makeDraggable(win, header);
+            makeResizable(win, resizer);
+        }
+
+        // Simple Audio Engine Helpers
+        function playTone(freq, output) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const env = audioCtx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            env.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            env.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1);
+            
+            osc.connect(env);
+            env.connect(output);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1);
+        }
+
+        function playDrum(freq, output) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const env = audioCtx.createGain();
+            
+            osc.type = freq < 200 ? 'sine' : 'square';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq/2, audioCtx.currentTime + 0.1);
+            
+            env.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            env.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+            
+            osc.connect(env);
+            env.connect(output);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        // Master Metering
+        const masterMeterFill = document.getElementById('master-meter');
+        function updateMasterMeter() {
+            const data = new Uint8Array(masterAnalyzer.frequencyBinCount);
+            masterAnalyzer.getByteFrequencyData(data);
+            let sum = 0;
+            for(let i=0; i<data.length; i++) sum += data[i];
+            let avg = sum / data.length;
+            masterMeterFill.style.height = (avg * 1.5) + '%';
+            requestAnimationFrame(updateMasterMeter);
+        }
+        updateMasterMeter();
+
+        // Global Transport Controls
+        document.getElementById('btn-play').onclick = () => {
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+            document.getElementById('btn-play').classList.add('text-green-400');
+        };
+        document.getElementById('btn-stop').onclick = () => {
+             document.getElementById('btn-play').classList.remove('text-green-400');
+        };
+
+        // Initialize with default tracks
+        window.onload = () => {
+            createPlugin('synth');
+            createPlugin('drums');
+        };
+    </script>
+</body>
+</html>

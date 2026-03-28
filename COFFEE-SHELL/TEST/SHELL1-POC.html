@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Shell() // Virtual Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;700&display=swap');
+
+        :root {
+            --coffee-gold: #d4a373;
+            --coffee-dark: #09090b;
+            --coffee-accent: #1c1c1f;
+            --terminal-green: #a3e635;
+        }
+
+        body {
+            background-color: var(--coffee-dark);
+            color: #d1d1d6;
+            font-family: 'Fira Code', monospace;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #terminal {
+            flex-grow: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .prompt-line {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .prompt-user { color: var(--coffee-gold); font-weight: bold; }
+        .prompt-dir { color: #71717a; }
+        .prompt-symbol { color: #f4f4f5; }
+
+        input#command-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            flex-grow: 1;
+            font-family: 'Fira Code', monospace;
+            font-size: 1rem;
+        }
+
+        .output-line {
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        .cmd-history { color: #52525b; font-style: italic; }
+
+        .header {
+            background: var(--coffee-accent);
+            padding: 0.75rem 1.5rem;
+            border-bottom: 1px solid #27272a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        .dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+        .dot-red { background: #ef4444; }
+        .dot-amber { background: #f59e0b; }
+        .dot-green { background: #10b981; }
+
+        #terminal::-webkit-scrollbar { width: 6px; }
+        #terminal::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+
+        .dir-text { color: #60a5fa; font-weight: bold; }
+        .file-text { color: #d1d1d6; }
+        .error-text { color: #f87171; }
+        .success-text { color: #a3e635; }
+        .warn-text { color: #facc15; }
+        .info-text { color: #a5b4fc; }
+        .muted-text { color: #a1a1aa; }
+
+        /* COFFEE_VM2-style banner inside terminal */
+        .coffee-shell-banner-wrap { margin-bottom: 1rem; }
+        .coffee-shell-banner-pre {
+            margin: 0;
+            font-size: clamp(0.45rem, 1.8vw, 0.65rem);
+            line-height: 1.12;
+            color: var(--coffee-gold);
+            font-family: 'Fira Code', monospace;
+            letter-spacing: -0.02em;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="flex items-center gap-2">
+            <div class="flex gap-1.5 mr-4">
+                <span class="dot dot-red"></span>
+                <span class="dot dot-amber"></span>
+                <span class="dot dot-green"></span>
+            </div>
+            <span class="text-xs font-bold tracking-widest text-zinc-500 uppercase">Coffee.Shell — coffee-shell.js — 80×24</span>
+        </div>
+        <div class="text-[10px] mono text-zinc-500 uppercase tracking-tighter">
+            Demo: SHELL1-POC · ASCII from COFFEE_VM2
+        </div>
+    </div>
+
+    <div id="terminal" onclick="document.getElementById('command-input').focus()">
+        <div id="output"></div>
+
+        <div class="prompt-line">
+            <span class="prompt-user">guest@coffee</span>
+            <span class="prompt-symbol">:</span>
+            <span id="current-path-display" class="prompt-dir">~</span>
+            <span class="prompt-symbol">$</span>
+            <input type="text" id="command-input" spellcheck="false" autocomplete="off" autofocus>
+        </div>
+    </div>
+
+    <script src="../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+    <script src="../../COFFEE-DRIVE/coffee-drive.js"></script>
+    <script src="../../COFFEE-BRAND/coffee-os-ascii.js"></script>
+    <script src="../coffee-shell.js"></script>
+    <script>
+        (function () {
+            var out = document.getElementById('output');
+            var esc = function (t) {
+                var d = document.createElement('div');
+                d.textContent = t;
+                return d.innerHTML;
+            };
+            var banner = (window.coffee && coffee.shell && coffee.shell.BANNER_COFFEE_OS) || '';
+            var pre = document.createElement('div');
+            pre.className = 'output-line coffee-shell-banner-wrap';
+            pre.innerHTML = '<pre class="coffee-shell-banner-pre">' + esc(banner) + '</pre>';
+            out.appendChild(pre);
+
+            var welcome = document.createElement('div');
+            welcome.className = 'output-line';
+            welcome.id = 'shell-welcome-line';
+            welcome.innerHTML =
+                'Welcome to <strong>Coffee.Shell</strong> (module demo)<br>' +
+                "Type <span class=\"success-text\">help</span> for commands, " +
+                '<span class="success-text">banner</span> for the COFFEE_VM2 ASCII.<br>' +
+                'FileSystem state: <span class="success-text">MOUNTED</span><br>' +
+                '<span class="text-zinc-500 text-xs">Persistence: …</span>';
+            out.appendChild(welcome);
+
+            var baseOpts = {
+                outputEl: out,
+                inputEl: document.getElementById('command-input'),
+                pathDisplayEl: document.getElementById('current-path-display'),
+                scrollEl: document.getElementById('terminal'),
+                userHost: 'guest@coffee'
+            };
+
+            function setPersistHint(text) {
+                var el = document.getElementById('shell-welcome-line');
+                if (!el) return;
+                el.innerHTML =
+                    'Welcome to <strong>Coffee.Shell</strong> (module demo)<br>' +
+                    "Type <span class=\"success-text\">help</span> for commands, " +
+                    '<span class="success-text">banner</span> for the COFFEE_VM2 ASCII.<br>' +
+                    'FileSystem state: <span class="success-text">MOUNTED</span><br>' +
+                    '<span class="text-zinc-500 text-xs">' + esc(text) + '</span>';
+            }
+
+            /** Prefer coffee.drive (CE standard). Query: ?persist=localStorage|control */
+            var qp = new URLSearchParams(window.location.search).get('persist');
+            if (qp === 'localStorage') {
+                setPersistHint('Persistence: localStorage (raw key coffee_vfs)');
+                coffee.shell.createSession(Object.assign({}, baseOpts, {
+                    persistence: 'localStorage',
+                    storageKey: 'coffee_vfs'
+                })).mount();
+            } else if (qp === 'control') {
+                setPersistHint('Persistence: coffee.save / coffee.load (key shell_vfs)');
+                coffee.shell.createSession(Object.assign({}, baseOpts, {
+                    persistence: 'control',
+                    controlKey: 'shell_vfs'
+                })).mount();
+            } else {
+                setPersistHint('Persistence: coffee.drive("coffee-shell") · id vfs (IndexedDB)');
+                coffee.shell.createSessionAsync(Object.assign({}, baseOpts, {
+                    persistence: 'drive',
+                    driveId: 'coffee-shell',
+                    vfsRecordId: 'vfs'
+                })).then(function (session) {
+                    session.mount();
+                }).catch(function () {
+                    setPersistHint('Persistence: localStorage (drive failed — fallback)');
+                    coffee.shell.createSession(Object.assign({}, baseOpts, {
+                        persistence: 'localStorage',
+                        storageKey: 'coffee_vfs'
+                    })).mount();
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

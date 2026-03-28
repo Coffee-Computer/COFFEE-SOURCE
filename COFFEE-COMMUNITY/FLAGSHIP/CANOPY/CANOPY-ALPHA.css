@@ -1,0 +1,300 @@
+/**
+ * CANOPY α — shader lab (.canopy-*)
+ */
+
+:root {
+  --canopy-bg: #050505;
+  --canopy-surface: #0f0f12;
+  --canopy-accent: #3b82f6;
+  --canopy-border: rgba(255, 255, 255, 0.08);
+  --canopy-text: #ececec;
+  --canopy-muted: #71717a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--canopy-bg);
+  color: var(--canopy-text);
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.canopy-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.canopy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+  width: 100vw;
+}
+
+@media (max-width: 900px) {
+  .canopy-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(200px, 45vh) minmax(240px, 55vh);
+  }
+}
+
+.canopy-editor-pane {
+  background: var(--canopy-surface);
+  border-right: 1px solid var(--canopy-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.canopy-preview-pane {
+  position: relative;
+  background: #000;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  min-height: 0;
+  min-width: 0;
+}
+
+.canopy-header {
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid var(--canopy-border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  z-index: 10;
+}
+
+.canopy-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.canopy-logo {
+  width: 28px;
+  height: 28px;
+  background: var(--canopy-accent);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 900;
+  font-style: italic;
+  color: #fff;
+}
+
+.canopy-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.02em;
+}
+
+.canopy-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.canopy-mode-btn {
+  border: 1px solid var(--canopy-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--canopy-muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.canopy-mode-btn:hover {
+  color: var(--canopy-text);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.canopy-mode-btn.canopy-active {
+  color: #fff;
+  border-color: var(--canopy-accent);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+.canopy-status {
+  font-size: 10px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.canopy-status-ok {
+  background: rgba(34, 197, 94, 0.12);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.canopy-status-err {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.canopy-editor-mount {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+}
+
+.canopy-editor-mount iframe {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 200px;
+}
+
+.canopy-preview-stack {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.canopy-preview-layer {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.canopy-preview-layer.canopy-preview-visible {
+  display: flex;
+}
+
+.canopy-preview-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 16px;
+  background: rgba(0, 0, 0, 0.45);
+  border-bottom: 1px solid var(--canopy-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.canopy-preview-header span {
+  pointer-events: none;
+}
+
+.canopy-canvas-fill {
+  display: block;
+}
+
+/* Full-bleed GPU canvases under the overlay header */
+.canopy-preview-layer > .canopy-canvas-fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.canopy-skater-stage {
+  width: min(320px, 80vw);
+  height: min(320px, 50vh);
+  border-radius: 20px;
+  background: linear-gradient(45deg, #ff0080, #7928ca);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 50px rgba(236, 72, 153, 0.25);
+  position: relative;
+}
+
+.canopy-skater-gloss {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 50%);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.canopy-skater-label {
+  color: #fff;
+  font-weight: 800;
+  font-size: clamp(28px, 8vw, 48px);
+  opacity: 0.35;
+  font-style: italic;
+  user-select: none;
+}
+
+.canopy-overlay-controls {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.canopy-ctrl-btn {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--canopy-border);
+  padding: 8px;
+  border-radius: 8px;
+  color: #888;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.canopy-ctrl-btn:hover {
+  color: var(--canopy-accent);
+  border-color: var(--canopy-accent);
+}
+
+.canopy-error-log {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(127, 29, 29, 0.92);
+  color: #fecaca;
+  padding: 10px 16px;
+  font-size: 11px;
+  display: none;
+  z-index: 100;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+.canopy-error-log.canopy-show {
+  display: block;
+}
+
+.canopy-hint {
+  font-size: 10px;
+  color: var(--canopy-muted);
+  padding: 8px 16px;
+  border-top: 1px solid var(--canopy-border);
+  line-height: 1.4;
+}

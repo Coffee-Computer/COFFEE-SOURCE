@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.toast() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-toast.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.toast()', 1);
+    const sub = coffee.para('Inline notifications. No permissions. Auto-dismiss.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const btnSuccess = coffee.button('Success', () => coffee.toast('Saved!', 'success'));
+    const btnWarning = coffee.button('Warning', () => coffee.toast('Check your input', 'warning'));
+    const btnError = coffee.button('Error', () => coffee.toast('Something went wrong', 'error'));
+    const btnInfo = coffee.button('Info', () => coffee.toast('Here\'s some info', 'info'));
+    const btnPersist = coffee.button('Persistent (0ms)', () => coffee.toast('I stay until you refresh', 'info', 0));
+
+    const row = coffee.row([btnSuccess, btnWarning, btnError, btnInfo, btnPersist], { style: { flexWrap: 'wrap', gap: '8px' } });
+    const card = coffee.card([header, sub, row], { style: { width: '100%', maxWidth: '100%' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

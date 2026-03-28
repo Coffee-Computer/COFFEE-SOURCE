@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Pix - Image Manipulation Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --coffee-cream: #fdfaf6;
+            --coffee-deep: #1b130c;
+            --pix-accent: #6366f1;
+        }
+        body {
+            background-color: var(--coffee-cream);
+            color: var(--coffee-deep);
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
+        .canvas-container {
+            background-image: 
+                linear-gradient(45deg, #eee 25%, transparent 25%), 
+                linear-gradient(-45deg, #eee 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #eee 75%), 
+                linear-gradient(-45deg, transparent 75%, #eee 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+        .slider-custom {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 5px;
+            background: #e2e8f0;
+            outline: none;
+        }
+        .slider-custom::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--pix-accent);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="flex h-screen">
+
+    <!-- Sidebar Controls -->
+    <aside class="w-80 bg-white border-r border-stone-200 p-6 flex flex-col gap-6 overflow-y-auto shadow-sm z-10">
+        <div>
+            <h1 class="text-3xl font-black text-stone-800 italic">coffee<span class="text-indigo-600">.pix()</span></h1>
+            <p class="text-xs text-stone-500 font-medium">Image Manipulation Engine v1.0</p>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="space-y-3">
+            <label class="block text-sm font-bold text-stone-700">Source Image</label>
+            <input type="file" id="imageLoader" accept="image/*" class="hidden">
+            <button onclick="document.getElementById('imageLoader').click()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-md flex items-center justify-center gap-2">
+                <span>📁</span> Load Photo
+            </button>
+        </div>
+
+        <hr class="border-stone-100">
+
+        <!-- Adjustment Sliders -->
+        <div class="space-y-5">
+            <label class="block">
+                <div class="flex justify-between mb-1">
+                    <span class="text-xs font-bold uppercase text-stone-500">Brightness</span>
+                    <span id="brightVal" class="text-xs font-mono text-indigo-600">0</span>
+                </div>
+                <input type="range" id="brightness" min="-100" max="100" value="0" class="slider-custom">
+            </label>
+
+            <label class="block">
+                <div class="flex justify-between mb-1">
+                    <span class="text-xs font-bold uppercase text-stone-500">Contrast</span>
+                    <span id="contrastVal" class="text-xs font-mono text-indigo-600">0</span>
+                </div>
+                <input type="range" id="contrast" min="-100" max="100" value="0" class="slider-custom">
+            </label>
+
+            <label class="block">
+                <div class="flex justify-between mb-1">
+                    <span class="text-xs font-bold uppercase text-stone-500">Saturation</span>
+                    <span id="satVal" class="text-xs font-mono text-indigo-600">0</span>
+                </div>
+                <input type="range" id="saturation" min="-100" max="100" value="0" class="slider-custom">
+            </label>
+        </div>
+
+        <hr class="border-stone-100">
+
+        <!-- Preset Filters -->
+        <div class="space-y-3">
+            <span class="text-xs font-bold uppercase text-stone-500">Artistic Presets</span>
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="pix.applyPreset('grayscale')" class="text-xs bg-stone-100 py-2 rounded font-bold hover:bg-stone-200 transition">B&W</button>
+                <button onclick="pix.applyPreset('sepia')" class="text-xs bg-stone-100 py-2 rounded font-bold hover:bg-stone-200 transition">Sepia</button>
+                <button onclick="pix.applyPreset('invert')" class="text-xs bg-stone-100 py-2 rounded font-bold hover:bg-stone-200 transition">Invert</button>
+                <button onclick="pix.applyPreset('vintage')" class="text-xs bg-stone-100 py-2 rounded font-bold hover:bg-stone-200 transition">Vintage</button>
+            </div>
+        </div>
+
+        <button onclick="pix.reset()" class="mt-auto border-2 border-stone-200 py-2 rounded-xl font-bold hover:bg-red-50 hover:border-red-100 transition text-red-600 text-sm">Reset All</button>
+    </aside>
+
+    <!-- Main Viewport -->
+    <main class="flex-1 p-8 flex items-center justify-center canvas-container">
+        <div class="relative max-w-full max-h-full shadow-2xl rounded-lg overflow-hidden bg-white">
+            <canvas id="mainCanvas" class="max-w-full max-h-[80vh] block"></canvas>
+            <div id="dropZone" class="absolute inset-0 flex flex-col items-center justify-center border-4 border-dashed border-indigo-200 bg-white/80 transition-opacity pointer-events-none">
+                <span class="text-4xl mb-4">📸</span>
+                <p class="text-indigo-900 font-bold">Drop an image here or click Load</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const pix = (() => {
+            const canvas = document.getElementById('mainCanvas');
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const loader = document.getElementById('imageLoader');
+            const dropZone = document.getElementById('dropZone');
+            
+            let originalImage = null;
+            let currentData = null;
+
+            // UI Elements
+            const sliders = {
+                brightness: document.getElementById('brightness'),
+                contrast: document.getElementById('contrast'),
+                saturation: document.getElementById('saturation')
+            };
+
+            const labels = {
+                brightness: document.getElementById('brightVal'),
+                contrast: document.getElementById('contrastVal'),
+                saturation: document.getElementById('satVal')
+            };
+
+            // Handle Image Upload
+            loader.addEventListener('change', (e) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        originalImage = img;
+                        dropZone.style.opacity = '0';
+                        resetSliders();
+                        render();
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            });
+
+            const render = () => {
+                if (!originalImage) return;
+
+                // Set canvas size to match image aspect ratio
+                const maxDim = 1200;
+                let w = originalImage.width;
+                let h = originalImage.height;
+
+                if (w > maxDim || h > maxDim) {
+                    const ratio = Math.min(maxDim / w, maxDim / h);
+                    w *= ratio;
+                    h *= ratio;
+                }
+
+                canvas.width = w;
+                canvas.height = h;
+                ctx.drawImage(originalImage, 0, 0, w, h);
+                
+                processPixels();
+            };
+
+            const processPixels = () => {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                const b = parseInt(sliders.brightness.value);
+                const c = (parseInt(sliders.contrast.value) + 100) / 100;
+                const s = (parseInt(sliders.saturation.value) + 100) / 100;
+
+                // Precompute contrast factor
+                const cf = (259 * (c * 255 + 255)) / (255 * (259 - c * 255));
+
+                for (let i = 0; i < data.length; i += 4) {
+                    let r = data[i];
+                    let g = data[i + 1];
+                    let b_val = data[i + 2];
+
+                    // Brightness
+                    r += b; g += b; b_val += b;
+
+                    // Contrast
+                    r = (r - 128) * c + 128;
+                    g = (g - 128) * c + 128;
+                    b_val = (b_val - 128) * c + 128;
+
+                    // Saturation (using luminance weights)
+                    const gray = 0.2989 * r + 0.5870 * g + 0.1140 * b_val;
+                    r = gray + s * (r - gray);
+                    g = gray + s * (g - gray);
+                    b_val = gray + s * (b_val - gray);
+
+                    data[i] = Math.min(255, Math.max(0, r));
+                    data[i + 1] = Math.min(255, Math.max(0, g));
+                    data[i + 2] = Math.min(255, Math.max(0, b_val));
+                }
+
+                ctx.putImageData(imageData, 0, 0);
+            };
+
+            const resetSliders = () => {
+                Object.keys(sliders).forEach(key => {
+                    sliders[key].value = 0;
+                    labels[key].innerText = 0;
+                });
+            };
+
+            // Event Listeners for sliders
+            Object.keys(sliders).forEach(key => {
+                sliders[key].addEventListener('input', () => {
+                    labels[key].innerText = sliders[key].value;
+                    render();
+                });
+            });
+
+            return {
+                applyPreset: (type) => {
+                    if (!originalImage) return;
+                    render(); // Reset to fresh state first
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imageData.data;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const r = data[i], g = data[i+1], b = data[i+2];
+                        if (type === 'grayscale') {
+                            const v = 0.3 * r + 0.59 * g + 0.11 * b;
+                            data[i] = data[i+1] = data[i+2] = v;
+                        } else if (type === 'sepia') {
+                            data[i] = (r * 0.393) + (g * 0.769) + (b * 0.189);
+                            data[i+1] = (r * 0.349) + (g * 0.686) + (b * 0.168);
+                            data[i+2] = (r * 0.272) + (g * 0.534) + (b * 0.131);
+                        } else if (type === 'invert') {
+                            data[i] = 255 - r;
+                            data[i+1] = 255 - g;
+                            data[i+2] = 255 - b;
+                        } else if (type === 'vintage') {
+                            data[i] = r * 0.9;
+                            data[i+1] = g * 0.7;
+                            data[i+2] = b * 0.5;
+                        }
+                    }
+                    ctx.putImageData(imageData, 0, 0);
+                },
+                reset: () => {
+                    resetSliders();
+                    render();
+                }
+            };
+        })();
+    </script>
+</body>
+</html>

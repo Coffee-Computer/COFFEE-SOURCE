@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" class="coffee-terminal-alpha">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Coffee.Terminal">
+  <meta name="cce:id" content="coffee-terminal-alpha">
+  <meta name="cce:icon" content="⌘">
+  <meta name="cce:color" content="#eab308">
+  <meta name="cce:description" content="Terminal chrome — POSIX + CASH (CE); JSON extensions for commands. No Coffee Server / vault UI.">
+  <title>Coffee.Terminal α // Coffee OS CE</title>
+  <link rel="stylesheet" href="COFFEE-TERMINAL-ALPHA.css">
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-SLASH/coffee-slash.js"></script>
+  <script src="./terminal-slash.js"></script>
+  <script src="./terminal-extensions.js"></script>
+  <script src="../COFFEE-COMMUNITY/tools/cce-validate.js"></script>
+</head>
+<body class="coffee-terminal-alpha">
+  <div class="ct-os">
+    <header class="ct-status">
+      <div>
+        <span class="ct-brand">COFFEE OS</span>
+        <span class="ct-muted">Terminal α</span>
+      </div>
+      <div class="ct-status-meta">
+        <span id="uptime-display">UPTIME: 00:00:00</span>
+        <span id="clock" class="ct-status-clock">—</span>
+      </div>
+    </header>
+
+    <div id="output-stream" class="ct-output" aria-live="polite">
+      <div class="ct-log">
+        <span class="ct-tag-sys">[INIT]</span> Coffee.Terminal flagship shell.
+      </div>
+      <div class="ct-log">
+        <span class="ct-tag-sys">[EXT]</span> Merge <code style="color:#a8a29e">terminal-extensions.json</code> for extra commands (<code>handler</code> → JS registry).
+      </div>
+    </div>
+
+    <div class="ct-input-zone">
+      <div id="palette" class="ct-palette" role="listbox" aria-label="Slash commands"></div>
+      <div class="ct-input-wrap">
+        <span class="ct-prompt" title="cwd"><span id="prompt-cwd">/</span></span>
+        <span class="ct-prompt" aria-hidden="true">$</span>
+        <input type="text" id="main-input" placeholder="ls · io ls · cash list · {JSON} · /palette" spellcheck="false" autocomplete="off" autofocus aria-label="Terminal input">
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./coffee-terminal-runtime.mjs"></script>
+  <script defer src="./coffee-terminal-alpha.js"></script>
+</body>
+</html>

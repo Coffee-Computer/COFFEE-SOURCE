@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.forge + COIL + ART — Generative Pipeline</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #050505; color: #e0e0e0; font-family: system-ui; }
+    canvas { display: block; }
+    .ui { position: fixed; top: 1rem; left: 1rem; z-index: 10; background: rgba(15,15,15,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem; padding: 1rem; max-width: 280px; }
+    .ui h2 { margin: 0 0 0.5rem 0; font-size: 1rem; }
+    select, button { width: 100%; padding: 0.5rem; margin: 0.25rem 0; background: #222; border: 1px solid #444; color: #fff; border-radius: 6px; cursor: pointer; }
+    button { accent-color: #d4a373; }
+    #fps { font-size: 10px; opacity: 0.5; }
+  </style>
+</head>
+<body>
+  <div class="ui">
+    <h2>COIL → FORGE → ART</h2>
+    <label>Engine</label>
+    <select id="engine">
+      <option value="flow">Flow Field</option>
+      <option value="fractal">Fractal Tree</option>
+      <option value="orbit">Orbital</option>
+      <option value="glitch">Glitch</option>
+    </select>
+    <label>Preset</label>
+    <select id="preset">
+      <option value="default">default</option>
+    </select>
+    <button id="randomize">Randomize Seed</button>
+    <button id="capture">Capture PNG</button>
+    <div id="fps">— FPS</div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+
+  <script src="../COFFEE-COIL/coffee-coil.js"></script>
+  <script src="./coffee-forge.js"></script>
+  <script src="../COFFEE-ART/coffee-art.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const art = coffee.art.create(canvas);
+    const coilBase = '../COFFEE-COIL/presets/';
+
+    let preset = null;
+    let runner = null;
+    let lastTime = 0;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+    window.addEventListener('resize', resize);
+    resize();
+
+    async function loadPreset() {
+      const engine = document.getElementById('engine').value;
+      const presetName = document.getElementById('preset').value;
+      preset = await coffee.coil.load(engine, presetName, { baseUrl: coilBase });
+      runner = coffee.forge.create(preset);
+    }
+
+    async function updatePresetList() {
+      const engine = document.getElementById('engine').value;
+      const manifest = await coffee.coil.list({ baseUrl: coilBase });
+      const presets = manifest[engine] || ['default'];
+      const sel = document.getElementById('preset');
+      sel.innerHTML = presets.map(p => `<option value="${p}">${p}</option>`).join('');
+    }
+
+    document.getElementById('engine').onchange = async () => {
+      await updatePresetList();
+      await loadPreset();
+    };
+
+    document.getElementById('preset').onchange = loadPreset;
+
+    document.getElementById('randomize').onclick = () => {
+      if (preset) preset.seed = Math.random() * 1000;
+      if (runner) runner.reset();
+    };
+
+    document.getElementById('capture').onclick = () => {
+      const a = document.createElement('a');
+      a.download = `coffee-art-${Date.now()}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+
+    async function init() {
+      await updatePresetList();
+      await loadPreset();
+    }
+
+    function loop(timestamp) {
+      const dt = timestamp - lastTime;
+      lastTime = timestamp;
+      document.getElementById('fps').textContent = dt > 0 ? `${Math.round(1000 / dt)} FPS` : '— FPS';
+
+      if (runner) {
+        const drawables = runner.step(canvas.width, canvas.height);
+        art.draw(drawables);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    init().then(() => requestAnimationFrame(loop));
+  </script>
+</body>
+</html>

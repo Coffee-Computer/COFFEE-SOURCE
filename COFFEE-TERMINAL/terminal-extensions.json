@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "coffee-terminal-root-extensions",
+  "description": "Root manifest: optional inline commands + plugins loaded by path (folder per plugin).",
+  "commands": [],
+  "plugins": [
+    {
+      "manifest": "PLUGINS/demo-grind/plugin.json",
+      "script": "PLUGINS/demo-grind/plugin.js"
+    }
+  ]
+}

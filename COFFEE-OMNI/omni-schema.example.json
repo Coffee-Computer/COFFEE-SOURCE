@@ -1,0 +1,26 @@
+{
+  "name": "Example OMNI clip",
+  "id": "omni-example",
+  "version": "1.0.0",
+  "entry": "index.html",
+  "hyper": {
+    "controls": [
+      {
+        "key": "bgHue",
+        "type": "range",
+        "label": "Background hue",
+        "min": 0,
+        "max": 360,
+        "default": 220,
+        "section": "Look"
+      },
+      {
+        "key": "label",
+        "type": "text",
+        "label": "Overlay label",
+        "default": "Coffee",
+        "section": "Look"
+      }
+    ]
+  }
+}

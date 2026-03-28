@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frugal - Privacy-Focused Wikipedia Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        :root {
+            --bg: #ffffff;
+            --text: #1a1a1a;
+            --border: #dfe1e5;
+            --secondary: #70757a;
+            --accent: #ff4500;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1c1c1e;
+                --text: #e8eaed;
+                --border: #3c4043;
+                --secondary: #9aa0a6;
+            }
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease;
+        }
+
+        /* Same warm gradient as Community homescreen + frugal-brand.css (not full-spectrum rainbow) */
+        .rainbow-text {
+            background-image: linear-gradient(135deg, #ff6f00 0%, #ffb300 30%, #e91e63 70%, #9c27b0 100%);
+            background-size: 100% 100%;
+            background-repeat: no-repeat;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            font-weight: 800;
+        }
+
+        .search-bar-container {
+            box-shadow: 0 2px 5px 1px rgba(64,60,67,.16);
+            border-radius: 24px;
+            transition: all 0.2s ease;
+        }
+
+        .search-bar-container:hover, .search-bar-container:focus-within {
+            box-shadow: 0 2px 8px 1px rgba(64,60,67,.24);
+        }
+
+        .result-card {
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .result-link:hover {
+            text-decoration: underline;
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(120,120,120,0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 640px) {
+            .search-header {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- Landing View -->
+    <div id="landing-view" class="flex flex-col items-center justify-center min-h-screen p-4">
+        <h1 class="rainbow-text text-7xl md:text-9xl mb-8 tracking-tighter">frugal</h1>
+        <div class="w-full max-w-2xl">
+            <div class="search-bar-container bg-[var(--bg)] border border-[var(--border)] flex items-center px-5 py-3 gap-3">
+                <svg class="text-[var(--secondary)]" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                <input type="text" id="main-search-input" placeholder="Search Wikipedia..." class="flex-grow bg-transparent outline-none text-lg">
+                <kbd class="hidden md:inline-block border border-[var(--border)] rounded px-1.5 text-xs text-[var(--secondary)]">Enter</kbd>
+            </div>
+            <p class="text-center mt-6 text-sm text-[var(--secondary)]">The privacy-first encyclopedia search engine.</p>
+        </div>
+    </div>
+
+    <!-- Results View (Hidden by default) -->
+    <div id="results-view" class="hidden">
+        <!-- Header -->
+        <header class="search-header sticky top-0 bg-[var(--bg)] border-b border-[var(--border)] z-10 px-4 py-3 md:px-8 flex flex-col md:flex-row items-center gap-4">
+            <h1 id="logo-mini" class="rainbow-text text-3xl tracking-tighter cursor-pointer">frugal</h1>
+            <div class="w-full max-w-2xl">
+                <div class="search-bar-container bg-[var(--bg)] border border-[var(--border)] flex items-center px-4 py-2 gap-3">
+                    <input type="text" id="nav-search-input" class="flex-grow bg-transparent outline-none">
+                    <svg class="text-[var(--accent)] cursor-pointer" id="nav-search-btn" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+            </div>
+        </header>
+
+        <!-- Results Content -->
+        <main class="max-w-4xl mx-auto px-4 md:px-8 py-8">
+            <div id="results-stats" class="text-sm text-[var(--secondary)] mb-6"></div>
+            
+            <div id="results-container">
+                <!-- Results populated here -->
+            </div>
+
+            <div id="loading-skeleton" class="hidden space-y-8">
+                <div class="space-y-3">
+                    <div class="h-4 w-1/4 bg-[var(--border)] rounded shimmer"></div>
+                    <div class="h-6 w-3/4 bg-[var(--border)] rounded shimmer"></div>
+                    <div class="h-4 w-full bg-[var(--border)] rounded shimmer"></div>
+                </div>
+                <div class="space-y-3">
+                    <div class="h-4 w-1/4 bg-[var(--border)] rounded shimmer"></div>
+                    <div class="h-6 w-2/3 bg-[var(--border)] rounded shimmer"></div>
+                    <div class="h-4 w-full bg-[var(--border)] rounded shimmer"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const landingView = document.getElementById('landing-view');
+        const resultsView = document.getElementById('results-view');
+        const mainInput = document.getElementById('main-search-input');
+        const navInput = document.getElementById('nav-search-input');
+        const resultsContainer = document.getElementById('results-container');
+        const resultsStats = document.getElementById('results-stats');
+        const loadingSkeleton = document.getElementById('loading-skeleton');
+        const logoMini = document.getElementById('logo-mini');
+
+        async function performSearch(query) {
+            if (!query.trim()) return;
+
+            // UI Transitions
+            landingView.classList.add('hidden');
+            resultsView.classList.remove('hidden');
+            navInput.value = query;
+            resultsContainer.innerHTML = '';
+            resultsStats.innerText = '';
+            loadingSkeleton.classList.remove('hidden');
+
+            const endpoint = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&format=json&origin=*&srlimit=15&prop=info&inprop=url`;
+
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                const results = data.query.search;
+
+                loadingSkeleton.classList.add('hidden');
+                
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = `<div class="py-10 text-center">No results found for "${query}". Try different keywords.</div>`;
+                    return;
+                }
+
+                resultsStats.innerText = `About ${results.length} results found`;
+
+                results.forEach(result => {
+                    const card = document.createElement('div');
+                    card.className = 'result-card';
+                    
+                    // Clean snippet of HTML tags provided by Wikipedia
+                    const cleanSnippet = result.snippet.replace(/<span class="searchmatch">/g, '<b class="text-[var(--text)]">').replace(/<\/span>/g, '</b>');
+                    const pageUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(result.title)}`;
+
+                    card.innerHTML = `
+                        <div class="text-xs text-[var(--secondary)] mb-1 truncate">${pageUrl}</div>
+                        <h3 class="text-xl font-semibold text-indigo-600 dark:text-blue-400 mb-1">
+                            <a href="${pageUrl}" target="_blank" class="result-link">${result.title}</a>
+                        </h3>
+                        <p class="text-[var(--secondary)] leading-relaxed text-sm">
+                            ${cleanSnippet}...
+                        </p>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+
+            } catch (error) {
+                loadingSkeleton.classList.add('hidden');
+                resultsContainer.innerHTML = `<div class="p-4 bg-red-100 text-red-700 rounded">Error fetching results. Please check your connection.</div>`;
+            }
+        }
+
+        // Event Listeners
+        mainInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(mainInput.value);
+        });
+
+        navInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch(navInput.value);
+        });
+
+        document.getElementById('nav-search-btn').addEventListener('click', () => {
+            performSearch(navInput.value);
+        });
+
+        logoMini.addEventListener('click', () => {
+            resultsView.classList.add('hidden');
+            landingView.classList.remove('hidden');
+            mainInput.value = '';
+            mainInput.focus();
+        });
+
+        // Initialize focus
+        window.onload = () => mainInput.focus();
+    </script>
+</body>
+</html>

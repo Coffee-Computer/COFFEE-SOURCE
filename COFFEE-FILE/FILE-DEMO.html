@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.file() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-file.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.file()', 1);
+    const sub = coffee.para('File System Access API. Open, save, pick directory. Chrome/Edge: native picker. Fallback: input + download.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const statusEl = coffee.para('', { style: { fontSize: '12px', fontFamily: 'monospace', minHeight: '1.5em' } });
+
+    const openBtn = coffee.button('Open file', async () => {
+      try {
+        const file = await coffee.file.open({
+          types: [{ description: 'Text/JSON', accept: { 'text/plain': ['.txt'], 'application/json': ['.json'] } }]
+        });
+        if (file) {
+          const text = await coffee.file.readText(file);
+          statusEl.textContent = `Opened: ${file.name} (${file.size} bytes)`;
+          console.log('Content:', text.slice(0, 200) + (text.length > 200 ? '...' : ''));
+        } else {
+          statusEl.textContent = 'Cancelled';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+      }
+    });
+
+    const openMultipleBtn = coffee.button('Open multiple', async () => {
+      try {
+        const files = await coffee.file.open({
+          multiple: true,
+          types: [{ description: 'Images', accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.gif', '.webp'] } }]
+        });
+        if (files?.length) {
+          statusEl.textContent = `Opened ${files.length} file(s): ${files.map((f) => f.name).join(', ')}`;
+        } else {
+          statusEl.textContent = 'Cancelled';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+      }
+    });
+
+    const saveBtn = coffee.button('Save file', async () => {
+      try {
+        const data = { demo: true, timestamp: new Date().toISOString() };
+        const handle = await coffee.file.save(JSON.stringify(data, null, 2), {
+          suggestedName: 'coffee-file-demo.json',
+          types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }]
+        });
+        statusEl.textContent = handle ? `Saved to: ${handle.name}` : 'Download started (fallback)';
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+      }
+    });
+
+    const dirBtn = coffee.button('Pick directory', async () => {
+      try {
+        const handle = await coffee.file.directory();
+        if (handle) {
+          statusEl.textContent = `Directory: ${handle.name}`;
+        } else {
+          statusEl.textContent = coffee.file.supported() ? 'Cancelled' : 'Not supported (use Chrome/Edge)';
+        }
+      } catch (e) {
+        statusEl.textContent = 'Error: ' + e.message;
+      }
+    });
+
+    const supportedBadge = coffee.para(
+      coffee.file.supported() ? '✓ Native picker (Chrome/Edge)' : '⚠ Fallback mode (input + download)',
+      { style: { fontSize: '11px', opacity: 0.7, marginTop: '0.5rem' } }
+    );
+
+    const card = coffee.card([
+      header,
+      sub,
+      coffee.row([openBtn, openMultipleBtn], { style: { gap: '0.5rem', flexWrap: 'wrap' } }),
+      coffee.row([saveBtn, dirBtn], { style: { gap: '0.5rem', flexWrap: 'wrap' } }),
+      statusEl,
+      supportedBadge
+    ], { style: { width: '100%', maxWidth: '500px' } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

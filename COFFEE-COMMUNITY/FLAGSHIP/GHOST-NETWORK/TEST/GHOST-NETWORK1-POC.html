@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Coffee α: ../GHOST-NETWORK-ALPHA.html — Nostr channels + ?channel= ; this file is UI shell only -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GHOST NETWORK // Decentralized Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+
+        :root {
+            --bg-darker: #0a0a0c;
+            --bg-main: #121214;
+            --bg-sidebar: #1e1e22;
+            --accent: #8b5cf6; /* Ghost Purple */
+            --text-muted: #88888e;
+            --border: rgba(255, 255, 255, 0.06);
+        }
+
+        body {
+            background-color: var(--bg-darker);
+            color: #e2e2e4;
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 72px 240px 1fr;
+            height: 100vh;
+        }
+
+        /* Far Left: Relay Rail */
+        .relay-rail {
+            background: var(--bg-darker);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 12px;
+            gap: 8px;
+            border-right: 1px solid var(--border);
+        }
+
+        .relay-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-sidebar);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+
+        .relay-icon:hover, .relay-icon.active {
+            border-radius: 16px;
+            background: var(--accent);
+            color: white;
+        }
+
+        .relay-icon.active::before {
+            content: '';
+            position: absolute;
+            left: -12px;
+            width: 4px;
+            height: 40px;
+            background: white;
+            border-radius: 0 4px 4px 0;
+        }
+
+        /* Sidebar: Channels */
+        .sidebar {
+            background: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .channel-item {
+            padding: 8px 12px;
+            margin: 2px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        .channel-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #eee;
+        }
+
+        .channel-item.active {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        /* Main Chat Area */
+        .chat-area {
+            background: var(--bg-main);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .chat-header {
+            height: 48px;
+            padding: 0 16px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            font-weight: 800;
+            font-style: italic;
+        }
+
+        .message-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            display: flex;
+            gap: 16px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 4px;
+            background: #333;
+            flex-shrink: 0;
+        }
+
+        .msg-content {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .msg-user {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .msg-time {
+            font-size: 10px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .msg-text {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #ccc;
+        }
+
+        /* Chat Input */
+        .input-container {
+            padding: 0 20px 24px 20px;
+        }
+
+        .input-box {
+            background: #2b2b2f;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            gap: 12px;
+        }
+
+        .plus-btn {
+            width: 24px;
+            height: 24px;
+            background: #444;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #eee;
+        }
+
+        .plus-btn:hover { background: #555; }
+
+        .text-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            flex: 1;
+            font-size: 14px;
+        }
+
+        .code-snippet {
+            background: #000;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: #10b981;
+            border: 1px solid #111;
+        }
+
+        /* Modal / Menu */
+        #upload-menu {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            background: #18181b;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+
+        .menu-item {
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-item:hover { background: var(--accent); color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <!-- RELAY RAIL -->
+        <nav class="relay-rail">
+            <div class="relay-icon active" title="Global Ghost Relay">
+                <span class="font-black italic text-xs">G</span>
+            </div>
+            <div class="w-8 h-[2px] bg-white/5 my-1"></div>
+            <div class="relay-icon" title="Dev Network">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+            </div>
+            <div class="relay-icon" title="Art & Media">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+            </div>
+            <div class="relay-icon" style="margin-top: auto; margin-bottom: 12px;" title="Add Relay">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </div>
+        </nav>
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <header class="chat-header border-none">
+                <span class="text-xs tracking-widest uppercase opacity-40">Ghost_Relay_01</span>
+            </header>
+            
+            <div class="flex-1 overflow-y-auto pt-4">
+                <div class="px-4 mb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Channels</div>
+                <div class="channel-item active" onclick="switchChannel('general')">
+                    <span class="text-zinc-500">#</span> general
+                </div>
+                <div class="channel-item" onclick="switchChannel('dev-logs')">
+                    <span class="text-zinc-500">#</span> dev-logs
+                </div>
+                <div class="channel-item" onclick="switchChannel('showcase')">
+                    <span class="text-zinc-500">#</span> showcase
+                </div>
+                
+                <div class="px-4 mt-6 mb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Direct</div>
+                <div class="channel-item">
+                    <div class="w-2 h-2 rounded-full bg-green-500"></div> ghost_user
+                </div>
+                <div class="channel-item opacity-50">
+                    <div class="w-2 h-2 rounded-full bg-zinc-600"></div> nostr_bot
+                </div>
+            </div>
+
+            <div class="p-4 bg-black/20 flex items-center gap-3">
+                <div class="avatar bg-purple-600 flex items-center justify-center font-bold italic">Me</div>
+                <div class="flex-1 overflow-hidden">
+                    <div class="text-[11px] font-bold truncate">user_44ae...21f</div>
+                    <div class="text-[9px] text-zinc-500">Online</div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            </div>
+        </aside>
+
+        <!-- MAIN CHAT -->
+        <main class="chat-area">
+            <header class="chat-header">
+                <span class="text-zinc-500 mr-2">#</span> 
+                <span id="channel-name">general</span>
+            </header>
+
+            <div class="message-list" id="message-list">
+                <!-- Messages populate here -->
+                <div class="message">
+                    <div class="avatar bg-zinc-800 flex items-center justify-center text-[10px] mono">GH</div>
+                    <div class="msg-content">
+                        <div class="msg-user">Ghost_Dev <span class="msg-time">Today at 9:41 AM</span></div>
+                        <div class="msg-text">Welcome to the GHOST NETWORK. This is a decentralized playground.</div>
+                    </div>
+                </div>
+
+                <div class="message">
+                    <div class="avatar bg-blue-900 flex items-center justify-center text-[10px] mono">NS</div>
+                    <div class="msg-content">
+                        <div class="msg-user">Nostr_Bridge <span class="msg-time">Today at 9:42 AM</span></div>
+                        <div class="msg-text">Relay connection established. Public key detected. Ready for event signing.</div>
+                        <div class="code-snippet">
+                            // Event Kind 1
+                            {
+                              "kind": 1,
+                              "content": "Hello Decentralized World!",
+                              "created_at": 16782344
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="upload-menu">
+                <div class="menu-item" onclick="handleUpload('photo')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                    Upload Photo
+                </div>
+                <div class="menu-item" onclick="handleUpload('media')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2c.46-1.7.46-5.33.46-5.33a29 29 0 0 0-.46-5.33z"></path><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon></svg>
+                    Attach Media
+                </div>
+                <div class="menu-item" onclick="handleUpload('code')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+                    Code Snippet
+                </div>
+            </div>
+
+            <div class="input-container">
+                <div class="input-box">
+                    <div class="plus-btn" onclick="toggleUploadMenu()">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </div>
+                    <input type="text" id="chat-input" class="text-input" placeholder="Message #general..." onkeypress="if(event.key === 'Enter') sendMessage()">
+                    <div class="flex gap-3 opacity-40">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function toggleUploadMenu() {
+            const menu = document.getElementById('upload-menu');
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function switchChannel(name) {
+            document.getElementById('channel-name').innerText = name;
+            document.getElementById('chat-input').placeholder = `Message #${name}...`;
+            
+            // Highlight active channel
+            document.querySelectorAll('.channel-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.innerText.includes(name)) item.classList.add('active');
+            });
+            
+            // In a real app, this would fetch new Nostr events for this channel
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const list = document.getElementById('message-list');
+            
+            if (input.value.trim() === '') return;
+
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            const msgHtml = `
+                <div class="message">
+                    <div class="avatar bg-purple-600 flex items-center justify-center font-bold italic">Me</div>
+                    <div class="msg-content">
+                        <div class="msg-user">Me <span class="msg-time">Today at ${time}</span></div>
+                        <div class="msg-text">${input.value}</div>
+                    </div>
+                </div>
+            `;
+            
+            list.insertAdjacentHTML('beforeend', msgHtml);
+            input.value = '';
+            list.scrollTop = list.scrollHeight;
+        }
+
+        function handleUpload(type) {
+            const list = document.getElementById('message-list');
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let content = '';
+
+            if(type === 'code') {
+                content = `<div class="code-snippet">// New Snippet Added\nfunction ghost() {\n  return "decentralized";\n}</div>`;
+            } else if (type === 'photo') {
+                content = `<div class="mt-2 rounded overflow-hidden border border-white/10 bg-zinc-800 p-8 text-center text-xs text-zinc-500 italic">[ Image Placeholder: ghost_media_01.jpg ]</div>`;
+            } else {
+                content = `<div class="msg-text italic text-zinc-500 underline text-xs">attachment_ghost_vlog.mp4 (4.2MB)</div>`;
+            }
+
+            const msgHtml = `
+                <div class="message">
+                    <div class="avatar bg-purple-600 flex items-center justify-center font-bold italic">Me</div>
+                    <div class="msg-content">
+                        <div class="msg-user">Me <span class="msg-time">Today at ${time}</span></div>
+                        ${content}
+                    </div>
+                </div>
+            `;
+            
+            list.insertAdjacentHTML('beforeend', msgHtml);
+            toggleUploadMenu();
+            list.scrollTop = list.scrollHeight;
+        }
+
+        // Close menu on click outside
+        window.onclick = function(event) {
+            if (!event.target.closest('.plus-btn') && !event.target.closest('#upload-menu')) {
+                document.getElementById('upload-menu').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

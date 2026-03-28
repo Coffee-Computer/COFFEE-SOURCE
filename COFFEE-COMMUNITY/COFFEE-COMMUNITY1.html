@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Alien OS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --android-bg: #000;
+            --accent-color: #34d399; /* Emerald 400 */
+            --community-status-h: 28px;
+            --community-nav-h: 48px;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--android-bg);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        #os-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            background-size: cover;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Status Bar */
+        #status-bar {
+            height: var(--community-status-h);
+            padding: 0 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: white;
+            z-index: 100;
+        }
+
+        /* Home Screen */
+        #home-screen {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-auto-rows: min-content;
+            gap: 20px;
+            padding: 20px;
+            overflow-y: auto;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .app-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .icon-wrapper {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.1s;
+        }
+
+        .app-icon:active .icon-wrapper {
+            transform: scale(0.9);
+        }
+
+        .app-label {
+            color: white;
+            font-size: 11px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+
+        /* App Window Layer */
+        #app-layer {
+            position: absolute;
+            top: var(--community-status-h);
+            left: 0;
+            right: 0;
+            bottom: var(--community-nav-h);
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+            z-index: 50;
+        }
+
+        .window {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            transform: translateY(100%);
+            transition: transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+            z-index: 60;
+        }
+
+        .window.open {
+            transform: translateY(0);
+        }
+
+        .window-header {
+            height: 50px;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .window-body {
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* Navigation Bar */
+        #nav-bar {
+            height: var(--community-nav-h);
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: white;
+            z-index: 100;
+        }
+
+        .nav-btn {
+            padding: 10px 20px;
+            font-size: 18px;
+            opacity: 0.8;
+        }
+
+        /* Notification Shade */
+        #shade {
+            position: absolute;
+            top: -100%;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 200;
+            transition: top 0.3s cubic-bezier(0.1, 0.9, 0.2, 1);
+            padding: 40px 20px;
+            color: white;
+        }
+
+        #shade.visible {
+            top: 0;
+        }
+
+        .shade-handle {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+        }
+
+        /* Utils */
+        .hidden { display: none; }
+        
+        /* Glassmorphism */
+        .glass {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+
+<div id="os-container">
+    <!-- Status Bar -->
+    <div id="status-bar">
+        <div id="status-time">12:00</div>
+        <div class="flex gap-2 items-center">
+            <i class="fas fa-wifi"></i>
+            <i class="fas fa-signal"></i>
+            <i class="fas fa-battery-full"></i>
+        </div>
+    </div>
+
+    <!-- Home Screen -->
+    <div id="home-screen">
+        <!-- Apps generated by JS -->
+    </div>
+
+    <!-- Notification Shade -->
+    <div id="shade" onclick="toggleShade()">
+        <div class="grid grid-cols-4 gap-4 mb-8">
+            <div class="flex flex-column items-center gap-2">
+                <div class="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center"><i class="fas fa-wifi"></i></div>
+                <span class="text-[10px]">Wi-Fi</span>
+            </div>
+            <div class="flex flex-column items-center gap-2">
+                <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center"><i class="fas fa-bluetooth"></i></div>
+                <span class="text-[10px]">Bluetooth</span>
+            </div>
+            <div class="flex flex-column items-center gap-2">
+                <div class="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center"><i class="fas fa-moon"></i></div>
+                <span class="text-[10px]">DND</span>
+            </div>
+            <div class="flex flex-column items-center gap-2">
+                <div class="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center"><i class="fas fa-sync"></i></div>
+                <span class="text-[10px]">Auto-rotate</span>
+            </div>
+        </div>
+        <div class="p-4 bg-white/5 rounded-xl">
+            <p class="text-sm opacity-50">No notifications</p>
+        </div>
+        <div class="shade-handle"></div>
+    </div>
+
+    <!-- App Window Layer -->
+    <div id="app-layer">
+        <!-- Windows will be injected here -->
+    </div>
+
+    <!-- Navigation Bar -->
+    <div id="nav-bar">
+        <div class="nav-btn" onclick="goBack()"><i class="fas fa-chevron-left"></i></div>
+        <div class="nav-btn" onclick="goHome()"><i class="fas fa-circle"></i></div>
+        <div class="nav-btn" onclick="showRecents()"><i class="fas fa-square-full" style="font-size: 14px;"></i></div>
+    </div>
+</div>
+
+<script>
+    const apps = [
+        { id: 'browser', name: 'Browser', icon: 'fa-globe', color: 'bg-blue-500', url: 'https://www.wikipedia.org' },
+        { id: 'maps', name: 'Maps', icon: 'fa-map-marked-alt', color: 'bg-green-500', url: 'https://www.openstreetmap.org' },
+        { id: 'terminal', name: 'Terminal', icon: 'fa-terminal', color: 'bg-zinc-800', content: '<div style="background:#000;color:#0f0;height:100%;padding:20px;font-family:monospace">AlienOS Kernal v1.0.4<br>> system_boot... OK<br>> loading_modules... OK<br>> welcome_user: ALIEN_01</div>' },
+        { id: 'notes', name: 'Notes', icon: 'fa-sticky-note', color: 'bg-yellow-500', content: '<textarea style="width:100%;height:100%;padding:20px;border:none;outline:none;font-size:18px" placeholder="Start typing..."></textarea>' },
+        { id: 'calc', name: 'Calculator', icon: 'fa-calculator', color: 'bg-orange-500', url: 'https://www.desmos.com/scientific' },
+        { id: 'camera', name: 'Camera', icon: 'fa-camera', color: 'bg-zinc-500', content: '<div style="background:#000;height:100%;display:flex;align-items:center;justify-content:center;color:white"><i class="fas fa-camera fa-3x"></i></div>' },
+        { id: 'settings', name: 'Settings', icon: 'fa-cog', color: 'bg-slate-600', content: '<div style="padding:20px"><h2>System Settings</h2><hr><p>Storage: 92% Full</p><p>Memory: 4GB RAM</p><p>Version: Alien 1.0 (Alpha)</p></div>' },
+        { id: 'files', name: 'Files', icon: 'fa-folder', color: 'bg-amber-600', content: '<div style="padding:20px"><h3>Internal Storage</h3><ul style="list-style:none;padding:0"><li>📁 Documents</li><li>📁 Downloads</li><li>📁 Images</li></ul></div>' }
+    ];
+
+    let activeAppId = null;
+    const homeScreen = document.getElementById('home-screen');
+    const appLayer = document.getElementById('app-layer');
+    const statusTime = document.getElementById('status-time');
+
+    // Initialize Home Screen
+    function initHome() {
+        apps.forEach(app => {
+            const div = document.createElement('div');
+            div.className = 'app-icon';
+            div.onclick = () => openApp(app);
+            div.innerHTML = `
+                <div class="icon-wrapper ${app.color}">
+                    <i class="fas ${app.icon}"></i>
+                </div>
+                <div class="app-label">${app.name}</div>
+            `;
+            homeScreen.appendChild(div);
+        });
+    }
+
+    // Open App
+    function openApp(app) {
+        // Remove existing if any
+        let existing = document.getElementById(`window-${app.id}`);
+        if (existing) {
+            existing.classList.add('open');
+            activeAppId = app.id;
+            return;
+        }
+
+        const win = document.createElement('div');
+        win.id = `window-${app.id}`;
+        win.className = 'window';
+        
+        let bodyContent = app.url 
+            ? `<iframe src="${app.url}"></iframe>` 
+            : app.content;
+
+        win.innerHTML = `
+            <div class="window-header">
+                <div class="flex-1 font-bold text-gray-800">${app.name}</div>
+                <div onclick="closeApp('${app.id}')" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 cursor-pointer text-gray-500">
+                    <i class="fas fa-times"></i>
+                </div>
+            </div>
+            <div class="window-body">
+                ${bodyContent}
+            </div>
+        `;
+
+        appLayer.appendChild(win);
+        setTimeout(() => {
+            win.classList.add('open');
+            activeAppId = app.id;
+        }, 10);
+    }
+
+    // Navigation Controls
+    function closeApp(id) {
+        const win = document.getElementById(`window-${id}`);
+        if (win) {
+            win.classList.remove('open');
+            setTimeout(() => win.remove(), 400);
+            activeAppId = null;
+        }
+    }
+
+    function goHome() {
+        if (activeAppId) {
+            const win = document.getElementById(`window-${activeAppId}`);
+            if (win) win.classList.remove('open');
+            activeAppId = null;
+        }
+        toggleShade(false);
+    }
+
+    function goBack() {
+        // In this simple clone, back usually goes home if an app is open
+        goHome();
+    }
+
+    function showRecents() {
+        // Visual indicator that we're clicking it
+        const icon = document.querySelector('.fa-square-full');
+        icon.style.color = '#34d399';
+        setTimeout(() => icon.style.color = 'white', 200);
+    }
+
+    // Notification Shade Logic
+    function toggleShade(force) {
+        const shade = document.getElementById('shade');
+        if (typeof force === 'boolean') {
+            force ? shade.classList.add('visible') : shade.classList.remove('visible');
+        } else {
+            shade.classList.toggle('visible');
+        }
+    }
+
+    // Swipe down detection for status bar (simplified)
+    document.getElementById('status-bar').addEventListener('click', () => toggleShade(true));
+
+    // Clock
+    function updateClock() {
+        const now = new Date();
+        statusTime.innerText = now.getHours().toString().padStart(2, '0') + ':' + 
+                               now.getMinutes().toString().padStart(2, '0');
+    }
+
+    setInterval(updateClock, 1000);
+    updateClock();
+    initHome();
+
+    // Handle touch swipe for the shade
+    let touchStartY = 0;
+    document.addEventListener('touchstart', e => {
+        touchStartY = e.touches[0].clientY;
+    });
+
+    document.addEventListener('touchend', e => {
+        const touchEndY = e.changedTouches[0].clientY;
+        if (touchStartY < 50 && touchEndY > touchStartY + 50) {
+            toggleShade(true);
+        }
+    });
+
+</script>
+</body>
+</html>

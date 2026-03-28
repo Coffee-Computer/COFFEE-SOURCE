@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="cce:name" content="Ghost Network">
+  <meta name="cce:id" content="ghost-network-alpha">
+  <meta name="cce:icon" content="👻">
+  <meta name="cce:color" content="#8b5cf6">
+  <meta name="cce:description" content="Nostr channels — same tag = same room. Share ?channel= link.">
+  <title>Ghost Network α</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="GHOST-NETWORK-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="https://unpkg.com/nostr-tools@1.17.0/lib/nostr.bundle.js"></script>
+  <script src="../../../COFFEE-CONNECT/coffee-connect.js"></script>
+  <script src="../../../COFFEE-NOSTR/coffee-nostr.js"></script>
+  <script src="../../tools/cce-validate.js"></script>
+</head>
+<body>
+  <div class="gh-drawer-backdrop" id="gh-drawer-backdrop" aria-hidden="true"></div>
+  <div class="gh-app" id="gh-root">
+    <nav class="gh-relay-rail" aria-label="Relays">
+      <button type="button" class="gh-relay-icon gh-active" id="gh-rail-primary" title="Primary relay (sidebar)">
+        <span class="gh-mono" style="font-weight:800;font-style:italic;font-size:11px">G</span>
+      </button>
+      <div class="gh-rail-divider"></div>
+      <span class="gh-mono" style="font-size:9px;color:#52525b;text-align:center;padding:0 4px">α</span>
+    </nav>
+
+    <aside class="gh-sidebar" id="gh-sidebar" aria-label="Channels and relay">
+      <header class="gh-chat-header gh-sidebar-head">
+        <span class="gh-mono" style="font-size:10px;letter-spacing:0.15em;text-transform:uppercase;opacity:0.45">Ghost_Relay</span>
+        <button type="button" class="gh-drawer-close" id="gh-drawer-close" aria-label="Close channels menu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </button>
+      </header>
+
+      <div class="gh-channel-scroll">
+        <div class="gh-section-label">Channels</div>
+        <div id="gh-channel-list" class="gh-channel-list" data-coffee-region="channels"></div>
+
+        <div class="gh-section-label">Join channel</div>
+        <div id="gh-join-mount" class="gh-join-mount"></div>
+      </div>
+
+      <div class="gh-sidebar-footer">
+        <div id="gh-profile-mount" class="gh-profile-stack"></div>
+        <div id="gh-relay-mount" class="gh-relay-stack"></div>
+        <div class="gh-user-bar">
+          <div class="gh-avatar" style="background:#6d28d9" id="gh-avatar-label">you</div>
+          <div class="gh-user-meta">
+            <div class="gh-npub gh-mono" id="gh-npub-short">…</div>
+            <div class="gh-status-line" id="gh-conn-status">Offline</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="gh-chat-area">
+      <header class="gh-chat-header gh-main-header">
+        <button type="button" class="gh-menu-btn" id="gh-menu-btn" aria-controls="gh-sidebar" aria-expanded="false" aria-label="Open channels menu">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+        </button>
+        <div class="gh-header-title-row">
+          <span class="gh-hash" aria-hidden="true">#</span>
+          <span id="gh-channel-title">ghost</span>
+        </div>
+        <div class="gh-header-actions" id="gh-share-mount"></div>
+      </header>
+
+      <p class="gh-hint gh-mono">
+        Channel name → Nostr <code style="color:var(--gh-accent)">t</code> tag <code style="color:#a78bfa">coffee-ghost-v1-…</code>.
+        Anyone with the same channel on this relay sees the same thread. Share the URL so others land in the room.
+      </p>
+
+      <div class="gh-message-list" id="gh-messages" aria-live="polite"></div>
+
+      <div class="gh-input-container" id="gh-msg-compose"></div>
+    </main>
+  </div>
+
+  <script>
+(function () {
+  var STORAGE_SK = 'ghost_network_sk_hex';
+  var STORAGE_CHANNELS = 'ghost_network_channels';
+  /** Default sidebar rooms. `ghost` = cleaner public default; `general` kept for legacy / your tests. */
+  var DEFAULT_CHANNELS = ['ghost', 'general', 'dev-logs', 'showcase'];
+
+  coffee.injectTheme('dark');
+  document.documentElement.style.setProperty('--coffee-accent', '#8b5cf6');
+
+  try {
+    var _uq = new URLSearchParams(window.location.search);
+    if (_uq.get('compact') === '1' || _uq.get('embed') === '1') {
+      document.documentElement.classList.add('gh-compact');
+    }
+  } catch (_) {}
+
+  var nt = window.NostrTools || {};
+
+  function u8ToHex(u8) {
+    return Array.prototype.map.call(u8, function (b) {
+      return ('0' + (b & 0xff).toString(16)).slice(-2);
+    }).join('');
+  }
+
+  function getOrCreateSecretKeyHex() {
+    var existing = localStorage.getItem(STORAGE_SK);
+    if (existing && /^[0-9a-fA-F]{64}$/.test(existing)) return existing.toLowerCase();
+    var sk;
+    if (typeof nt.generateSecretKey === 'function') {
+      sk = u8ToHex(nt.generateSecretKey());
+    } else if (typeof nt.generatePrivateKey === 'function') {
+      sk = nt.generatePrivateKey();
+      if (sk instanceof Uint8Array) sk = u8ToHex(sk);
+    } else {
+      var arr = new Uint8Array(32);
+      crypto.getRandomValues(arr);
+      sk = u8ToHex(arr);
+    }
+    localStorage.setItem(STORAGE_SK, sk);
+    return sk;
+  }
+
+  function getPublicKeyHex(skHex) {
+    if (!nt.getPublicKey || !skHex || skHex.length !== 64) return null;
+    try {
+      return nt.getPublicKey(skHex);
+    } catch (_) {}
+    try {
+      var bytes = new Uint8Array(32);
+      for (var i = 0; i < 32; i++) bytes[i] = parseInt(skHex.slice(i * 2, i * 2 + 2), 16);
+      return nt.getPublicKey(bytes);
+    } catch (e2) {
+      console.warn(e2);
+    }
+    return null;
+  }
+
+  function normalizeChannelSlug(raw) {
+    var s = (raw || '').trim().toLowerCase().replace(/\s+/g, '-');
+    s = s.replace(/[^a-z0-9-_]/g, '');
+    if (!s) return '';
+    if (s.length > 48) s = s.slice(0, 48);
+    return s;
+  }
+
+  function roomTag(slug) {
+    return 'coffee-ghost-v1-' + normalizeChannelSlug(slug);
+  }
+
+  function loadChannelList() {
+    try {
+      var j = localStorage.getItem(STORAGE_CHANNELS);
+      var arr = j ? JSON.parse(j) : null;
+      if (!Array.isArray(arr)) arr = [];
+      var set = {};
+      DEFAULT_CHANNELS.forEach(function (c) { set[c] = true; });
+      arr.forEach(function (c) { if (normalizeChannelSlug(c)) set[normalizeChannelSlug(c)] = true; });
+      return Object.keys(set);
+    } catch (_) {
+      return DEFAULT_CHANNELS.slice();
+    }
+  }
+
+  function saveChannelList(list) {
+    var custom = list.filter(function (c) { return DEFAULT_CHANNELS.indexOf(c) < 0; });
+    localStorage.setItem(STORAGE_CHANNELS, JSON.stringify(custom));
+  }
+
+  var skHex = getOrCreateSecretKeyHex();
+  var pkHex = getPublicKeyHex(skHex);
+  var npubShort = pkHex ? (pkHex.slice(0, 8) + '…' + pkHex.slice(-6)) : 'no-key';
+
+  document.getElementById('gh-npub-short').textContent = npubShort;
+
+  var conn = null;
+  var subHandle = null;
+  var currentSlug = 'ghost';
+  var seenIds = new Set();
+  var seenDedupe = new Set();
+  var channels = loadChannelList();
+  /** @type {HTMLInputElement|null} */
+  var relayInput = null;
+  /** @type {HTMLInputElement|null} */
+  var msgInput = null;
+  /** @type {HTMLInputElement|null} */
+  var joinInput = null;
+  /** @type {HTMLInputElement|null} */
+  var displayNameInput = null;
+
+  var btnGhostStyle = {
+    backgroundColor: 'transparent',
+    border: '1px solid var(--coffee-text-muted)',
+    color: 'var(--coffee-text-primary)',
+    boxShadow: 'none'
+  };
+
+  function setStatus(text) {
+    document.getElementById('gh-conn-status').textContent = text;
+  }
+
+  function renderChannelList() {
+    var mount = document.getElementById('gh-channel-list');
+    mount.innerHTML = '';
+    channels.forEach(function (slug) {
+      var active = slug === currentSlug;
+      var b = coffee.button('# ' + slug, function () { selectChannel(slug); }, {
+        style: {
+          display: 'flex',
+          width: '100%',
+          maxWidth: '100%',
+          margin: '0',
+          boxSizing: 'border-box',
+          minWidth: '0',
+          minHeight: '40px',
+          textAlign: 'left',
+          justifyContent: 'flex-start',
+          boxShadow: 'none',
+          fontWeight: active ? '700' : '500',
+          backgroundColor: active ? 'var(--coffee-bg-elev)' : 'transparent',
+          color: active ? 'var(--coffee-text-primary)' : 'var(--coffee-text-muted)',
+          border: 'none',
+          fontFamily: "'JetBrains Mono', monospace",
+          fontSize: '12px'
+        }
+      });
+      mount.appendChild(b);
+    });
+  }
+
+  function escapeHtml(t) {
+    var d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '';
+    var d = new Date(ts * 1000);
+    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function dedupeKey(ev) {
+    return (ev.pubkey || '') + '|' + (ev.created_at || 0) + '|' + (ev.content || '').slice(0, 200);
+  }
+
+  function refreshRowForPubkey(pubkey) {
+    if (!pubkey) return;
+    var label = coffee.nostr.displayLabel(pubkey, pkHex);
+    var inits = coffee.nostr.initials(label);
+    document.querySelectorAll('.gh-message[data-gh-pubkey="' + pubkey + '"]').forEach(function (row) {
+      var disp = row.querySelector('.gh-msg-display');
+      if (disp) disp.textContent = label;
+      var av = row.querySelector('.gh-avatar');
+      if (av) av.textContent = inits;
+    });
+  }
+
+  function syncSidebarIdentity() {
+    var c = pkHex && coffee.nostr.getCached(pkHex);
+    if (displayNameInput) displayNameInput.value = c && c.name ? c.name : '';
+    var av = document.getElementById('gh-avatar-label');
+    if (av && pkHex) {
+      av.textContent = coffee.nostr.initials(coffee.nostr.displayLabel(pkHex, pkHex));
+    }
+  }
+
+  function appendMessage(ev, self) {
+    if (!ev || !ev.id) return;
+    if (seenIds.has(ev.id)) return;
+    var dk = dedupeKey(ev);
+    if (seenDedupe.has(dk)) return;
+    seenIds.add(ev.id);
+    seenDedupe.add(dk);
+    var list = document.getElementById('gh-messages');
+    var row = document.createElement('div');
+    row.className = 'gh-message';
+    if (ev.pubkey) row.setAttribute('data-gh-pubkey', ev.pubkey);
+    var who = coffee.nostr.displayLabel(ev.pubkey, pkHex);
+    var av = document.createElement('div');
+    av.className = 'gh-avatar gh-mono';
+    av.style.background = self || (pkHex && ev.pubkey === pkHex) ? '#6d28d9' : '#3f3f46';
+    av.textContent = coffee.nostr.initials(who);
+    var body = document.createElement('div');
+    body.className = 'gh-msg-content';
+    var head = document.createElement('div');
+    head.className = 'gh-msg-user';
+    head.innerHTML = '<span class="gh-msg-display">' + escapeHtml(who) + '</span> <span class="gh-msg-time">' + escapeHtml(formatTime(ev.created_at)) + '</span>';
+    var txt = document.createElement('div');
+    txt.className = 'gh-msg-text';
+    txt.textContent = ev.content || '';
+    body.appendChild(head);
+    body.appendChild(txt);
+    row.appendChild(av);
+    row.appendChild(body);
+    list.appendChild(row);
+    list.scrollTop = list.scrollHeight;
+    if (ev.pubkey && conn && conn.status === 'connected') {
+      coffee.nostr.lookupProfile(conn, ev.pubkey, function () {
+        refreshRowForPubkey(ev.pubkey);
+      });
+    }
+  }
+
+  function clearMessages() {
+    seenIds.clear();
+    seenDedupe.clear();
+    document.getElementById('gh-messages').innerHTML = '';
+  }
+
+  function subscribeCurrent() {
+    if (subHandle && typeof subHandle.close === 'function') subHandle.close();
+    subHandle = null;
+    if (!conn || conn.status !== 'connected') return;
+    var tag = roomTag(currentSlug);
+    subHandle = conn.subscribe({
+      kinds: [1],
+      limit: 400,
+      '#t': [tag]
+    });
+  }
+
+  function selectChannel(slug) {
+    var n = normalizeChannelSlug(slug);
+    if (!n) return;
+    if (channels.indexOf(n) < 0) {
+      channels.push(n);
+      saveChannelList(channels);
+    }
+    currentSlug = n;
+    document.getElementById('gh-channel-title').textContent = n;
+    if (msgInput) msgInput.placeholder = 'Message #' + n + '…';
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.set('channel', n);
+      window.history.replaceState({}, '', u.toString());
+    } catch (_) {}
+    clearMessages();
+    renderChannelList();
+    subscribeCurrent();
+    coffee.toast && coffee.toast('Room #' + n, 'info', 2000);
+    if (mobileDrawerMq().matches) closeChannelDrawer();
+  }
+
+  /** Drawer + hamburger when the app shell is narrow (iframe / phone), not only viewport. */
+  function shouldUseGhostDrawer() {
+    var root = document.getElementById('gh-root');
+    if (root && root.clientWidth > 0) return root.clientWidth <= 720;
+    return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 720px)').matches;
+  }
+
+  function mobileDrawerMq() {
+    return { get matches() { return shouldUseGhostDrawer(); } };
+  }
+
+  function setChannelDrawer(open) {
+    var sidebar = document.getElementById('gh-sidebar');
+    var backdrop = document.getElementById('gh-drawer-backdrop');
+    var menuBtn = document.getElementById('gh-menu-btn');
+    if (!sidebar || !backdrop) return;
+    sidebar.classList.toggle('gh-open', open);
+    backdrop.classList.toggle('gh-open', open);
+    backdrop.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (menuBtn) menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    document.body.classList.toggle('gh-drawer-open', open);
+  }
+
+  function toggleChannelDrawer() {
+    var sidebar = document.getElementById('gh-sidebar');
+    if (!sidebar) return;
+    setChannelDrawer(!sidebar.classList.contains('gh-open'));
+  }
+
+  function closeChannelDrawer() {
+    setChannelDrawer(false);
+  }
+
+  function connectNostr() {
+    if (conn) {
+      try { conn.close(); } catch (_) {}
+      conn = null;
+    }
+    var relay = (relayInput && relayInput.value ? relayInput.value : '').trim() || 'wss://relay.damus.io';
+    setStatus('Connecting…');
+    conn = coffee.connect({
+      method: 'nostr',
+      relay: relay,
+      privateKey: skHex,
+      autoReconnect: true,
+      onOpen: function () {
+        setStatus('Connected');
+        subscribeCurrent();
+        if (pkHex) {
+          coffee.nostr.lookupProfile(conn, pkHex, function () {
+            syncSidebarIdentity();
+            refreshRowForPubkey(pkHex);
+          });
+        }
+        syncSidebarIdentity();
+        coffee.toast && coffee.toast('Relay connected', 'success', 2000);
+      },
+      onMessage: function (ev) {
+        if (!ev) return;
+        if (coffee.nostr.handleEvent(ev)) return;
+        if (ev.kind !== 1) return;
+        var tag = roomTag(currentSlug);
+        var ok = false;
+        if (ev.tags && ev.tags.length) {
+          for (var i = 0; i < ev.tags.length; i++) {
+            var t = ev.tags[i];
+            if (t && t[0] === 't' && t[1] === tag) { ok = true; break; }
+          }
+        }
+        if (ok) appendMessage(ev);
+      },
+      onClose: function () {
+        setStatus('Disconnected');
+      }
+    });
+  }
+
+  function sendMessage() {
+    if (!msgInput) return;
+    var text = (msgInput.value || '').trim();
+    if (!text || !conn || conn.status !== 'connected') return;
+    var tag = roomTag(currentSlug);
+    var ev = {
+      kind: 1,
+      content: text,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [['t', tag]]
+    };
+    var ok = conn.publish(ev);
+    msgInput.value = '';
+    if (!ok) coffee.toast && coffee.toast('Publish failed', 'error');
+    else {
+      appendMessage({ id: 'local-' + Date.now() + '-' + Math.random(), pubkey: pkHex, content: text, created_at: ev.created_at });
+    }
+  }
+
+  function saveDisplayName() {
+    if (!conn || conn.status !== 'connected') {
+      coffee.toast && coffee.toast('Connect to relay first', 'error');
+      return;
+    }
+    if (!pkHex) return;
+    var name = (displayNameInput && displayNameInput.value ? displayNameInput.value : '').trim();
+    var ok = coffee.nostr.publishProfile(conn, { name: name, about: '', picture: '' });
+    if (!ok) coffee.toast && coffee.toast('Could not publish profile', 'error');
+    else {
+      coffee.nostr.applyLocalProfile(pkHex, { name: name || null, about: '', picture: '' });
+      coffee.toast && coffee.toast('Display name published (kind 0)', 'success', 2500);
+    }
+  }
+
+  coffee.nostr.onProfileUpdate(function (pubkey) {
+    refreshRowForPubkey(pubkey);
+    if (pkHex && pubkey === pkHex) syncSidebarIdentity();
+  });
+
+  function copyRoomLink() {
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.set('channel', currentSlug);
+      navigator.clipboard.writeText(u.toString());
+      coffee.toast && coffee.toast('Room link copied', 'success', 2500);
+    } catch (e) {
+      coffee.toast && coffee.toast('Copy failed', 'error');
+    }
+  }
+
+  /* —— Coffee UI mounts (after handlers exist) —— */
+  joinInput = coffee.input({
+    id: 'gh-join-input',
+    placeholder: 'my-room',
+    autocomplete: 'off',
+    style: { flex: 1, minWidth: 0, width: 'auto', fontFamily: "'JetBrains Mono', monospace", fontSize: '12px' }
+  });
+  joinInput.maxLength = 64;
+  var joinBtn = coffee.button('Join', function () {
+    var raw = joinInput.value;
+    var n = normalizeChannelSlug(raw);
+    if (!n) {
+      coffee.toast && coffee.toast('Invalid channel name', 'error');
+      return;
+    }
+    joinInput.value = '';
+    selectChannel(n);
+  }, { style: { flexShrink: 0, minHeight: '44px' } });
+  var joinRow = document.createElement('div');
+  joinRow.className = 'gh-join-row';
+  joinRow.appendChild(joinInput);
+  joinRow.appendChild(joinBtn);
+  document.getElementById('gh-join-mount').appendChild(joinRow);
+
+  var profileMount = document.getElementById('gh-profile-mount');
+  profileMount.appendChild(coffee.label('Display name (kind 0)', 'gh-display-name', { style: { fontSize: '10px', letterSpacing: '0.06em', textTransform: 'uppercase' } }));
+  displayNameInput = coffee.input({
+    id: 'gh-display-name',
+    placeholder: 'How others see you',
+    autocomplete: 'nickname',
+    style: { width: '100%', fontSize: '13px', boxSizing: 'border-box' }
+  });
+  displayNameInput.maxLength = 48;
+  profileMount.appendChild(displayNameInput);
+  profileMount.appendChild(coffee.button('Save name', saveDisplayName, { style: { width: '100%', minHeight: '44px' } }));
+
+  relayInput = coffee.input({
+    id: 'gh-relay-url',
+    value: 'wss://relay.damus.io',
+    style: { width: '100%', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", boxSizing: 'border-box' }
+  });
+  var relayMount = document.getElementById('gh-relay-mount');
+  relayMount.appendChild(coffee.label('Relay (wss)', relayInput, { style: { fontSize: '10px', letterSpacing: '0.08em', textTransform: 'uppercase' } }));
+  relayMount.appendChild(relayInput);
+  relayMount.appendChild(coffee.button('Reconnect', connectNostr, { style: Object.assign({ width: '100%', minHeight: '44px' }, btnGhostStyle) }));
+
+  document.getElementById('gh-share-mount').appendChild(coffee.button('Copy room link', copyRoomLink, {
+    style: Object.assign({ fontSize: '11px', minHeight: '40px' }, btnGhostStyle)
+  }));
+
+  var msgInner = document.createElement('div');
+  msgInner.className = 'gh-msg-compose-inner';
+  msgInput = coffee.input({
+    id: 'gh-msg-input',
+    placeholder: 'Message…',
+    autocomplete: 'off',
+    style: { flex: 1, minWidth: 0, width: '100%', boxSizing: 'border-box' }
+  });
+  msgInner.appendChild(msgInput);
+  document.getElementById('gh-msg-compose').appendChild(msgInner);
+  msgInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') sendMessage();
+  });
+
+  document.getElementById('gh-menu-btn').addEventListener('click', toggleChannelDrawer);
+  document.getElementById('gh-drawer-backdrop').addEventListener('click', closeChannelDrawer);
+  document.getElementById('gh-drawer-close').addEventListener('click', closeChannelDrawer);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeChannelDrawer();
+  });
+  (function attachGhostResize() {
+    var root = document.getElementById('gh-root');
+    if (root && typeof ResizeObserver === 'function') {
+      var ro = new ResizeObserver(function () {
+        if (!shouldUseGhostDrawer()) closeChannelDrawer();
+      });
+      ro.observe(root);
+    } else {
+      window.addEventListener('resize', function () {
+        if (!shouldUseGhostDrawer()) closeChannelDrawer();
+      });
+    }
+  })();
+
+  /* Deep link ?channel= */
+  try {
+    var params = new URLSearchParams(window.location.search);
+    var q = params.get('channel') || params.get('room');
+    if (q) {
+      var ns = normalizeChannelSlug(q);
+      if (ns) currentSlug = ns;
+    }
+  } catch (_) {}
+
+  if (channels.indexOf(currentSlug) < 0) channels.push(currentSlug);
+  saveChannelList(channels);
+
+  renderChannelList();
+  document.getElementById('gh-channel-title').textContent = currentSlug;
+  if (msgInput) msgInput.placeholder = 'Message #' + currentSlug + '…';
+  syncSidebarIdentity();
+
+  connectNostr();
+})();
+  </script>
+</body>
+</html>

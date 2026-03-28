@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Coffee α + data: ../TEMP-ALPHA.html · ../temp-jobs.json (POC only; ship TEMP-ALPHA) -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEMP // Maintainer Jobs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap');
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --accent: #00ff41; /* Matrix Green */
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            background-color: var(--bg);
+            color: #ececec;
+            font-family: 'Inter', sans-serif;
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0);
+            background-size: 32px 32px;
+        }
+
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        .job-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .job-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px -10px rgba(0, 255, 65, 0.2);
+        }
+
+        .job-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s ease;
+        }
+
+        .job-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .tag {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2px 8px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .scanline {
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(0deg, rgba(0, 255, 65, 0) 0%, rgba(0, 255, 65, 0.05) 50%, rgba(0, 255, 65, 0) 100%);
+            position: fixed;
+            top: -100px;
+            left: 0;
+            pointer-events: none;
+            animation: moveScan 8s linear infinite;
+            z-index: 50;
+        }
+
+        @keyframes moveScan {
+            0% { top: -100px; }
+            100% { top: 100vh; }
+        }
+
+        .btn-apply {
+            background: var(--accent);
+            color: black;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+            padding: 10px 20px;
+            transition: all 0.2s;
+        }
+
+        .btn-apply:hover {
+            filter: brightness(1.2);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        input::placeholder { color: #444; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="scanline"></div>
+
+    <header class="max-w-5xl mx-auto mb-12">
+        <div class="flex items-end gap-4 mb-6">
+            <h1 class="text-6xl font-black tracking-tighter italic leading-none">TEMP</h1>
+            <div class="h-1 flex-1 bg-white/10 mb-2"></div>
+            <span class="mono text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Github_Maintainer_Network</span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="col-span-2 relative">
+                <input type="text" placeholder="Search roles (e.g. Vector Visionary)" class="w-full bg-surface border border-white/10 p-4 mono text-sm focus:outline-none focus:border-accent transition-colors">
+            </div>
+            <button class="bg-white text-black font-black uppercase text-sm tracking-widest hover:bg-zinc-200 transition-colors">Find Talent</button>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto grid grid-cols-1 gap-6" id="job-board">
+        <!-- Jobs will be injected here -->
+    </main>
+
+    <footer class="max-w-5xl mx-auto mt-20 py-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4">
+        <span class="mono text-[10px] text-zinc-600">© 2024 TEMP_PROTOCOL // NO RECRUITERS</span>
+        <div class="flex gap-6">
+            <a href="#" class="mono text-[10px] text-zinc-400 hover:text-accent uppercase tracking-widest">Post a Job</a>
+            <a href="#" class="mono text-[10px] text-zinc-400 hover:text-accent uppercase tracking-widest">API</a>
+            <a href="#" class="mono text-[10px] text-zinc-400 hover:text-accent uppercase tracking-widest">Docs</a>
+        </div>
+    </footer>
+
+    <!-- Application Modal -->
+    <div id="modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-surface border border-accent w-full max-w-md p-8 relative">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-zinc-500 hover:text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
+            </button>
+            <h2 id="modal-title" class="text-2xl font-black mb-2 italic">APPLY</h2>
+            <p class="text-zinc-500 mono text-[10px] uppercase mb-6 tracking-widest">Transmission Secure</p>
+            
+            <form class="space-y-4" onsubmit="handleApply(event)">
+                <div>
+                    <label class="block mono text-[9px] text-zinc-500 uppercase mb-1">Github Handle</label>
+                    <input type="text" required placeholder="@username" class="w-full bg-black/50 border border-white/10 p-3 text-sm focus:outline-none focus:border-accent">
+                </div>
+                <div>
+                    <label class="block mono text-[9px] text-zinc-500 uppercase mb-1">Portfolio / Repo</label>
+                    <input type="url" required placeholder="https://github.com/..." class="w-full bg-black/50 border border-white/10 p-3 text-sm focus:outline-none focus:border-accent">
+                </div>
+                <button type="submit" class="w-full btn-apply py-4 mt-4">Submit Application</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const jobs = [
+            {
+                id: 1,
+                title: "DAW Designer",
+                company: "SoundProtocol",
+                location: "Berlin / Remote",
+                salary: "$140k - $190k",
+                tags: ["C++", "DSP", "UI/UX", "Github Maintainer"],
+                desc: "Lead the aesthetic and functional evolution of an open-source digital audio workstation. Focus on brutalist signal processing visualization."
+            },
+            {
+                id: 2,
+                title: "Vector Visionary",
+                company: "Glyph Systems",
+                location: "Tokyo / Remote",
+                salary: "$120k - $160k",
+                tags: ["SVG", "Canvas", "Math", "Open Source"],
+                desc: "Reimagining coordinate systems for generative architecture. Must have a history of maintaining high-star vector libraries."
+            },
+            {
+                id: 3,
+                title: "Creative Curator",
+                company: "ArtNet Node",
+                location: "NYC / Remote",
+                salary: "$90k - $130k",
+                tags: ["Community", "Markdown", "JSON", "Curation"],
+                desc: "Managing the flow of incoming contributions for the world's largest creative-coding registry. High empathy and technical vetting required."
+            },
+            {
+                id: 4,
+                title: "Shell Shaman",
+                company: "Terminal.sh",
+                location: "Remote",
+                salary: "$150k - $200k",
+                tags: ["Rust", "Zsh", "Maintainer", "Performance"],
+                desc: "Optimizing the next generation of terminal emulators. Deep knowledge of TTY and rendering pipelines needed."
+            }
+        ];
+
+        const jobBoard = document.getElementById('job-board');
+
+        function renderJobs() {
+            jobBoard.innerHTML = jobs.map(job => `
+                <div class="job-card p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3 mb-2">
+                            <h3 class="text-xl font-black italic tracking-tight">${job.title}</h3>
+                            <span class="mono text-[10px] text-accent border border-accent/30 px-2">${job.salary}</span>
+                        </div>
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-xs font-bold text-zinc-400">${job.company}</span>
+                            <span class="text-zinc-700">•</span>
+                            <span class="text-xs text-zinc-500 mono">${job.location}</span>
+                        </div>
+                        <p class="text-sm text-zinc-400 max-w-2xl mb-4 leading-relaxed">${job.desc}</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${job.tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+                        </div>
+                    </div>
+                    <button onclick="openModal('${job.title}')" class="btn-apply whitespace-nowrap">Apply_Now</button>
+                </div>
+            `).join('');
+        }
+
+        function openModal(title) {
+            document.getElementById('modal-title').innerText = `APPLY: ${title}`;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        function handleApply(e) {
+            e.preventDefault();
+            alert('Application Transmitted. Signal Received.');
+            closeModal();
+        }
+
+        window.onload = renderJobs;
+    </script>
+</body>
+</html>

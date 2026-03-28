@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.filterCss — demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="./coffee-filter.js"></script>
+  <style>
+    html, body { margin: 0; min-height: 100%; font-family: system-ui, sans-serif; }
+    #app { max-width: 40rem; margin: 0 auto; padding: 24px; }
+    #demo-img { max-width: 100%; border-radius: 12px; display: block; margin-top: 16px; }
+    code { font-size: 12px; word-break: break-all; background: var(--coffee-bg-elev, #f4f4f5); padding: 8px; border-radius: 8px; display: block; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('light');
+    var app = document.getElementById('app');
+    app.appendChild(coffee.heading('coffee.filterCss', 1));
+    app.appendChild(coffee.para('Overlay + full builder. Drop an image or use the sample gradient.', {
+      style: { color: 'var(--coffee-text-muted)' }
+    }));
+
+    var sepia = 0, blur = 0, gray = 0;
+    var out = coffee.para('', { style: { marginTop: '16px' } });
+    var codeEl = document.createElement('code');
+    function refresh() {
+      var o = coffee.filterCss.overlay({ sepia: sepia, blur: blur, grayscale: gray });
+      out.textContent = 'overlay():';
+      codeEl.textContent = o;
+      if (img.complete && img.naturalWidth) coffee.filterCss.applyOverlay(img, { sepia: sepia, blur: blur, grayscale: gray });
+    }
+
+    var row = coffee.row({ gap: '12px', style: { flexWrap: 'wrap', marginTop: '16px' } });
+    row.appendChild(coffee.para('Sepia', { style: { minWidth: '60px' } }));
+    var sSepia = coffee.slider({ min: 0, max: 100, step: 1, value: 0, onInput: function (v) { sepia = v; refresh(); } });
+    row.appendChild(sSepia);
+    app.appendChild(row);
+
+    var row2 = coffee.row({ gap: '12px', style: { flexWrap: 'wrap', marginTop: '8px' } });
+    row2.appendChild(coffee.para('Blur', { style: { minWidth: '60px' } }));
+    var sBlur = coffee.slider({ min: 0, max: 10, step: 0.5, value: 0, onInput: function (v) { blur = v; refresh(); } });
+    row2.appendChild(sBlur);
+    app.appendChild(row2);
+
+    var row3 = coffee.row({ gap: '12px', style: { flexWrap: 'wrap', marginTop: '8px' } });
+    row3.appendChild(coffee.para('Gray', { style: { minWidth: '60px' } }));
+    var sGray = coffee.slider({ min: 0, max: 100, step: 1, value: 0, onInput: function (v) { gray = v; refresh(); } });
+    row3.appendChild(sGray);
+    app.appendChild(row3);
+
+    app.appendChild(out);
+    app.appendChild(codeEl);
+
+    var full = coffee.para('Full: ' + coffee.filterCss({ brightness: 110, contrast: 95, hueRotate: -8 }), {
+      style: { marginTop: '20px', fontSize: '13px', color: 'var(--coffee-text-muted)' }
+    });
+    app.appendChild(full);
+
+    var img = document.createElement('img');
+    img.id = 'demo-img';
+    img.alt = 'demo';
+    img.src = 'data:image/svg+xml,' + encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="240" viewBox="0 0 400 240">' +
+      '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#3b82f6"/><stop offset="100%" stop-color="#a855f7"/></linearGradient></defs>' +
+      '<rect width="400" height="240" fill="url(#g)"/><text x="200" y="130" text-anchor="middle" fill="white" font-family="sans-serif" font-size="22">filterCss demo</text></svg>'
+    );
+    img.onload = refresh;
+    app.appendChild(img);
+  </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.chat() Demo</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; min-height: 100vh; box-sizing: border-box; }
+    #app { width: 100%; min-height: 100vh; box-sizing: border-box; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <script src="../COFFEE-CONNECT/coffee-connect.js"></script>
+  <script src="./coffee-chat.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.chat()', 1);
+    const sub = coffee.para('Chat + media over coffee.connect');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const statusEl = document.createElement('div');
+    statusEl.id = 'status';
+    statusEl.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:600;margin-bottom:var(--coffee-space-md);background:#7f1d1d;color:#fca5a5';
+    statusEl.textContent = 'Disconnected';
+
+    const roomInput = coffee.input({ placeholder: 'Room key', value: 'chat-demo', style: { width: '120px', marginRight: '8px' } });
+    const connectBtn = coffee.button('Connect', null);
+    const disconnectBtn = coffee.button('Disconnect', null);
+    disconnectBtn.disabled = true;
+
+    const topRow = coffee.row([roomInput, connectBtn, disconnectBtn], { style: { marginBottom: 'var(--coffee-space-md)' } });
+
+    const peersLabel = coffee.text('Peers:', { style: { fontSize: '11px', color: 'var(--coffee-text-muted)', marginBottom: 'var(--coffee-space-xs)', display: 'block' } });
+    const peersContainer = document.createElement('div');
+    peersContainer.id = 'peers';
+    peersContainer.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin-bottom:var(--coffee-space-md)';
+
+    const messagesContainer = document.createElement('div');
+    messagesContainer.id = 'messages';
+    messagesContainer.style.cssText = 'display:flex;flex-direction:column;gap:8px;background:var(--coffee-bg-surface);border-radius:var(--coffee-radius-sm);padding:var(--coffee-space-md);flex:1;min-height:200px;overflow-y:auto;margin-bottom:var(--coffee-space-md)';
+
+    const sendToLabel = coffee.text('', { style: { fontSize: '10px', color: 'var(--coffee-text-muted)', marginBottom: '4px', minHeight: '14px' } });
+
+    const { el: chatInputEl, input: msgInput, sendBtn } = coffee.chatInput({
+      placeholder: 'Type a message...',
+      onSend: (text) => {
+        if (!chat) return;
+        const target = msgInput.dataset.target;
+        if (target) {
+          chat.send(target, text);
+          addMsg(text, 'you', true);
+        } else {
+          chat.sendBroadcast(text);
+          addMsg(text, 'you', true);
+        }
+      }
+    });
+    sendBtn.disabled = true;
+
+    const card = coffee.card([
+      statusEl,
+      topRow,
+      peersLabel,
+      peersContainer,
+      messagesContainer,
+      sendToLabel,
+      chatInputEl
+    ], { style: { width: '100%', maxWidth: '100%', display: 'flex', flexDirection: 'column', flex: 1 } });
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box;display:flex;flex-direction:column';
+    app.appendChild(header);
+    app.appendChild(sub);
+    app.appendChild(card);
+
+    let conn, chat;
+
+    function showCallVideo(stream, label, onEnd) {
+      const v = document.createElement('video');
+      v.autoplay = true;
+      v.playsInline = true;
+      v.srcObject = stream;
+      v.style.cssText = 'width:200px;height:150px;border-radius:8px;background:#000;display:block';
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:fixed;bottom:80px;right:24px;z-index:999;background:var(--coffee-bg-elev);padding:8px;border-radius:8px;border:1px solid var(--coffee-panel)';
+      const lbl = document.createElement('div');
+      lbl.textContent = label;
+      lbl.style.cssText = 'font-size:11px;color:var(--coffee-text-muted);margin-bottom:4px';
+      const endBtn = coffee.button('End', () => { if (onEnd) onEnd(); wrap.remove(); }, { style: { marginTop: '8px', width: '100%' } });
+      wrap.appendChild(lbl);
+      wrap.appendChild(v);
+      wrap.appendChild(endBtn);
+      document.body.appendChild(wrap);
+    }
+
+    function addMsg(text, from, isOut) {
+      const bubble = coffee.chatBubble((isOut ? 'You: ' : from + ': ') + text, isOut);
+      messagesContainer.appendChild(bubble);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function renderPeers() {
+      peersContainer.innerHTML = '';
+      if (!chat?.peers) return;
+      chat.peers.forEach((pid) => {
+        const wrap = coffee.row([], { style: { gap: '4px' } });
+        const msgBtn = coffee.button(pid.split('-').pop(), () => {
+          msgInput.placeholder = 'Type message...';
+          msgInput.dataset.target = pid;
+          sendToLabel.textContent = 'Send to: ' + pid;
+          msgInput.focus();
+          if (conn?.connectTo) conn.connectTo(pid);
+        }, { style: { padding: '6px 12px', minHeight: '36px' } });
+        const callBtn = coffee.button('Call', () => {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true }).then((stream) => {
+            const c = chat.call(pid, stream);
+            if (c) c.on('stream', (remote) => showCallVideo(remote, 'Call with ' + pid.slice(-4), () => c.close()));
+          }).catch((e) => alert('Camera/mic access denied: ' + (e.message || 'unknown')));
+        }, { style: { padding: '6px 12px', minHeight: '36px', backgroundColor: '#6366f1' } });
+        wrap.appendChild(msgBtn);
+        wrap.appendChild(callBtn);
+        peersContainer.appendChild(wrap);
+      });
+    }
+
+    connectBtn.onclick = () => {
+      const room = roomInput.value.trim() || 'chat-demo';
+      statusEl.style.background = '#422006';
+      statusEl.style.color = '#fcd34d';
+      statusEl.textContent = 'Connecting...';
+      connectBtn.disabled = true;
+      conn = coffee.connect({
+        method: 'peer',
+        room,
+        scanRange: 15,
+        onOpen: (id) => {
+          statusEl.style.background = '#065f46';
+          statusEl.style.color = '#6ee7b7';
+          statusEl.textContent = 'Connected: ' + id.slice(-8);
+          connectBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          sendBtn.disabled = false;
+          chat = coffee.chat({ conn });
+          renderPeers();
+        },
+        onMessage: (peerId, data) => {
+          const text = typeof data === 'object' && data.text ? data.text : String(data);
+          const from = typeof data === 'object' && data.from ? data.from : peerId;
+          addMsg(text, from.slice(-6), false);
+        },
+        onPeerJoin: () => renderPeers(),
+        onPeerLeave: () => renderPeers(),
+        onIncomingCall: (call) => {
+          navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+            .then((stream) => {
+              call.answer(stream);
+              call.on('stream', (remoteStream) => {
+                showCallVideo(remoteStream, 'Incoming call', () => { call.close(); });
+              });
+            })
+            .catch(() => call.close());
+        },
+        onClose: () => {
+          statusEl.style.background = '#7f1d1d';
+          statusEl.style.color = '#fca5a5';
+          statusEl.textContent = 'Disconnected';
+          connectBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          sendBtn.disabled = true;
+        }
+      });
+    };
+
+    disconnectBtn.onclick = () => {
+      if (conn) conn.close();
+      conn = null;
+      chat = null;
+    };
+  </script>
+</body>
+</html>

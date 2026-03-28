@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.brick</title>
+  <style>
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; }
+    [data-coffee="scene2d"] { cursor: crosshair; touch-action: none; }
+  </style>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-SCENE2D/coffee-scene2d.js"></script>
+  <script src="./coffee-brick.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    const header = coffee.heading('coffee.brick', 1);
+    const sub = coffee.para('Headless 2D physics. Click canvas to spawn.');
+    sub.style.color = 'var(--coffee-text-muted)';
+
+    const world = coffee.brick.world({ width: 400, height: 300, gravity: 0.5, friction: 0.98, restitution: 0.7 });
+    let mode = 'box';
+
+    const gravitySlider = coffee.slider({
+      id: 'brick-gravity',
+      min: 0, max: 2, step: 0.1, value: 0.5,
+      onInput: (v) => { world.settings.gravity = parseFloat(v); }
+    });
+    const bounceSlider = coffee.slider({
+      id: 'brick-bounce',
+      min: 0, max: 1, step: 0.1, value: 0.7,
+      onInput: (v) => { world.settings.restitution = parseFloat(v); }
+    });
+
+    const boxBtn = coffee.button('Add Box', () => { mode = 'box'; });
+    const circleBtn = coffee.button('Add Circle', () => { mode = 'circle'; });
+    const clearBtn = coffee.button('Clear', () => { world.clear(); }, { style: { color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent' } });
+
+    const controls = coffee.col([
+      coffee.para('Gravity', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px' } }),
+      gravitySlider,
+      coffee.para('Bounciness', { style: { fontSize: '12px', color: 'var(--coffee-text-muted)', marginBottom: '4px', marginTop: '12px' } }),
+      bounceSlider,
+      coffee.row([boxBtn, circleBtn], { style: { gap: '8px', marginTop: '12px' } }),
+      clearBtn
+    ], { style: { gap: '4px' } });
+
+    const viewport = document.createElement('div');
+    viewport.style.cssText = 'flex:1;min-height:300px;position:relative;background:var(--coffee-bg-surface)';
+
+    const scene = coffee.scene2d({
+      width: 400,
+      height: 300,
+      background: '#ffffff',
+      custom: (ctx) => {
+        world.bounds.width = ctx.width;
+        world.bounds.height = ctx.height;
+        world.getBodies().forEach((b) => {
+          ctx.ctx.fillStyle = b.color;
+          ctx.ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+          ctx.ctx.lineWidth = 1;
+          if (b.type === 'circle') {
+            ctx.ctx.beginPath();
+            ctx.ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+            ctx.ctx.fill();
+            ctx.ctx.stroke();
+          } else {
+            ctx.ctx.fillRect(b.x, b.y, b.width, b.height);
+            ctx.ctx.strokeRect(b.x, b.y, b.width, b.height);
+          }
+        });
+      }
+    });
+    viewport.appendChild(scene);
+
+    const canvas = scene.scene2d.canvas;
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      world.addBody(x, y, mode);
+    });
+
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const t = e.touches[0];
+      const x = (t.clientX - rect.left) * scaleX;
+      const y = (t.clientY - rect.top) * scaleY;
+      world.addBody(x, y, mode);
+    }, { passive: false });
+
+    const sidebar = document.createElement('aside');
+    sidebar.style.cssText = 'width:200px;flex-shrink:0;padding:var(--coffee-space-md);border-right:1px solid var(--coffee-panel);display:flex;flex-direction:column;gap:12px';
+    sidebar.appendChild(header);
+    sidebar.appendChild(sub);
+    sidebar.appendChild(controls);
+
+    const main = document.createElement('main');
+    main.style.cssText = 'flex:1;display:flex;flex-direction:column;min-width:0';
+    main.appendChild(viewport);
+
+    const layout = document.createElement('div');
+    layout.style.cssText = 'display:flex;width:100%;height:100vh;background:var(--coffee-bg-surface)';
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+
+    const app = document.getElementById('app');
+    app.style.cssText = 'width:100%;height:100%';
+    app.appendChild(layout);
+
+    function loop() {
+      world.step();
+      scene.scene2d.render();
+      requestAnimationFrame(loop);
+    }
+    loop();
+  </script>
+</body>
+</html>

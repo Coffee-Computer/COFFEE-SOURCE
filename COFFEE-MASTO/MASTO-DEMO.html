@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.masto — demo</title>
+  <script src="../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../COFFEE-REQUEST/coffee-request.js"></script>
+  <script src="./coffee-masto.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    coffee.injectTheme('dark');
+
+    let api = coffee.masto({ instanceUrl: '', token: '' });
+
+    const instanceInput = coffee.input({
+      id: 'masto-instance',
+      placeholder: 'https://mastodon.social',
+      value: localStorage.getItem('masto-demo-instance') || '',
+      style: { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
+    });
+    const tokenInput = coffee.input({
+      id: 'masto-token',
+      type: 'password',
+      placeholder: 'OAuth token from instance dev settings',
+      value: localStorage.getItem('masto-demo-token') || '',
+      style: { width: '100%', maxWidth: '100%', boxSizing: 'border-box' }
+    });
+
+    const outEl = document.createElement('pre');
+    outEl.style.cssText =
+      'background:var(--coffee-bg-surface);padding:var(--coffee-space-md);border-radius:var(--coffee-radius-sm);font-size:11px;overflow:auto;min-height:160px;margin-top:var(--coffee-space-md);color:var(--coffee-text-primary,#eee);white-space:pre-wrap;word-break:break-word';
+
+    function syncClient() {
+      const inst = (instanceInput.value || '').trim();
+      const tok = (tokenInput.value || '').trim();
+      try {
+        localStorage.setItem('masto-demo-instance', inst);
+        localStorage.setItem('masto-demo-token', tok);
+      } catch (_) {}
+      api = coffee.masto({ instanceUrl: inst, token: tok });
+    }
+
+    const btnVerify = coffee.button('Verify account', async () => {
+      syncClient();
+      outEl.textContent = '…';
+      try {
+        const me = await api.verifyCredentials();
+        outEl.textContent = JSON.stringify(me, null, 2);
+        coffee.toast('Hi @' + (me.acct || me.username || '?'), 'success');
+      } catch (e) {
+        outEl.textContent = (e.message || e) + (e.status ? '\nHTTP ' + e.status : '') + (e.body ? '\n' + JSON.stringify(e.body, null, 2) : '');
+        coffee.toast(e.message || 'Verify failed', 'error');
+      }
+    });
+
+    const btnHome = coffee.button('Home timeline', async () => {
+      syncClient();
+      outEl.textContent = '…';
+      try {
+        const items = await api.homeTimeline({ limit: 5 });
+        outEl.textContent = JSON.stringify(items, null, 2);
+        coffee.toast(items.length + ' posts', 'success');
+      } catch (e) {
+        outEl.textContent = (e.message || e) + (e.status ? '\nHTTP ' + e.status : '');
+        coffee.toast(e.message || 'Timeline failed', 'error');
+      }
+    });
+
+    const row = coffee.row([btnVerify, btnHome], { style: { flexWrap: 'wrap', gap: '8px' } });
+    const card = coffee.card(
+      [
+        coffee.heading('coffee.masto()', 1),
+        coffee.para('Mastodon REST on coffee.request. Instance + token required.'),
+        coffee.label('Instance', instanceInput),
+        instanceInput,
+        coffee.label('Access token', tokenInput),
+        tokenInput,
+        row,
+        outEl
+      ],
+      { style: { width: '100%', maxWidth: '560px' } }
+    );
+
+    const app = document.getElementById('app');
+    app.style.cssText =
+      'padding:var(--coffee-space-lg);width:100%;max-width:100%;background:var(--coffee-bg-surface);min-height:100vh;box-sizing:border-box;display:flex;justify-content:center';
+    app.appendChild(card);
+  </script>
+</body>
+</html>

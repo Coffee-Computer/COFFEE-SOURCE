@@ -1,0 +1,339 @@
+/**
+ * KATI Chat — mobile-first shell (threads bottom sheet).
+ * Load after coffee-ui-flagship.css; keep html.coffee-flagship-root for tokens.
+ */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.kati-mobile {
+  --kati-mobile-header-h: 52px;
+  --kati-mobile-composer-min: 72px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  background: var(--flagship-bg);
+  color: var(--flagship-text);
+  position: relative;
+}
+
+/* —— Header —— */
+.kati-mobile-header {
+  flex-shrink: 0;
+  height: var(--kati-mobile-header-h);
+  padding: 0 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--flagship-border);
+  background: rgba(5, 5, 7, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 40;
+}
+
+.kati-mobile-header-mid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kati-mobile-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--flagship-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 12px var(--flagship-accent-muted);
+}
+
+.kati-mobile-title {
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
+.kati-mobile-status {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--flagship-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42vw;
+}
+
+.kati-mobile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.kati-mobile-icon-btn {
+  background: none;
+  border: none;
+  padding: 10px;
+  color: #a1a1aa;
+  cursor: pointer;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kati-mobile-icon-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* —— Scrollable chat area —— */
+.kati-mobile-main {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  z-index: 1;
+}
+
+#kati-chat-viewport.kati-mobile-viewport {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 16px 16px 24px;
+  box-sizing: border-box;
+}
+
+/* Softer welcome on mobile */
+.kati-mobile-viewport .ff-welcome {
+  margin-top: 4vh;
+  padding: 0 4px;
+}
+
+.kati-mobile-viewport .ff-welcome h2 {
+  font-size: 1.35rem;
+}
+
+.kati-mobile-viewport .ff-prompt-grid {
+  grid-template-columns: 1fr;
+  max-width: none;
+  margin-top: 24px;
+}
+
+.kati-mobile-viewport .ff-thread {
+  max-width: none;
+  padding-bottom: 8px;
+}
+
+/* —— Composer dock —— */
+.kati-mobile-composer {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--flagship-border);
+  background: rgba(8, 8, 12, 0.96);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 30;
+}
+
+.kati-mobile-composer .ff-composer-wrap {
+  margin: 0;
+}
+
+.kati-mobile-composer .ff-version-tag {
+  display: none;
+}
+
+/* —— Threads bottom sheet —— */
+#kati-threads-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.kati-mobile.kati-threads-panel-open #kati-threads-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#kati-threads-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 110;
+  max-height: min(88dvh, 560px);
+  background: linear-gradient(180deg, #12121a 0%, #0c0c10 100%);
+  border: 1px solid var(--flagship-border);
+  border-bottom: none;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.55);
+  transform: translate3d(0, 100%, 0);
+  transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+  pointer-events: none;
+}
+
+.kati-mobile.kati-threads-panel-open #kati-threads-sheet {
+  transform: translate3d(0, 0, 0);
+  pointer-events: auto;
+}
+
+.kati-threads-sheet-handle {
+  flex-shrink: 0;
+  padding: 10px 0 6px;
+  display: flex;
+  justify-content: center;
+}
+
+.kati-threads-sheet-handle span {
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.kati-threads-sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 18px 14px;
+  gap: 12px;
+}
+
+.kati-threads-sheet-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.kati-threads-close {
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--flagship-text);
+  cursor: pointer;
+  font-size: 1.35rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kati-threads-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.kati-threads-sheet-actions {
+  padding: 0 16px 12px;
+}
+
+.kati-threads-sheet-actions .ff-btn-soft {
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-weight: 600;
+}
+
+.kati-threads-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 12px 12px;
+}
+
+.kati-threads-scroll .ff-rail-label {
+  padding-left: 8px;
+}
+
+.kati-threads-tools {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--flagship-border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.kati-threads-tools label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--flagship-muted);
+  margin-bottom: 8px;
+}
+
+.kati-threads-tools .ff-select {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.kati-threads-foot {
+  flex-shrink: 0;
+  padding: 12px 16px 16px;
+  border-top: 1px solid var(--flagship-border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kati-threads-foot-av {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--flagship-accent-muted);
+  color: var(--flagship-accent);
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.kati-threads-foot-meta {
+  min-width: 0;
+}
+
+.kati-threads-foot-meta .t1 {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.kati-threads-foot-meta .t2 {
+  font-size: 10px;
+  color: var(--flagship-muted);
+}

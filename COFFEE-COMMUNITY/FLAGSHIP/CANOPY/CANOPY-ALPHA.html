@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="CANOPY">
+  <meta name="cce:id" content="canopy">
+  <meta name="cce:icon" content="🌿">
+  <meta name="cce:color" content="#3b82f6">
+  <meta name="cce:description" content="Shader lab — GLSL (WebGL), Skater (CSS), Shade (WebGPU)">
+  <title>CANOPY α — shader lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="CANOPY-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-FRAME/coffee-frame.js"></script>
+  <script src="../../../COFFEE-MONACO/coffee-monaco.js"></script>
+  <script src="../../../COFFEE-SKATER/coffee-skater.js"></script>
+  <script src="../../../COFFEE-SHADE/coffee-shade.js"></script>
+</head>
+<body>
+  <div class="canopy-grid">
+    <section class="canopy-editor-pane">
+      <header class="canopy-header">
+        <div class="canopy-brand">
+          <div class="canopy-logo" aria-hidden="true">CP</div>
+          <h1 class="canopy-title">CANOPY_LAB</h1>
+        </div>
+        <div class="canopy-modes" role="tablist" aria-label="Engine mode">
+          <button type="button" class="canopy-mode-btn" data-mode="gl" role="tab" aria-selected="false">GLSL</button>
+          <button type="button" class="canopy-mode-btn" data-mode="skater" role="tab" aria-selected="false">Skater</button>
+          <button type="button" class="canopy-mode-btn canopy-active" data-mode="shade" role="tab" aria-selected="true">Shade</button>
+        </div>
+        <span id="canopy-status" class="canopy-status canopy-status-ok canopy-mono" role="status">Ready</span>
+      </header>
+      <div id="canopy-editor-mount" class="canopy-editor-mount"></div>
+      <p id="canopy-hint" class="canopy-hint canopy-mono"></p>
+    </section>
+
+    <section class="canopy-preview-pane" aria-label="Preview">
+      <div class="canopy-preview-stack">
+        <div class="canopy-preview-layer" data-canopy-preview="gl">
+          <div class="canopy-preview-header">
+            <span class="canopy-mono" style="font-size:10px;color:var(--canopy-muted);text-transform:uppercase;letter-spacing:0.12em">WebGL · frag</span>
+            <span id="canopy-fps" class="canopy-mono" style="font-size:10px;color:var(--canopy-muted)">—</span>
+          </div>
+          <canvas id="canopy-gl-canvas" class="canopy-canvas-fill" width="400" height="400"></canvas>
+        </div>
+
+        <div class="canopy-preview-layer" data-canopy-preview="skater">
+          <div class="canopy-preview-header">
+            <span class="canopy-mono" style="font-size:10px;color:var(--canopy-muted);text-transform:uppercase;letter-spacing:0.12em">CSS · coffee.skater</span>
+          </div>
+          <div id="canopy-skater-stage" class="canopy-skater-stage">
+            <div class="canopy-skater-gloss" aria-hidden="true"></div>
+            <div class="canopy-skater-label">SKATE</div>
+          </div>
+        </div>
+
+        <div class="canopy-preview-layer canopy-preview-visible" id="canopy-shade-host" data-canopy-preview="shade">
+          <div class="canopy-preview-header">
+            <span class="canopy-mono" style="font-size:10px;color:var(--canopy-muted);text-transform:uppercase;letter-spacing:0.12em">WebGPU · coffee.shade</span>
+          </div>
+          <canvas id="canopy-wgpu-canvas" class="canopy-canvas-fill" width="400" height="400"></canvas>
+        </div>
+      </div>
+
+      <div id="canopy-error" class="canopy-error-log canopy-mono" role="alert"></div>
+
+      <div id="canopy-gl-controls" class="canopy-overlay-controls">
+        <button type="button" class="canopy-ctrl-btn" id="canopy-reset-time" title="Reset time" aria-label="Reset time">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+        </button>
+        <button type="button" class="canopy-ctrl-btn" id="canopy-play-btn" title="Pause" aria-label="Pause playback">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <script>
+(function () {
+  'use strict';
+
+  coffee.injectTheme('dark');
+
+  const DEFAULT_GL = `precision mediump float;
+uniform float u_time;
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    uv.x *= u_resolution.x / u_resolution.y;
+    vec3 color = 0.5 + 0.5 * cos(u_time + uv.xyx + vec3(0.0, 2.0, 4.0));
+    vec2 m = u_mouse / u_resolution.xy;
+    m.y = 1.0 - m.y;
+    float dist = distance(uv, m * vec2(u_resolution.x / u_resolution.y, 1.0));
+    color *= smoothstep(0.5, 0.2, dist);
+    gl_FragColor = vec4(color, 1.0);
+}`;
+
+  const DEFAULT_SKATER = JSON.stringify(
+    [
+      { hue: 0, scale: 1, skew: 0, blur: 0, invert: 0 },
+      { hue: 180, scale: 1.5, skew: 15, blur: 10, invert: 0.5 },
+      { hue: 360, scale: 1, skew: -15, blur: 0, invert: 0 }
+    ],
+    null,
+    2
+  );
+
+  const DEFAULT_SHADE = JSON.stringify(
+    {
+      layers: [
+        { mode: 'background', opacity: 1, blend: 'normal', params: { color: [0.05, 0.05, 0.12] } },
+        {
+          mode: 'liquid',
+          opacity: 1,
+          blend: 'normal',
+          params: { density: 5, color_shift: 1, zoom: 1, speed: 1, brightness: 1, complexity: 4 }
+        }
+      ]
+    },
+    null,
+    2
+  );
+
+  const HINTS = {
+    gl: 'Fragment shader only (WebGL1). Uniforms: u_time, u_resolution, u_mouse. Uses coffee.monaco + coffee.frame.',
+    skater: 'JSON array of keyframes: hue, scale, skew, blur, invert. coffee.skater compiles CSS filter + transform.',
+    shade: 'JSON with layers[] for coffee.shade (WebGPU). Edit & pause — updates on debounce when valid.'
+  };
+
+  const buffers = { gl: DEFAULT_GL, skater: DEFAULT_SKATER, shade: DEFAULT_SHADE };
+  let mode = 'shade';
+  let editorApi = null;
+  let skater = null;
+  let shadeRef = null;
+
+  let gl = null;
+  let glCanvas = null;
+  let glProgram = null;
+  let positionBuffer = null;
+  let glLoc = { pos: -1, time: null, res: null, mouse: null };
+  let glActive = false;
+  let glRaf = null;
+  let glPaused = false;
+  let glStart = Date.now();
+  let mouseX = 0;
+  let mouseY = 0;
+  let lastFpsTick = performance.now();
+  let fpsFrames = 0;
+
+  let compileTimer = null;
+  const DEBOUNCE_MS = 140;
+  let editorSync = false;
+
+  const statusEl = document.getElementById('canopy-status');
+  const errorEl = document.getElementById('canopy-error');
+  const hintEl = document.getElementById('canopy-hint');
+  const fpsEl = document.getElementById('canopy-fps');
+  const glControls = document.getElementById('canopy-gl-controls');
+
+  function setStatus(ok, text) {
+    statusEl.textContent = text;
+    statusEl.className =
+      'canopy-status canopy-mono ' + (ok ? 'canopy-status-ok' : 'canopy-status-err');
+  }
+
+  function showShaderError(msg) {
+    errorEl.textContent = msg || '';
+    errorEl.classList.toggle('canopy-show', !!msg);
+  }
+
+  function resetShadeCanvas() {
+    const host = document.getElementById('canopy-shade-host');
+    if (!host) return;
+    const header = host.querySelector('.canopy-preview-header');
+    host.textContent = '';
+    if (header) host.appendChild(header);
+    const c = document.createElement('canvas');
+    c.id = 'canopy-wgpu-canvas';
+    c.className = 'canopy-canvas-fill';
+    c.width = 400;
+    c.height = 400;
+    host.appendChild(c);
+  }
+
+  function setPreviewVisible(which) {
+    document.querySelectorAll('[data-canopy-preview]').forEach(function (el) {
+      el.classList.toggle('canopy-preview-visible', el.getAttribute('data-canopy-preview') === which);
+    });
+    glControls.style.display = which === 'gl' ? 'flex' : 'none';
+  }
+
+  function stopGL() {
+    glActive = false;
+    if (glRaf != null) {
+      cancelAnimationFrame(glRaf);
+      glRaf = null;
+    }
+  }
+
+  function createShader(type, source) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+      const info = gl.getShaderInfoLog(sh) || 'compile failed';
+      gl.deleteShader(sh);
+      throw new Error(info);
+    }
+    return sh;
+  }
+
+  function linkGLProgram(fragSrc) {
+    const vert =
+      'attribute vec2 position; void main() { gl_Position = vec4(position, 0.0, 1.0); }';
+    const vs = createShader(gl.VERTEX_SHADER, vert);
+    const fs = createShader(gl.FRAGMENT_SHADER, fragSrc);
+    const prog = gl.createProgram();
+    gl.attachShader(prog, vs);
+    gl.attachShader(prog, fs);
+    gl.linkProgram(prog);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+      const err = gl.getProgramInfoLog(prog) || 'link failed';
+      gl.deleteProgram(prog);
+      throw new Error(err);
+    }
+    if (glProgram) gl.deleteProgram(glProgram);
+    glProgram = prog;
+    glLoc.pos = gl.getAttribLocation(glProgram, 'position');
+    glLoc.time = gl.getUniformLocation(glProgram, 'u_time');
+    glLoc.res = gl.getUniformLocation(glProgram, 'u_resolution');
+    glLoc.mouse = gl.getUniformLocation(glProgram, 'u_mouse');
+  }
+
+  function initGL() {
+    if (gl) return;
+    glCanvas = document.getElementById('canopy-gl-canvas');
+    gl = glCanvas.getContext('webgl');
+    if (!gl) {
+      setStatus(false, 'No WebGL');
+      coffee.toast('WebGL not available', 'error');
+      return;
+    }
+    positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
+      gl.STATIC_DRAW
+    );
+
+    glCanvas.addEventListener('mousemove', function (e) {
+      const rect = glCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = glCanvas.height - (e.clientY - rect.top);
+      mouseX = (x * glCanvas.width) / rect.width;
+      mouseY = (y * glCanvas.height) / rect.height;
+    });
+
+    window.addEventListener('resize', resizeGL);
+  }
+
+  function resizeGL() {
+    if (!gl || !glCanvas) return;
+    const w = glCanvas.clientWidth | 0;
+    const h = glCanvas.clientHeight | 0;
+    if (w < 1 || h < 1) return;
+    if (glCanvas.width !== w || glCanvas.height !== h) {
+      glCanvas.width = w;
+      glCanvas.height = h;
+      gl.viewport(0, 0, w, h);
+    }
+  }
+
+  function updateGLShader(source) {
+    if (!gl) return;
+    try {
+      linkGLProgram(source);
+      showShaderError('');
+      setStatus(true, 'GL · OK');
+    } catch (e) {
+      showShaderError(String(e.message || e));
+      setStatus(false, 'GL · Error');
+    }
+  }
+
+  function startGL() {
+    initGL();
+    if (!gl) return;
+    stopGL();
+    glActive = true;
+    glStart = Date.now();
+    lastFpsTick = performance.now();
+    fpsFrames = 0;
+
+    function frame() {
+      if (!glActive) return;
+      glRaf = requestAnimationFrame(frame);
+      if (!glProgram || glPaused) return;
+      resizeGL();
+      gl.useProgram(glProgram);
+      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+      if (glLoc.pos >= 0) {
+        gl.enableVertexAttribArray(glLoc.pos);
+        gl.vertexAttribPointer(glLoc.pos, 2, gl.FLOAT, false, 0, 0);
+      }
+      if (glLoc.time) gl.uniform1f(glLoc.time, (Date.now() - glStart) / 1000);
+      if (glLoc.res) {
+        gl.uniform2f(glLoc.res, gl.drawingBufferWidth, gl.drawingBufferHeight);
+      }
+      if (glLoc.mouse) gl.uniform2f(glLoc.mouse, mouseX, mouseY);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      fpsFrames++;
+      const now = performance.now();
+      if (now - lastFpsTick >= 500) {
+        const fps = Math.round((fpsFrames * 1000) / (now - lastFpsTick));
+        fpsEl.textContent = fps + ' FPS';
+        fpsFrames = 0;
+        lastFpsTick = now;
+      }
+    }
+    frame();
+  }
+
+  function parseShadeJSON(text) {
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function stopShade() {
+    if (shadeRef) {
+      shadeRef.stop();
+      shadeRef = null;
+    }
+    resetShadeCanvas();
+  }
+
+  async function startShade() {
+    await stopShade();
+    const cfg = parseShadeJSON(buffers.shade);
+    if (!cfg) {
+      setStatus(false, 'Shade · Bad JSON');
+      coffee.toast('Invalid Shade JSON', 'warning');
+      return;
+    }
+    const canvas = document.getElementById('canopy-wgpu-canvas');
+    if (!canvas) return;
+    shadeRef = coffee.shade({ canvas: canvas, config: cfg });
+    const ok = await shadeRef.start();
+    if (!ok) {
+      setStatus(false, 'Shade · No WebGPU');
+      coffee.toast('WebGPU not available', 'error');
+      shadeRef = null;
+      return;
+    }
+    setStatus(true, 'Shade · Running');
+  }
+
+  function applySkater(text) {
+    if (!skater) return;
+    const ok = skater.compile(text);
+    if (ok) {
+      setStatus(true, 'Skater · OK');
+      showShaderError('');
+    } else {
+      setStatus(false, 'Skater · JSON');
+      coffee.toast('Skater JSON invalid', 'warning');
+    }
+  }
+
+  function applyForMode(m, text) {
+    if (text == null) return;
+    buffers[m] = text;
+    if (m === 'gl') updateGLShader(text);
+    if (m === 'skater') applySkater(text);
+    if (m === 'shade' && shadeRef) {
+      const cfg = parseShadeJSON(text);
+      if (cfg) {
+        try {
+          shadeRef.update(cfg);
+          setStatus(true, 'Shade · OK');
+          showShaderError('');
+        } catch (e) {
+          setStatus(false, 'Shade · Update');
+        }
+      }
+    }
+  }
+
+  function scheduleApply() {
+    if (!editorApi || editorSync) return;
+    clearTimeout(compileTimer);
+    compileTimer = setTimeout(async function () {
+      if (editorSync) return;
+      try {
+        const v = await editorApi.getValue();
+        applyForMode(mode, v);
+      } catch (e) {}
+    }, DEBOUNCE_MS);
+  }
+
+  async function deactivateEngine(m) {
+    if (m === 'gl') stopGL();
+    if (m === 'skater' && skater) skater.stop();
+    if (m === 'shade') await stopShade();
+  }
+
+  async function activateEngine(m) {
+    if (m === 'gl') {
+      initGL();
+      updateGLShader(buffers.gl);
+      startGL();
+    }
+    if (m === 'skater') {
+      applySkater(buffers.skater);
+    }
+    if (m === 'shade') {
+      await startShade();
+    }
+  }
+
+  async function setMode(next) {
+    if (next === mode) return;
+    if (editorApi) {
+      try {
+        buffers[mode] = await editorApi.getValue();
+      } catch (e) {}
+    }
+
+    await deactivateEngine(mode);
+    mode = next;
+
+    document.querySelectorAll('.canopy-mode-btn').forEach(function (b) {
+      const on = b.getAttribute('data-mode') === next;
+      b.classList.toggle('canopy-active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+
+    setPreviewVisible(next);
+    hintEl.textContent = HINTS[next] || '';
+
+    if (editorApi) {
+      editorSync = true;
+      clearTimeout(compileTimer);
+      try {
+        await editorApi.setValue(buffers[next]);
+        await editorApi.setLanguage(next === 'gl' ? 'cpp' : 'json');
+        await editorApi.layout();
+      } finally {
+        editorSync = false;
+      }
+    }
+
+    await activateEngine(next);
+  }
+
+  document.querySelectorAll('.canopy-mode-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const m = btn.getAttribute('data-mode');
+      if (m) setMode(m);
+    });
+  });
+
+  document.getElementById('canopy-reset-time').addEventListener('click', function () {
+    glStart = Date.now();
+  });
+
+  document.getElementById('canopy-play-btn').addEventListener('click', function () {
+    glPaused = !glPaused;
+    const el = document.getElementById('canopy-play-btn');
+    el.innerHTML = glPaused
+      ? '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>'
+      : '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>';
+    el.setAttribute('title', glPaused ? 'Play' : 'Pause');
+    el.setAttribute('aria-label', glPaused ? 'Play' : 'Pause');
+  });
+
+  async function boot() {
+    skater = coffee.skater({
+      target: document.getElementById('canopy-skater-stage'),
+      onState: function () {}
+    });
+
+    hintEl.textContent = HINTS.shade;
+    setPreviewVisible('shade');
+
+    try {
+      editorApi = await coffee.monaco.create(document.getElementById('canopy-editor-mount'), {
+        value: buffers.shade,
+        language: 'json',
+        theme: 'vs-dark',
+        minimap: false,
+        title: 'CANOPY editor'
+      });
+    } catch (e) {
+      setStatus(false, 'Editor failed');
+      coffee.toast('Monaco host failed — use HTTP server', 'error');
+      console.error(e);
+      return;
+    }
+
+    editorApi.onChange(function () {
+      scheduleApply();
+    });
+
+    window.addEventListener('resize', function () {
+      if (editorApi) editorApi.layout();
+    });
+
+    await activateEngine('shade');
+  }
+
+  boot();
+})();
+  </script>
+</body>
+</html>

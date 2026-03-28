@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en" class="surf-alpha-html">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="cce:name" content="SURF">
+    <meta name="cce:id" content="surf-alpha">
+    <meta name="cce:icon" content="🏄">
+    <meta name="cce:color" content="#38bdf8">
+    <meta name="cce:description" content="SURF — mobile Coffee Server relay, vault, Moo, Sidecar, SURF AI">
+    <title>SURF α // Media & Server Relay</title>
+    <!-- Fonts: separate <link> avoids @import blocking inside a big shell CSS file -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- After Tailwind so .surf-alpha-body / layout beat preflight; file lives in SURF/ (not coffee-alpha-shell.css) -->
+    <link rel="stylesheet" href="./surf-alpha.css">
+</head>
+<body class="surf-alpha-body">
+
+    <!-- Header -->
+    <header class="glass h-14 flex items-center justify-between px-6 sticky top-0 z-50">
+        <h1 class="text-xl font-black italic tracking-tighter text-sky-400">SURF</h1>
+        <div class="flex items-center gap-4">
+            <div id="surf-header-dot" class="w-2 h-2 rounded-full bg-slate-600 transition-colors" title="Coffee Server reachability"></div>
+            <span id="surf-header-status" class="text-[10px] font-bold uppercase tracking-widest opacity-50">Checking…</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="view-content" id="main-scroll">
+        
+        <!-- RELAY — live stats via coffee.serverStats (dead when server down) -->
+        <section id="view-relay" class="view active">
+            <h2 class="text-2xl font-extrabold mb-2">Relay</h2>
+            <p class="text-sm text-slate-500 mb-6 leading-relaxed">Same <span class="mono">/api/ping</span> + <span class="mono">/api/metrics</span> as SERVER-DEMO. Set <strong>Server / API base</strong> in Settings if discovery fails.</p>
+
+            <div class="stat-card mb-4">
+                <div class="text-xs font-bold uppercase tracking-widest text-sky-400 mb-2">Reachability</div>
+                <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Local</div>
+                <p class="mono text-xs break-all text-slate-300" id="surf-ping-local">—</p>
+                <div class="text-[10px] uppercase tracking-widest text-slate-500 mt-3 mb-1">Public</div>
+                <p class="mono text-xs break-all text-sky-400/90" id="surf-ping-public">—</p>
+            </div>
+
+            <h3 class="text-lg font-extrabold mb-4">System vitality</h3>
+
+            <div class="stat-card">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-sky-400">CPU</span>
+                    <span class="mono text-sm" id="surf-m-cpu-label">Inactive</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="surf-m-cpu-fill" style="width: 0%"></div></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-sky-400">RAM</span>
+                    <span class="mono text-sm" id="surf-m-ram-label">Inactive</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="surf-m-ram-fill" style="width: 0%"></div></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-sky-400">Storage</span>
+                    <span class="mono text-sm" id="surf-m-disk-label">Inactive</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="surf-m-disk-fill" style="width: 0%"></div></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="flex justify-between items-end mb-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-sky-400">Network</span>
+                    <span class="mono text-sm" id="surf-m-net-label">Inactive</span>
+                </div>
+                <div class="progress-bar"><div class="progress-fill" id="surf-m-net-fill" style="width: 0%"></div></div>
+            </div>
+        </section>
+
+        <!-- VAULT VIEW — CE default layout buckets (placeholder; list API later) -->
+        <section id="view-vault" class="view">
+            <h2 class="text-2xl font-extrabold mb-2">Vault</h2>
+            <p class="text-sm text-slate-500 mb-8 leading-relaxed max-w-md">
+                Coffee root folders from vault init. Tap a bucket to open it — <span class="mono text-sky-400/80">/api/file/list?path=…</span> wiring comes next.
+            </p>
+
+            <div class="vault-bucket-grid" role="group" aria-label="Vault buckets">
+                <button type="button" class="vault-bucket-panel" onclick="vaultPanelTap('documents')" aria-label="Documents folder">
+                    <div class="vault-bucket-icon" aria-hidden="true">📄</div>
+                    <div class="vault-bucket-label">Documents</div>
+                    <div class="vault-bucket-path">documents/</div>
+                    <div class="vault-bucket-hint">POC — no network yet</div>
+                </button>
+                <button type="button" class="vault-bucket-panel" onclick="vaultPanelTap('media')" aria-label="Media folder">
+                    <div class="vault-bucket-icon" aria-hidden="true">🎬</div>
+                    <div class="vault-bucket-label">Media</div>
+                    <div class="vault-bucket-path">media/</div>
+                    <div class="vault-bucket-hint">images · videos</div>
+                </button>
+                <button type="button" class="vault-bucket-panel" onclick="vaultPanelTap('projects')" aria-label="Projects folder">
+                    <div class="vault-bucket-icon" aria-hidden="true">📁</div>
+                    <div class="vault-bucket-label">Projects</div>
+                    <div class="vault-bucket-path">projects/</div>
+                    <div class="vault-bucket-hint">POC — no network yet</div>
+                </button>
+                <button type="button" class="vault-bucket-panel" onclick="vaultPanelTap('apps')" aria-label="Apps folder">
+                    <div class="vault-bucket-icon" aria-hidden="true">🧩</div>
+                    <div class="vault-bucket-label">Apps</div>
+                    <div class="vault-bucket-path">apps/</div>
+                    <div class="vault-bucket-hint">vault bucket · not server POCs</div>
+                </button>
+            </div>
+        </section>
+
+        <!-- MOO — registry + server invoke + optional local AsyncFunction eval -->
+        <section id="view-moo" class="view">
+            <h2 class="text-2xl font-extrabold mb-2">Moo</h2>
+            <p class="text-sm text-slate-500 mb-4 leading-relaxed">
+                <strong>Same flow as MOO1:</strong> tap a plugin → preset code + params load from <span class="mono">COFFEE-SERVER/lib/moo/moo-internal.json</span>. Unchecked = <strong>Run on server</strong>. Checked = <strong>Run in browser</strong> (<span class="mono">AsyncFunction</span>). Amber chips = embedded/offline list from that file; cyan = live <span class="mono">GET /api/moo/registry</span>.
+            </p>
+
+            <div class="stat-card mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="text-xs font-bold uppercase tracking-widest text-sky-400">Registry</div>
+                    <button type="button" class="text-[10px] font-bold uppercase tracking-widest text-sky-400 border border-sky-500/30 rounded-lg px-3 py-1.5 bg-sky-500/5" onclick="loadSurfMooRegistry()">Refresh</button>
+                </div>
+                <p id="surf-moo-status" class="mono text-xs text-slate-400 mb-3">Open this tab to load…</p>
+                <div id="surf-moo-plugin-list" class="surf-moo-plugin-list" role="list"></div>
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Selected</p>
+                <p id="surf-moo-selected-id" class="mono text-sm text-sky-300/90">—</p>
+                <p class="text-[10px] uppercase tracking-widest text-slate-500 mt-2 mb-1">Source (repo)</p>
+                <p id="surf-moo-selected-path" class="mono text-[11px] text-slate-400 break-all">—</p>
+            </div>
+
+            <div class="stat-card mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500" for="surf-moo-code">Preset · <span class="mono">async function run(ctx)</span></label>
+                    <span id="surf-moo-mode-badge" class="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border border-sky-500/30 text-sky-400/90 bg-sky-500/5">Server</span>
+                </div>
+                <p class="text-[10px] text-slate-500 mb-2 leading-snug">Tap a plugin to load its entry from <span class="mono">moo-internal.json</span> (shared with MOO1). Server mode = read-only preview; browser mode = editable.</p>
+                <textarea id="surf-moo-code" class="w-full mono text-[11px] bg-slate-950/80 border border-white/10 rounded-xl p-3 min-h-[200px] text-slate-200 outline-none focus:border-sky-500/40" spellcheck="false" autocomplete="off" readonly></textarea>
+
+                <label class="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mt-4 mb-2" for="surf-moo-params">Params JSON <span class="font-normal text-slate-600">(body.params)</span></label>
+                <textarea id="surf-moo-params" class="w-full mono text-xs bg-slate-950/80 border border-white/10 rounded-xl p-3 min-h-[72px] text-slate-200 outline-none focus:border-sky-500/40" spellcheck="false" autocomplete="off">{}</textarea>
+
+                <label class="flex items-center gap-2 mt-4 cursor-pointer select-none">
+                    <input type="checkbox" id="surf-moo-local" class="rounded border-slate-600" onchange="onSurfMooLocalToggle()">
+                    <span class="text-xs text-slate-300 font-semibold">Run in browser</span>
+                    <span class="text-[10px] text-amber-500/90">(same preset · AsyncFunction · don’t paste untrusted code)</span>
+                </label>
+
+                <div class="flex flex-wrap gap-3 mt-4">
+                    <button type="button" id="surf-moo-run-btn" onclick="runSurfMoo()" class="bg-sky-500 text-black font-extrabold text-xs uppercase tracking-widest px-5 py-3 rounded-xl">Run on server</button>
+                    <button type="button" onclick="clearSurfMooTerminal()" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 border border-white/10 rounded-xl px-4 py-3">Clear terminal</button>
+                </div>
+            </div>
+
+            <p class="text-[10px] font-bold uppercase tracking-widest text-sky-400/90 mb-2">Output</p>
+            <div id="surf-moo-terminal" class="surf-moo-terminal mono" aria-live="polite"></div>
+        </section>
+
+        <!-- SURF AI (coffee.bee + surf-ai.js) -->
+        <section id="view-surf-ai" class="view">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-10 h-10 bg-sky-500/10 rounded-xl flex items-center justify-center border border-sky-500/20">
+                    <span class="text-sky-400 font-black text-sm tracking-tight">S</span>
+                </div>
+                <div>
+                    <h2 class="text-xl font-extrabold leading-none">SURF AI</h2>
+                    <span class="text-[10px] uppercase tracking-widest text-sky-400 font-bold">Server assistant</span>
+                </div>
+            </div>
+
+            <div class="chat-list" id="chat-list">
+                <div class="chat-bubble bubble-surf">
+                    Loading…
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <div class="bg-slate-900/50 border border-white/5 rounded-2xl p-2 flex items-center gap-2">
+                    <input type="text" id="chat-input" class="bg-transparent border-none outline-none flex-1 px-4 py-2 text-sm" placeholder="Ask SURF AI…" onkeypress="if(event.key === 'Enter') sendToSurfAi()">
+                    <button type="button" onclick="sendToSurfAi()" class="bg-sky-500 text-black w-10 h-10 rounded-xl flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SIDECAR — POC containers from API + sidecar-internal.json fallback -->
+        <section id="view-sidecar" class="view">
+            <h2 class="text-2xl font-extrabold mb-2">Sidecar</h2>
+            <p class="text-sm text-slate-500 mb-4 leading-relaxed">
+                POC slots from <span class="mono text-sky-400/90">GET /api/sidecar/poc/containers</span> (<span class="mono">sidecar-containers.js</span> on the server). Offline or no base → <span class="mono">lib/sidecar/sidecar-internal.json</span> (keep in sync; not hardcoded in this page). <strong>Ollama</strong> cards use <span class="mono">coffee.ollama</span> → ensure + chat. Full shell: <span class="mono">/sidecar2-poc</span>.
+            </p>
+
+            <div class="stat-card mb-4">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <div class="text-xs font-bold uppercase tracking-widest text-sky-400">POC containers</div>
+                    <button type="button" class="text-[10px] font-bold uppercase tracking-widest text-sky-400 border border-sky-500/30 rounded-lg px-3 py-1.5 bg-sky-500/5" onclick="loadSurfSidecarContainers()">Refresh</button>
+                </div>
+                <p id="surf-sidecar-status" class="mono text-xs text-slate-400 mb-3">Open this tab to load…</p>
+                <div id="surf-sidecar-grid" class="vault-bucket-grid" role="list"></div>
+            </div>
+
+            <div id="surf-sidecar-detail" class="stat-card hidden">
+                <h3 id="surf-sidecar-detail-title" class="text-lg font-extrabold mb-2 text-sky-300/90">—</h3>
+
+                <div id="surf-sidecar-ollama-ui" class="hidden">
+                    <p class="text-[10px] uppercase tracking-widest text-slate-500 mb-2">Model</p>
+                    <input id="surf-sidecar-model" class="w-full mono text-sm bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-slate-200 mb-3 outline-none focus:border-sky-500/40" type="text" autocomplete="off" placeholder="gemma3">
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button type="button" onclick="runSurfSidecarEnsure()" class="text-[10px] font-bold uppercase tracking-widest text-amber-400 border border-amber-500/30 rounded-lg px-3 py-2 bg-amber-500/5">Ensure Ollama</button>
+                        <button type="button" onclick="clearSurfSidecarChat()" class="text-[10px] font-bold uppercase tracking-widest text-slate-500 border border-white/10 rounded-lg px-3 py-2">Clear chat</button>
+                    </div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-sky-400/90 mb-2">Log</p>
+                    <div id="surf-sidecar-chat-log" class="surf-moo-terminal surf-sidecar-chat-log mono text-[11px]" aria-live="polite"></div>
+                    <div class="mt-3 flex gap-2">
+                        <input type="text" id="surf-sidecar-chat-input" class="flex-1 bg-slate-950/80 border border-white/10 rounded-xl px-3 py-2 text-sm text-slate-200 outline-none focus:border-sky-500/40" placeholder="Message…" onkeypress="if(event.key==='Enter') sendSurfSidecarChat()">
+                        <button type="button" onclick="sendSurfSidecarChat()" class="bg-sky-500 text-black font-extrabold text-xs uppercase tracking-widest px-4 py-2 rounded-xl shrink-0">Send</button>
+                    </div>
+                </div>
+
+                <p id="surf-sidecar-mock-ui" class="hidden text-sm text-slate-500 leading-relaxed">
+                    Mock sidecar (no Ollama chat here). Use <span class="mono">SIDECAR2-POC</span> for a full mock shell, or pick the Ollama card for local model chat via Coffee Server.
+                </p>
+            </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="view-settings" class="view">
+            <h2 class="text-2xl font-extrabold mb-2">Settings</h2>
+            <p class="text-sm text-slate-500 mb-6 leading-relaxed">
+                Stored on this device only. <strong>Keyman:</strong> sign in and complete setup on a <strong>trusted desktop</strong>, then paste the Bearer token here if you need Vault / <span class="mono">/api/file/*</span> from SURF — we do <strong>not</strong> open Keyman inside this app. AI keys use <span class="mono">coffee.aiConfig</span> (same as KATI / BEE-DEMO).
+            </p>
+
+            <div class="settings-card">
+                <label class="settings-label" for="surf-api-base">Server / API base</label>
+                <input id="surf-api-base" class="settings-input" type="url" inputmode="url" autocomplete="off" placeholder="https://your-tunnel.trycloudflare.com or http://192.168.1.10:3000">
+                <p class="settings-hint">No trailing slash. Matches <span class="mono">coffee.request.baseUrl</span> when we plug in reachability + request helper.</p>
+            </div>
+
+            <p class="text-[10px] font-bold uppercase tracking-widest text-sky-400/90 mb-2">AI providers (BYOK)</p>
+            <p class="text-xs text-slate-500 mb-3 leading-relaxed">Mounted by <span class="mono">coffee-ai-config.js</span>. One key per provider; empty fields are ok.</p>
+            <div id="surf-ai-keys-host"></div>
+
+            <div class="settings-card">
+                <label class="settings-label" for="surf-keyman-token">Keyman — Bearer token (paste only)</label>
+                <input id="surf-keyman-token" class="settings-input" type="password" autocomplete="off" placeholder="Paste token from Keyman on your computer">
+                <p class="settings-hint">Optional. Use Keyman on a full computer first; copy the token into SURF. Maps to <span class="mono">Authorization: Bearer …</span> when file APIs are wired. No Keyman login UI in SURF.</p>
+            </div>
+
+            <button type="button" class="settings-save" onclick="saveSurfSettings()">Save settings</button>
+            <div id="surf-settings-toast" class="settings-toast" aria-live="polite"></div>
+        </section>
+
+    </main>
+
+    <!-- Navigation — scroll when many tabs; active tab scrolls into view -->
+    <nav class="nav-bar no-scrollbar" aria-label="Main">
+        <div class="nav-item active" onclick="switchView('relay', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6" y2="6"></line><line x1="6" y1="18" x2="6" y2="18"></line></svg>
+            </div>
+            <span>Relay</span>
+        </div>
+        <div class="nav-item" onclick="switchView('vault', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <span>Vault</span>
+        </div>
+        <div class="nav-item" onclick="switchView('moo', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+            </div>
+            <span>Moo</span>
+        </div>
+        <div class="nav-item" onclick="switchView('surf-ai', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="8" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+            </div>
+            <span>SURF AI</span>
+        </div>
+        <div class="nav-item" onclick="switchView('sidecar', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="9"></line><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="12" y2="17"></line></svg>
+            </div>
+            <span>Sidecar</span>
+        </div>
+        <div class="nav-item" onclick="switchView('settings', this)">
+            <div class="nav-icon-bg">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
+            </div>
+            <span>Settings</span>
+        </div>
+    </nav>
+
+    <script src="../../../COFFEE-REQUEST/coffee-request.js"></script>
+    <script src="../../../../COFFEE-PRO/coffee-server/lib/sidecar/browser/sidecar-ollama-request.js"></script>
+    <script src="../../../../COFFEE-PRO/coffee-server/lib/moo/browser/moo-request.js"></script>
+    <script src="../../../../COFFEE-PRO/coffee-server/lib/browser/coffee-server-stats.js"></script>
+    <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+    <script src="../../../COFFEE-AI/coffee-ai.js"></script>
+    <script src="../../../COFFEE-AI/coffee-ai-config.js"></script>
+    <script src="../../../COFFEE-CONTEXT/coffee-context.js"></script>
+    <script src="../../../COFFEE-BEE/coffee-bee.js"></script>
+    <script src="./surf-ai.js"></script>
+
+    <script>
+        const SURF_LS = {
+            apiBase: 'surf.apiBase',
+            keymanToken: 'surf.keymanToken'
+        };
+
+        function mountSurfAiKeysIfNeeded() {
+            var host = document.getElementById('surf-ai-keys-host');
+            if (!host || !window.coffee || !coffee.aiConfig) return;
+            if (host.getAttribute('data-ai-cfg-mounted') === '1') {
+                coffee.aiConfig.writeForm(host);
+                return;
+            }
+            coffee.aiConfig.mount(host, {
+                cardClass: 'settings-card',
+                labelClass: 'settings-label',
+                inputClass: 'settings-input',
+                hintClass: 'settings-hint',
+                includeProviderModel: true
+            });
+            host.setAttribute('data-ai-cfg-mounted', '1');
+        }
+
+        function loadSurfSettings() {
+            var base = document.getElementById('surf-api-base');
+            var km = document.getElementById('surf-keyman-token');
+            if (base) base.value = localStorage.getItem(SURF_LS.apiBase) || '';
+            if (km) km.value = localStorage.getItem(SURF_LS.keymanToken) || '';
+            mountSurfAiKeysIfNeeded();
+        }
+
+        function saveSurfSettings() {
+            var baseEl = document.getElementById('surf-api-base');
+            var raw = (baseEl && baseEl.value) ? baseEl.value.trim().replace(/\/$/, '') : '';
+            localStorage.setItem(SURF_LS.apiBase, raw);
+            var host = document.getElementById('surf-ai-keys-host');
+            if (host && window.coffee && coffee.aiConfig) coffee.aiConfig.saveForm(host);
+            localStorage.setItem(SURF_LS.keymanToken, (document.getElementById('surf-keyman-token') && document.getElementById('surf-keyman-token').value) || '');
+            var toast = document.getElementById('surf-settings-toast');
+            if (toast) {
+                toast.textContent = 'Saved on this device.';
+                setTimeout(function () { toast.textContent = ''; }, 2500);
+            }
+        }
+
+        /** Read saved config (Vault / request wiring will use this). */
+        function getSurfConfig() {
+            var gem = '';
+            var oa = '';
+            var gh = '';
+            if (window.coffee && coffee.aiConfig) {
+                gem = coffee.aiConfig.get('gemini');
+                oa = coffee.aiConfig.get('openai');
+                gh = coffee.aiConfig.get('github');
+            } else {
+                gem = (localStorage.getItem('surf.katiApiKey') || '').trim();
+            }
+            return {
+                apiBase: (localStorage.getItem(SURF_LS.apiBase) || '').trim().replace(/\/$/, ''),
+                geminiApiKey: gem,
+                katiApiKey: gem,
+                openaiApiKey: oa,
+                githubApiKey: gh,
+                keymanToken: (localStorage.getItem(SURF_LS.keymanToken) || '').trim()
+            };
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadSurfSettings);
+        } else {
+            loadSurfSettings();
+        }
+
+        function setSurfMetricsIdle() {
+            ['cpu', 'ram', 'disk', 'net'].forEach(function (k) {
+                var label = document.getElementById('surf-m-' + k + '-label');
+                var fill = document.getElementById('surf-m-' + k + '-fill');
+                if (label) label.textContent = 'Inactive';
+                if (fill) fill.style.width = '0%';
+            });
+        }
+
+        function applySurfPublicLine(p) {
+            var pub = document.getElementById('surf-ping-public');
+            if (!pub) return;
+            if (!p || p.ok !== true) {
+                pub.textContent = '—';
+                pub.className = 'mono text-xs break-all text-slate-500';
+                return;
+            }
+            if (p.tunnelEnabled === false) {
+                pub.textContent = 'Tunnel disabled';
+                pub.className = 'mono text-xs break-all text-slate-500';
+                return;
+            }
+            if (p.tunnelUrl) {
+                pub.textContent = p.tunnelUrl;
+                pub.className = 'mono text-xs break-all text-sky-400/90';
+                return;
+            }
+            pub.textContent = 'Waiting for tunnel (cloudflared)…';
+            pub.className = 'mono text-xs break-all text-slate-500';
+        }
+
+        function applySurfRelaySnap(snap) {
+            var dot = document.getElementById('surf-header-dot');
+            var st = document.getElementById('surf-header-status');
+            var loc = document.getElementById('surf-ping-local');
+            if (!snap || !snap.online) {
+                if (dot) {
+                    dot.classList.remove('bg-green-500', 'animate-pulse');
+                    dot.classList.add('bg-slate-600');
+                }
+                if (st) st.textContent = 'Server offline';
+                if (loc) loc.textContent = '—';
+                applySurfPublicLine(null);
+                setSurfMetricsIdle();
+                return;
+            }
+            if (dot) {
+                dot.classList.remove('bg-slate-600');
+                dot.classList.add('bg-green-500', 'animate-pulse');
+            }
+            if (st) st.textContent = 'Server online';
+            var p = snap.ping || {};
+            if (loc) loc.textContent = p.localUrl || snap.base || '—';
+            applySurfPublicLine(p);
+
+            var m = snap.metrics;
+            if (!m) {
+                setSurfMetricsIdle();
+                return;
+            }
+
+            var cpuL = document.getElementById('surf-m-cpu-label');
+            var cpuF = document.getElementById('surf-m-cpu-fill');
+            if (cpuL) cpuL.textContent = (m.cpu && m.cpu.pct != null ? m.cpu.pct : 0) + '%';
+            if (cpuF) cpuF.style.width = Math.min(100, Math.max(0, (m.cpu && m.cpu.pct) || 0)) + '%';
+
+            var ramL = document.getElementById('surf-m-ram-label');
+            var ramF = document.getElementById('surf-m-ram-fill');
+            if (ramL) ramL.textContent = (m.ram && m.ram.usedGB != null) ? (m.ram.usedGB + ' GB') : '—';
+            if (ramF) ramF.style.width = Math.min(100, Math.max(0, (m.ram && m.ram.pct) || 0)) + '%';
+
+            var dL = document.getElementById('surf-m-disk-label');
+            var dF = document.getElementById('surf-m-disk-fill');
+            if (m.disk) {
+                if (dL) dL.textContent = (m.disk.freeGB != null) ? (m.disk.freeGB + ' GB free') : '—';
+                if (dF) dF.style.width = Math.min(100, Math.max(0, 100 - (m.disk.usedPct || 0))) + '%';
+            } else {
+                if (dL) dL.textContent = 'Inactive';
+                if (dF) dF.style.width = '0%';
+            }
+
+            var nL = document.getElementById('surf-m-net-label');
+            var nF = document.getElementById('surf-m-net-fill');
+            if (nL) nL.textContent = '—';
+            if (nF) nF.style.width = '15%';
+        }
+
+        async function surfRelayTick() {
+            if (!window.coffee || !coffee.serverStats || typeof coffee.serverStats.snapshot !== 'function') return;
+            try {
+                var snap = await coffee.serverStats.snapshot({ customBase: getSurfConfig().apiBase });
+                applySurfRelaySnap(snap);
+            } catch (e) {
+                applySurfRelaySnap(null);
+            }
+        }
+
+        setInterval(surfRelayTick, 3000);
+        surfRelayTick();
+
+        /* ——— Moo (coffee.moo + terminal) ——— */
+        /** Same file as MOO1 — presets + embedded plugin list (fetch, not hardcoded). */
+        var SURF_MOO_INTERNAL_JSON = '../../../../COFFEE-PRO/coffee-server/lib/moo/moo-internal.json';
+        var surfMooInternalCatalog = { plugins: [] };
+        var surfMooPlugins = [];
+        var surfMooSelectedId = null;
+        var surfMooTrustClient = false;
+        /** True when chip list is driven by moo-internal.json snapshot (live GET failed or no API base). */
+        var surfMooUsingEmbeddedCatalog = false;
+
+        async function loadSurfMooInternalJson() {
+            try {
+                var res = await fetch(SURF_MOO_INTERNAL_JSON, { cache: 'no-cache' });
+                if (!res.ok) throw new Error(String(res.status));
+                var j = await res.json();
+                surfMooInternalCatalog = j && typeof j === 'object' ? j : { plugins: [] };
+                return true;
+            } catch (e) {
+                surfMooInternalCatalog = { plugins: [] };
+                return false;
+            }
+        }
+        var SurfMooAsyncFn = Object.getPrototypeOf(async function () {}).constructor;
+
+        /**
+         * Sets coffee.request.baseUrl: saved Settings URL, or same multi-origin probe as Relay
+         * (page origin, then :3000, …) when Settings is empty — so Live Preview (:5500) still finds Node.
+         */
+        async function ensureSurfMooRequestBase() {
+            if (!window.coffee || !coffee.request) return;
+            var manual = (getSurfConfig().apiBase || '').trim().replace(/\/$/, '');
+            if (manual) {
+                coffee.request.baseUrl = manual;
+                return;
+            }
+            try {
+                if (coffee.serverStats && typeof coffee.serverStats.snapshot === 'function') {
+                    var snap = await coffee.serverStats.snapshot({ customBase: '' });
+                    if (snap && snap.online && snap.base) {
+                        coffee.request.baseUrl = String(snap.base).replace(/\/$/, '');
+                        return;
+                    }
+                }
+            } catch (e) {}
+            coffee.request.baseUrl = '';
+        }
+
+        function getSurfMooOpts() {
+            var tok = (getSurfConfig().keymanToken || '').trim();
+            return tok ? { headers: { Authorization: 'Bearer ' + tok } } : {};
+        }
+
+        function surfMooLog(level, msg) {
+            var term = document.getElementById('surf-moo-terminal');
+            if (!term) return;
+            var line = document.createElement('div');
+            line.className = 'surf-moo-terminal-line ' + (level || 'info');
+            line.textContent = msg;
+            term.appendChild(line);
+            term.scrollTop = term.scrollHeight;
+        }
+
+        function clearSurfMooTerminal() {
+            var term = document.getElementById('surf-moo-terminal');
+            if (term) term.innerHTML = '';
+        }
+
+        function syncSurfMooEditorReadonly() {
+            var localCb = document.getElementById('surf-moo-local');
+            var codeEl = document.getElementById('surf-moo-code');
+            var badge = document.getElementById('surf-moo-mode-badge');
+            var local = localCb && localCb.checked;
+            if (codeEl) {
+                codeEl.readOnly = !local;
+                codeEl.classList.toggle('border-sky-500/25', !local);
+                codeEl.classList.toggle('border-amber-500/35', !!local);
+            }
+            if (badge) {
+                badge.textContent = local ? 'Browser' : 'Server';
+                badge.className =
+                    'text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-md border ' +
+                    (local
+                        ? 'border-amber-500/40 text-amber-400/95 bg-amber-500/10'
+                        : 'border-sky-500/30 text-sky-400/90 bg-sky-500/5');
+            }
+        }
+
+        function onSurfMooLocalToggle() {
+            var btn = document.getElementById('surf-moo-run-btn');
+            var localCb = document.getElementById('surf-moo-local');
+            var local = localCb && localCb.checked;
+            if (btn) btn.textContent = local ? 'Run in browser' : 'Run on server';
+            syncSurfMooEditorReadonly();
+        }
+
+        function loadSurfMooPreset(id) {
+            var codeEl = document.getElementById('surf-moo-code');
+            var paramsEl = document.getElementById('surf-moo-params');
+            var plist = surfMooInternalCatalog.plugins || [];
+            var pre = id ? plist.find(function (p) { return p && p.id === id; }) : null;
+            if (pre) {
+                if (codeEl) codeEl.value = pre.presetSample || '';
+                var dp = pre.defaultParams;
+                var obj =
+                    dp != null && typeof dp === 'object' && !Array.isArray(dp) ? dp : {};
+                if (paramsEl) paramsEl.value = JSON.stringify(obj);
+            } else if (id) {
+                if (codeEl) {
+                    codeEl.value =
+                        '// No bundled preset for "' +
+                        id +
+                        '" — stub for browser run, or use Run on server for the real plugin.\n\n' +
+                        'async function run(ctx) {\n' +
+                        "  ctx.log('stub · id=' + " +
+                        JSON.stringify(id) +
+                        ');\n' +
+                        '  return { ok: true, params: ctx.params };\n' +
+                        '}';
+                }
+                if (paramsEl) paramsEl.value = '{}';
+            }
+            syncSurfMooEditorReadonly();
+        }
+
+        function selectSurfMooPlugin(id) {
+            surfMooSelectedId = id;
+            var label = document.getElementById('surf-moo-selected-id');
+            if (label) label.textContent = id || '—';
+            var pathEl = document.getElementById('surf-moo-selected-path');
+            var meta = surfMooPlugins.find(function (p) { return p && p.id === id; });
+            var pth = meta && meta.path ? String(meta.path) : '';
+            if (pathEl) pathEl.textContent = pth || '—';
+            document.querySelectorAll('.surf-moo-chip').forEach(function (el) {
+                el.classList.toggle('active', el.getAttribute('data-plugin-id') === id);
+            });
+            loadSurfMooPreset(id);
+        }
+
+        function renderSurfMooPluginList() {
+            var host = document.getElementById('surf-moo-plugin-list');
+            if (!host) return;
+            host.innerHTML = '';
+            surfMooPlugins.forEach(function (p) {
+                var id = p && p.id ? String(p.id) : '';
+                if (!id) return;
+                var b = document.createElement('button');
+                b.type = 'button';
+                b.className =
+                    'surf-moo-chip' +
+                    (surfMooUsingEmbeddedCatalog ? ' surf-moo-chip-embedded' : '') +
+                    (id === surfMooSelectedId ? ' active' : '');
+                b.setAttribute('data-plugin-id', id);
+                b.setAttribute('role', 'listitem');
+                b.textContent = id + (p.execution ? ' · ' + p.execution : '');
+                b.title =
+                    (p.description || '') +
+                    (p.path ? '\n' + p.path : '') +
+                    (p.execution ? '\n' + p.execution : '');
+                b.onclick = function () { selectSurfMooPlugin(id); };
+                host.appendChild(b);
+            });
+            selectSurfMooPlugin(surfMooSelectedId);
+        }
+
+        function applySurfMooEmbeddedCatalog(reason) {
+            surfMooUsingEmbeddedCatalog = true;
+            surfMooTrustClient = false;
+            surfMooPlugins = (surfMooInternalCatalog.plugins || [])
+                .map(function (p) {
+                    if (!p || !p.id) return null;
+                    return {
+                        id: p.id,
+                        description: p.description || '',
+                        execution: p.execution === 'child' ? 'child' : 'worker',
+                        path: p.path || ''
+                    };
+                })
+                .filter(Boolean);
+            if (
+                !surfMooSelectedId ||
+                !surfMooPlugins.some(function (x) {
+                    return x.id === surfMooSelectedId;
+                })
+            ) {
+                surfMooSelectedId = surfMooPlugins.length ? surfMooPlugins[0].id : null;
+            }
+            renderSurfMooPluginList();
+            var statusEl = document.getElementById('surf-moo-status');
+            if (statusEl) {
+                statusEl.textContent =
+                    surfMooPlugins.length +
+                    ' plugin(s) · embedded catalog — Refresh when Coffee Server is up for live registry + invoke';
+            }
+            surfMooLog(
+                'warn',
+                reason ||
+                    'Using embedded catalog (offline snapshot). Run in browser works; Run on server needs Node.'
+            );
+        }
+
+        async function loadSurfMooRegistry() {
+            var statusEl = document.getElementById('surf-moo-status');
+            if (statusEl) statusEl.textContent = 'Loading catalog…';
+            var internalOk = await loadSurfMooInternalJson();
+            if (!internalOk) {
+                surfMooLog(
+                    'error',
+                    'Could not fetch moo-internal.json — check path from SURF to COFFEE-SERVER/lib/moo/ (http server required).'
+                );
+            }
+            surfMooLog('info', 'GET /api/moo/registry (or embedded list from moo-internal.json) …');
+
+            if (!window.coffee || !coffee.moo || typeof coffee.moo.registry !== 'function') {
+                surfMooLog('error', 'coffee.moo missing — load moo-request.js after coffee-request.js');
+                if (statusEl) statusEl.textContent = 'Module error';
+                applySurfMooEmbeddedCatalog('coffee.moo not loaded — moo-internal.json list only.');
+                return;
+            }
+
+            var manualSet = !!(getSurfConfig().apiBase || '').trim();
+            await ensureSurfMooRequestBase();
+            var usedBase = coffee.request && coffee.request.baseUrl ? String(coffee.request.baseUrl).trim() : '';
+            if (usedBase) {
+                surfMooLog('info', 'API base: ' + usedBase + (manualSet ? '' : ' (auto — same as Relay when Settings empty)'));
+            }
+
+            function applyLiveRegistry(data) {
+                surfMooUsingEmbeddedCatalog = false;
+                surfMooTrustClient = !!data.trustClientExecution;
+                surfMooPlugins = Array.isArray(data.plugins) ? data.plugins : [];
+                if (!surfMooSelectedId && surfMooPlugins.length) {
+                    surfMooSelectedId = surfMooPlugins[0].id;
+                } else if (
+                    surfMooSelectedId &&
+                    !surfMooPlugins.some(function (x) {
+                        return x.id === surfMooSelectedId;
+                    })
+                ) {
+                    surfMooSelectedId = surfMooPlugins.length ? surfMooPlugins[0].id : null;
+                }
+                renderSurfMooPluginList();
+                var ids = surfMooPlugins.map(function (p) { return p.id; }).join(', ') || '(none)';
+                if (statusEl) {
+                    statusEl.textContent =
+                        surfMooPlugins.length + ' plugin(s) · live · trustClientExecution=' + surfMooTrustClient;
+                }
+                surfMooLog('success', 'Live registry: ' + ids);
+            }
+
+            if (!usedBase) {
+                surfMooLog(
+                    'info',
+                    'No API base — skipping live GET (would hit Live Preview). Showing embedded catalog; set Settings or start Node for invoke.'
+                );
+                applySurfMooEmbeddedCatalog();
+                return;
+            }
+
+            try {
+                var data = await coffee.moo.registry(getSurfMooOpts());
+                if (data && data.ok === false && data.error) {
+                    surfMooLog('error', String(data.error));
+                    applySurfMooEmbeddedCatalog('Server registry error — using embedded catalog.');
+                    return;
+                }
+                applyLiveRegistry(data || {});
+            } catch (e) {
+                var msg =
+                    e.body && typeof e.body === 'object' && e.body.error
+                        ? e.body.error
+                        : e.message || String(e);
+                surfMooLog('error', 'Live registry failed: ' + msg);
+                if ((e && e.status === 404) || /not found/i.test(String(msg))) {
+                    surfMooLog(
+                        'warn',
+                        '404 often means wrong host (e.g. :5500). Embedded catalog shown; fix base or start Coffee Server.'
+                    );
+                }
+                applySurfMooEmbeddedCatalog('Live fetch failed — embedded catalog.');
+            }
+        }
+
+        function parseSurfMooParams() {
+            var ta = document.getElementById('surf-moo-params');
+            var raw = (ta && ta.value) ? ta.value.trim() : '{}';
+            try {
+                var o = JSON.parse(raw);
+                if (o !== null && typeof o === 'object' && !Array.isArray(o)) return o;
+                throw new Error('Params must be a JSON object');
+            } catch (err) {
+                throw new Error('Invalid params JSON: ' + (err.message || err));
+            }
+        }
+
+        async function runSurfMooLocal() {
+            var params;
+            try {
+                params = parseSurfMooParams();
+            } catch (e) {
+                surfMooLog('error', e.message || String(e));
+                return;
+            }
+            var codeEl = document.getElementById('surf-moo-code');
+            var code = (codeEl && codeEl.value) ? codeEl.value : '';
+            var ctx = {
+                params: params,
+                log: function (m) {
+                    var s = String(m);
+                    surfMooLog('info', s);
+                    try { console.log('[SURF Moo local]', s); } catch (_) {}
+                }
+            };
+            surfMooLog(
+                'warn',
+                '--- ' + (surfMooSelectedId || 'plugin') + ' · browser (AsyncFunction) — same preset as editor ---'
+            );
+            var body =
+                code +
+                '\n;if (typeof run !== "function") throw new Error("Define async function run(ctx)");' +
+                '\nreturn await run(ctx);';
+            var fn = new SurfMooAsyncFn('ctx', body);
+            var start = performance.now();
+            try {
+                var result = await fn(ctx);
+                surfMooLog('success', 'result: ' + JSON.stringify(result));
+                surfMooLog('success', 'local done (~' + Math.round(performance.now() - start) + 'ms)');
+            } catch (e) {
+                surfMooLog('error', 'local error: ' + (e && e.message ? e.message : String(e)));
+            }
+        }
+
+        async function runSurfMoo() {
+            var localCb = document.getElementById('surf-moo-local');
+            if (localCb && localCb.checked) {
+                await runSurfMooLocal();
+                return;
+            }
+            if (!surfMooSelectedId) {
+                surfMooLog('error', 'Select a plugin from the registry (refresh if empty).');
+                return;
+            }
+            var params;
+            try {
+                params = parseSurfMooParams();
+            } catch (e) {
+                surfMooLog('error', e.message || String(e));
+                return;
+            }
+            await ensureSurfMooRequestBase();
+            if (!(coffee.request && coffee.request.baseUrl)) {
+                surfMooLog('error', 'No API base — start Coffee Server or set Settings (Relay must find the server too).');
+                return;
+            }
+            surfMooLog('info', 'POST /api/moo/invoke ' + JSON.stringify({ plugin: surfMooSelectedId, params: params }));
+            var start = performance.now();
+            try {
+                var data = await coffee.moo.invoke(surfMooSelectedId, params, getSurfMooOpts());
+                var wall = Math.round(performance.now() - start);
+                (data.logs || []).forEach(function (line) {
+                    surfMooLog('info', String(line));
+                });
+                if (data.result !== undefined) {
+                    surfMooLog('success', 'result: ' + JSON.stringify(data.result));
+                }
+                var ex = data.executionUsed ? ' · executionUsed=' + data.executionUsed : '';
+                surfMooLog('success', 'ok (server ' + (data.durationMs != null ? data.durationMs : '?') + 'ms · round-trip ~' + wall + 'ms)' + ex);
+            } catch (e) {
+                var msg =
+                    e.body && typeof e.body === 'object' && e.body.error
+                        ? e.body.error
+                        : e.message || String(e);
+                surfMooLog('error', msg);
+            }
+        }
+
+        /* ——— Sidecar (coffee.ollama + sidecar-internal.json) ——— */
+        var SURF_SIDECAR_INTERNAL_JSON = '../../../../COFFEE-PRO/coffee-server/lib/sidecar/sidecar-internal.json';
+        var surfSidecarContainers = [];
+        var surfSidecarUsingEmbedded = false;
+        var surfSidecarChatMessages = [];
+        var surfSidecarSelectedIdx = -1;
+
+        async function loadSurfSidecarInternalDoc() {
+            try {
+                var res = await fetch(SURF_SIDECAR_INTERNAL_JSON, { cache: 'no-cache' });
+                if (!res.ok) throw new Error(String(res.status));
+                return await res.json();
+            } catch (e) {
+                return { containers: [] };
+            }
+        }
+
+        function surfSidecarLog(level, msg) {
+            var log = document.getElementById('surf-sidecar-chat-log');
+            if (!log) return;
+            var line = document.createElement('div');
+            line.className = 'surf-moo-terminal-line ' + (level || 'info');
+            line.textContent = msg;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function clearSurfSidecarChat() {
+            var log = document.getElementById('surf-sidecar-chat-log');
+            if (log) log.innerHTML = '';
+            surfSidecarChatMessages = [];
+        }
+
+        function renderSurfSidecarCards() {
+            var grid = document.getElementById('surf-sidecar-grid');
+            if (!grid) return;
+            grid.innerHTML = '';
+            surfSidecarContainers.forEach(function (pod, i) {
+                if (!pod) return;
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('role', 'listitem');
+                btn.className =
+                    'vault-bucket-panel surf-sidecar-pod-btn text-left' +
+                    (surfSidecarUsingEmbedded ? ' surf-sidecar-card-embedded' : '');
+                if (surfSidecarSelectedIdx === i) {
+                    btn.style.boxShadow = '0 0 0 2px rgba(56, 189, 248, 0.45)';
+                }
+                var icon = pod.kind === 'ollama' ? '🦙' : '📦';
+                var name = pod.name || pod.id || 'pod';
+                var img = pod.image || pod.kind || '';
+                btn.innerHTML =
+                    '<div class="vault-bucket-icon" aria-hidden="true">' +
+                    icon +
+                    '</div><div class="vault-bucket-label">' +
+                    name +
+                    '</div><div class="vault-bucket-path mono">' +
+                    (pod.kind || '') +
+                    '</div><div class="vault-bucket-hint">' +
+                    img +
+                    '</div>';
+                btn.onclick = function () {
+                    openSurfSidecarPod(i);
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function openSurfSidecarPod(idx) {
+            var pod = surfSidecarContainers[idx];
+            if (!pod) return;
+            surfSidecarSelectedIdx = idx;
+            renderSurfSidecarCards();
+            var detail = document.getElementById('surf-sidecar-detail');
+            var title = document.getElementById('surf-sidecar-detail-title');
+            var oll = document.getElementById('surf-sidecar-ollama-ui');
+            var mock = document.getElementById('surf-sidecar-mock-ui');
+            if (detail) detail.classList.remove('hidden');
+            if (title) title.textContent = pod.name || pod.id || 'Sidecar';
+            if (pod.kind === 'ollama') {
+                if (oll) oll.classList.remove('hidden');
+                if (mock) mock.classList.add('hidden');
+                var modelInp = document.getElementById('surf-sidecar-model');
+                if (modelInp) {
+                    modelInp.value = (pod.defaultModel || '').trim() || modelInp.placeholder || 'gemma3';
+                }
+                clearSurfSidecarChat();
+                surfSidecarLog('info', 'Ollama card — Ensure if needed, then send a message.');
+            } else {
+                if (oll) oll.classList.add('hidden');
+                if (mock) mock.classList.remove('hidden');
+            }
+        }
+
+        async function loadSurfSidecarContainers() {
+            var statusEl = document.getElementById('surf-sidecar-status');
+            if (statusEl) statusEl.textContent = 'Loading…';
+            var internalDoc = await loadSurfSidecarInternalDoc();
+            var fallback = Array.isArray(internalDoc.containers) ? internalDoc.containers : [];
+            surfSidecarUsingEmbedded = true;
+            surfSidecarContainers = fallback.map(function (c) {
+                return Object.assign({}, c);
+            });
+            surfSidecarSelectedIdx = -1;
+            var detail = document.getElementById('surf-sidecar-detail');
+            if (detail) detail.classList.add('hidden');
+            if (document.getElementById('surf-sidecar-ollama-ui')) {
+                document.getElementById('surf-sidecar-ollama-ui').classList.add('hidden');
+            }
+            if (document.getElementById('surf-sidecar-mock-ui')) {
+                document.getElementById('surf-sidecar-mock-ui').classList.add('hidden');
+            }
+
+            if (!window.coffee || !coffee.ollama || typeof coffee.ollama.pocContainers !== 'function') {
+                if (statusEl) {
+                    statusEl.textContent =
+                        (surfSidecarContainers.length ? surfSidecarContainers.length + ' · embedded' : '0') +
+                        ' — load sidecar-ollama-request.js';
+                }
+                renderSurfSidecarCards();
+                return;
+            }
+
+            await ensureSurfMooRequestBase();
+            var usedBase = coffee.request && coffee.request.baseUrl ? String(coffee.request.baseUrl).trim() : '';
+
+            if (!usedBase) {
+                if (statusEl) {
+                    statusEl.textContent =
+                        surfSidecarContainers.length +
+                        ' · embedded (sidecar-internal.json) — set API base for live list + chat';
+                }
+                renderSurfSidecarCards();
+                return;
+            }
+
+            try {
+                var r = await coffee.ollama.pocContainers(getSurfMooOpts());
+                if (r && Array.isArray(r.containers) && r.containers.length) {
+                    surfSidecarContainers = r.containers;
+                    surfSidecarUsingEmbedded = false;
+                    if (statusEl) {
+                        statusEl.textContent = surfSidecarContainers.length + ' container(s) · live registry';
+                    }
+                } else {
+                    if (statusEl) {
+                        statusEl.textContent =
+                            surfSidecarContainers.length +
+                            ' · embedded (live returned empty)';
+                    }
+                }
+            } catch (e) {
+                if (statusEl) {
+                    statusEl.textContent =
+                        surfSidecarContainers.length +
+                        ' · embedded (live failed: ' +
+                        (e.message || String(e)) +
+                        ')';
+                }
+            }
+            renderSurfSidecarCards();
+        }
+
+        async function runSurfSidecarEnsure() {
+            if (!window.coffee || !coffee.ollama || typeof coffee.ollama.ensure !== 'function') {
+                surfSidecarLog('error', 'coffee.ollama.ensure missing');
+                return;
+            }
+            await ensureSurfMooRequestBase();
+            if (!(coffee.request && coffee.request.baseUrl)) {
+                surfSidecarLog('error', 'Set Server / API base in Settings');
+                return;
+            }
+            surfSidecarLog('info', 'POST /api/sidecar/ollama/ensure …');
+            try {
+                var data = await coffee.ollama.ensure(getSurfMooOpts());
+                surfSidecarLog('success', JSON.stringify(data));
+            } catch (e) {
+                var msg =
+                    e.body && typeof e.body === 'object' && e.body.error
+                        ? e.body.error
+                        : e.message || String(e);
+                surfSidecarLog('error', msg);
+            }
+        }
+
+        async function sendSurfSidecarChat() {
+            var inp = document.getElementById('surf-sidecar-chat-input');
+            var text = (inp && inp.value.trim()) || '';
+            if (!text) return;
+            var pod = surfSidecarContainers[surfSidecarSelectedIdx];
+            if (!pod || pod.kind !== 'ollama') return;
+            if (!window.coffee || !coffee.ollama || typeof coffee.ollama.chat !== 'function') {
+                surfSidecarLog('error', 'coffee.ollama.chat missing');
+                return;
+            }
+            await ensureSurfMooRequestBase();
+            if (!(coffee.request && coffee.request.baseUrl)) {
+                surfSidecarLog('error', 'Set Server / API base in Settings');
+                return;
+            }
+            var model = (document.getElementById('surf-sidecar-model') && document.getElementById('surf-sidecar-model').value.trim()) || pod.defaultModel || 'gemma3';
+            surfSidecarChatMessages.push({ role: 'user', content: text });
+            if (inp) inp.value = '';
+            surfSidecarLog('info', 'you: ' + text);
+            try {
+                var out = await coffee.ollama.chat(model, surfSidecarChatMessages, Object.assign({ timeout: 0 }, getSurfMooOpts()));
+                var reply = out && out.content != null ? String(out.content) : JSON.stringify(out);
+                surfSidecarChatMessages.push({ role: 'assistant', content: reply });
+                surfSidecarLog('success', 'assistant: ' + reply);
+            } catch (e) {
+                var msg =
+                    e.body && typeof e.body === 'object' && e.body.error
+                        ? e.body.error
+                        : e.message || String(e);
+                surfSidecarLog('error', msg);
+                surfSidecarChatMessages.pop();
+            }
+        }
+
+        function switchView(viewId, el) {
+            // Update nav UI
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            el.classList.add('active');
+
+            // Keep selected tab visible in the horizontal nav (SURF2)
+            el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+
+            // Update Views
+            document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+            document.getElementById(`view-${viewId}`).classList.add('active');
+            
+            // Scroll to top
+            document.getElementById('main-scroll').scrollTop = 0;
+
+            if (viewId === 'surf-ai' && window.coffee && coffee.surfAi && coffee.surfAi.ready()) {
+                var list = document.getElementById('chat-list');
+                if (list) coffee.surfAi.refreshChatElement(list).catch(function () {});
+            }
+            if (viewId === 'settings') mountSurfAiKeysIfNeeded();
+            if (viewId === 'moo') loadSurfMooRegistry();
+            if (viewId === 'sidecar') loadSurfSidecarContainers();
+        }
+
+        /** Vault bucket tap — stub until surf-api + /api/file/list */
+        function vaultPanelTap(bucketId) {
+            void bucketId;
+        }
+
+        async function sendToSurfAi() {
+            var input = document.getElementById('chat-input');
+            var chatList = document.getElementById('chat-list');
+            var query = (input && input.value.trim()) || '';
+            if (!query) return;
+
+            if (!window.coffee || !coffee.surfAi || !coffee.surfAi.ready()) {
+                if (chatList) {
+                    var miss = document.createElement('div');
+                    miss.className = 'chat-bubble bubble-surf';
+                    miss.textContent = 'SURF AI stack not loaded (coffee.request → … → surf-ai.js).';
+                    chatList.appendChild(miss);
+                    chatList.scrollTop = chatList.scrollHeight;
+                }
+                return;
+            }
+
+            var prov = (window.coffee && coffee.aiConfig) ? coffee.aiConfig.getProvider() : 'gemini';
+            var apiKey = (window.coffee && coffee.aiConfig) ? coffee.aiConfig.get(prov) : getSurfConfig().geminiApiKey;
+            if (prov !== 'ollama' && !apiKey) {
+                var err = document.createElement('div');
+                err.className = 'chat-bubble bubble-surf';
+                err.textContent = 'Add an API key for “' + prov + '” under AI providers in Settings, save, then try again.';
+                chatList.appendChild(err);
+                chatList.scrollTop = chatList.scrollHeight;
+                return;
+            }
+
+            var userBubble = document.createElement('div');
+            userBubble.className = 'chat-bubble bubble-user';
+            userBubble.textContent = query;
+            chatList.appendChild(userBubble);
+            input.value = '';
+
+            var loadBubble = document.createElement('div');
+            loadBubble.className = 'chat-bubble bubble-surf italic opacity-50';
+            loadBubble.textContent = 'Thinking…';
+            chatList.appendChild(loadBubble);
+            chatList.scrollTop = chatList.scrollHeight;
+
+            try {
+                var out = await coffee.surfAi.sendMessage(query);
+                var text =
+                    (out.response && out.response.choices && out.response.choices[0] && out.response.choices[0].message && out.response.choices[0].message.content) ||
+                    'No reply text.';
+                loadBubble.textContent = text;
+                loadBubble.classList.remove('italic', 'opacity-50');
+            } catch (e) {
+                var msg = (e && e.message) ? e.message : 'Request failed.';
+                loadBubble.textContent = msg;
+                loadBubble.classList.remove('italic', 'opacity-50');
+            }
+
+            chatList.scrollTop = chatList.scrollHeight;
+        }
+    </script>
+</body>
+</html>

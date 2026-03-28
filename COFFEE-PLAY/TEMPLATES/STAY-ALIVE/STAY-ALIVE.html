@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stay Alive // Survival template (coffee.play)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; overflow: hidden; background: #1a2e1a; color: #e2e8f0;
+      font-family: ui-monospace, 'Courier New', monospace; touch-action: none;
+    }
+    canvas { display: block; width: 100vw; height: 100vh; background: #2d4a2d; cursor: crosshair; }
+    .ui-panel { position: fixed; pointer-events: none; z-index: 10; }
+    .ui-panel.tl { top: 16px; left: 16px; }
+    .ui-panel.tr { top: 16px; right: 16px; max-width: min(240px, 42vw); }
+    .stat-label { font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .stat-label.hp { color: #f87171; }
+    .stat-label.hunger { color: #fb923c; }
+    .stat-label.thirst { color: #60a5fa; }
+    .bar-container {
+      width: 200px; max-width: 100%; height: 20px; background: rgba(0,0,0,0.5);
+      border: 2px solid #444; margin-bottom: 8px; border-radius: 4px; overflow: hidden;
+    }
+    .bar-fill { height: 100%; transition: width 0.25s ease; }
+    .bar-fill.hp { background: #dc2626; width: 100%; }
+    .bar-fill.hunger { background: #ea580c; width: 100%; }
+    .bar-fill.thirst { background: #2563eb; width: 100%; }
+    .inv-hint { font-size: 10px; text-transform: uppercase; color: #94a3b8; margin-bottom: 8px; text-align: right; }
+    #inventory-grid {
+      pointer-events: auto; display: grid; grid-template-columns: repeat(4, 50px); gap: 8px;
+      background: rgba(0,0,0,0.7); padding: 10px; border: 2px solid #555; border-radius: 8px;
+    }
+    .inv-slot {
+      width: 50px; height: 50px; background: rgba(255,255,255,0.1); border: 1px solid #666;
+      border-radius: 4px; display: flex; align-items: center; justify-content: center;
+      font-size: 20px; position: relative; cursor: pointer; padding: 0; color: inherit;
+      font-family: inherit;
+    }
+    .inv-slot:active { filter: brightness(1.15); }
+    .slot-count { position: absolute; bottom: 2px; right: 2px; font-size: 11px; font-weight: 800; }
+    .craft-btn {
+      margin-top: 12px; pointer-events: auto; width: 100%; padding: 8px; font-size: 11px;
+      background: #374151; color: #e5e7eb; border: 1px solid #6b7280; border-radius: 6px;
+      cursor: pointer; font-family: inherit; font-weight: 700;
+    }
+    .craft-btn:hover { background: #4b5563; }
+    #msg-log {
+      position: fixed; bottom: 16px; left: 16px; max-height: 100px; overflow: hidden;
+      pointer-events: none; font-size: 13px; text-shadow: 1px 1px 2px #000; z-index: 5;
+    }
+    #msg-log p { margin: 0 0 4px; }
+    #game-over {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none;
+      flex-direction: column; align-items: center; justify-content: center; z-index: 100;
+      pointer-events: auto;
+    }
+    #game-over h1 { margin: 0 0 12px; font-size: clamp(1.5rem, 5vw, 2.5rem); color: #dc2626; }
+    #game-over button {
+      margin-top: 16px; padding: 12px 28px; border: none; background: #fff; color: #000;
+      font-weight: 800; cursor: pointer; font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui-panel tl">
+  <div class="stat-label hp">Health</div>
+  <div class="bar-container"><div id="hp-bar" class="bar-fill hp"></div></div>
+  <div class="stat-label hunger">Hunger</div>
+  <div class="bar-container"><div id="hunger-bar" class="bar-fill hunger"></div></div>
+  <div class="stat-label thirst">Thirst</div>
+  <div class="bar-container"><div id="thirst-bar" class="bar-fill thirst"></div></div>
+</div>
+
+<div class="ui-panel tr">
+  <div class="inv-hint">Inventory (E = quick eat / drink)</div>
+  <div id="inventory-grid"></div>
+  <button type="button" class="craft-btn" id="craft-bandage">Craft Bandage (2 Fiber)</button>
+</div>
+
+<div id="msg-log"></div>
+
+<div id="game-over">
+  <h1>YOU PERISHED</h1>
+  <p id="cause-of-death"></p>
+  <button type="button" id="restart">RESTART</button>
+</div>
+
+<canvas id="stage"></canvas>
+
+<script src="../../../COFFEE-DOT/coffee-dot.js"></script>
+<script src="../../../COFFEE-CUP/coffee-cup.js"></script>
+<script src="../../shapes/coffee-play-shapes.js"></script>
+<script src="../../logic/coffee-play-survival-game.js"></script>
+<script src="../../coffee-play.js"></script>
+<script>
+(function () {
+  var hpBar = document.getElementById('hp-bar');
+  var hungerBar = document.getElementById('hunger-bar');
+  var thirstBar = document.getElementById('thirst-bar');
+  var msgLog = document.getElementById('msg-log');
+  var gameOverEl = document.getElementById('game-over');
+  var causeEl = document.getElementById('cause-of-death');
+  var restartBtn = document.getElementById('restart');
+  var invGrid = document.getElementById('inventory-grid');
+  var craftBtn = document.getElementById('craft-bandage');
+
+  var INV_ORDER = ['Berry', 'Water', 'Fiber', 'Bandage'];
+
+  var sg;
+
+  function setBars(stats) {
+    hpBar.style.width = Math.max(0, Math.min(100, stats.hp)) + '%';
+    hungerBar.style.width = Math.max(0, Math.min(100, stats.hunger)) + '%';
+    thirstBar.style.width = Math.max(0, Math.min(100, stats.thirst)) + '%';
+  }
+
+  function logLine(text) {
+    var p = document.createElement('p');
+    p.textContent = text;
+    msgLog.prepend(p);
+    while (msgLog.children.length > 5) {
+      msgLog.removeChild(msgLog.lastChild);
+    }
+  }
+
+  function rebuildInv() {
+    if (!sg) return;
+    invGrid.innerHTML = '';
+    var st = sg.getState();
+    var items = sg.items;
+    INV_ORDER.forEach(function (key) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'inv-slot';
+      b.setAttribute('aria-label', key);
+      b.innerHTML = '<span>' + items[key].icon + '</span><span class="slot-count">' + st.inventory[key] + '</span>';
+      b.addEventListener('click', function () {
+        sg.useItem(key);
+      });
+      invGrid.appendChild(b);
+    });
+  }
+
+  sg = coffee.playSurvivalGame.create({
+    callbacks: {
+      onLog: logLine,
+      onStats: setBars,
+      onInventory: rebuildInv,
+      onGameOver: function (cause) {
+        causeEl.textContent = cause;
+        gameOverEl.style.display = 'flex';
+      }
+    }
+  });
+
+  rebuildInv();
+
+  craftBtn.addEventListener('click', function () {
+    sg.tryCraftBandage();
+  });
+
+  restartBtn.addEventListener('click', function () {
+    msgLog.innerHTML = '';
+    gameOverEl.style.display = 'none';
+    sg.reset();
+  });
+
+  var lastT = 0;
+  var prevE = false;
+
+  coffee.play('#stage', {
+    onUpdate: function (game) {
+      var t = performance.now();
+      var dt = lastT ? Math.min(t - lastT, 100) : 16;
+      lastT = t;
+
+      var k = game.keys;
+      var useE = !!k['e'] && !prevE;
+      prevE = !!k['e'];
+
+      if (useE) sg.useHotkeyConsumable();
+
+      sg.step(dt, {
+        keys: k,
+        viewW: game.canvas.width,
+        viewH: game.canvas.height,
+        now: t
+      });
+    },
+    onDraw: function (ctx, game) {
+      var st = sg.getState();
+      var S = coffee.playShapes;
+      var cam = st.camera;
+
+      ctx.fillStyle = '#2d4a2d';
+      ctx.fillRect(0, 0, game.canvas.width, game.canvas.height);
+
+      S.drawSurvivalGrid(ctx, {
+        viewW: game.canvas.width,
+        viewH: game.canvas.height,
+        camX: cam.x,
+        camY: cam.y
+      });
+
+      var items = st.items;
+      st.worldItems.forEach(function (item) {
+        var sx = item.x - cam.x;
+        var sy = item.y - cam.y;
+        if (sx > -30 && sx < game.canvas.width + 30 && sy > -30 && sy < game.canvas.height + 30) {
+          S.drawSurvivalLootIcon(ctx, {
+            cx: sx,
+            cy: sy,
+            icon: items[item.type].icon
+          });
+        }
+      });
+
+      var p = st.player;
+      S.drawSurvivalPlayer(ctx, {
+        cx: p.x - cam.x,
+        cy: p.y - cam.y,
+        r: p.size
+      });
+    }
+  });
+})();
+  </script>
+</body>
+</html>

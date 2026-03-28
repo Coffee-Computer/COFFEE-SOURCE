@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>coffee.play — Game API Demo</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&family=Inter:wght@400;700;900&display=swap');
+    :root { --accent: #00ff88; --danger: #ff3366; }
+    body { margin: 0; background: #050505; color: white; font-family: 'Inter', sans-serif; overflow: hidden; user-select: none; cursor: crosshair; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+    .terminal { font-family: 'Fira Code', monospace; }
+  </style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+  <div id="hud-root"></div>
+
+  <script src="../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../COFFEE-DOT/coffee-dot.js"></script>
+  <script src="../COFFEE-CUP/coffee-cup.js"></script>
+  <script src="./coffee-play.js"></script>
+  <script>
+    coffee.injectTheme('dark');
+
+    // Build HUD with coffee-ui
+    const hpBar = coffee.progressBar(100, 100, { label: 'HP', lowThreshold: 0.3 });
+    const announcer = coffee.announce({ duration: 2000 });
+    const leaderboardEl = coffee.glass([], { style: { padding: '1rem 1.25rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', minWidth: '180px' } });
+
+    const brand = coffee.row([
+      (() => { const d = document.createElement('div'); d.style.cssText = 'width:40px;height:40px;background:#fff;color:#000;display:flex;align-items:center;justify-content:center;font-weight:900;border-radius:12px;font-style:italic;font-size:1.25rem'; d.textContent = 'C'; return d; })(),
+      coffee.col([
+        coffee.heading('Coffee.Play()', 1, { style: { fontSize: '0.875rem', color: '#34d399', margin: 0 } }),
+        coffee.para('Built on CUP + DOT', { style: { fontSize: '10px', color: 'rgba(255,255,255,0.4)', margin: '4px 0 0 0', textTransform: 'uppercase', letterSpacing: '0.1em' } })
+      ])
+    ], { style: { gap: '1rem' } });
+
+    const controls = coffee.para('WASD MOVE · CLICK SHOOT', { style: { fontSize: '10px', opacity: 0.4, fontFamily: 'Fira Code, monospace', margin: 0 } });
+
+    const hud = coffee.hud({
+      top: [brand, leaderboardEl],
+      center: [announcer.el],
+      bottom: [hpBar.el, controls]
+    });
+    document.getElementById('hud-root').appendChild(hud.el);
+
+    coffee.play('#stage', {
+      onUpdate: (game) => {
+        // Setup player + enemies (once)
+        if (!game.player) {
+          game.player = game.spawn({ name: 'Pilot', color: '#00ff88', speed: 1.2, maxSpeed: 10 });
+          for (let i = 0; i < 6; i++) {
+            game.spawn({
+              name: 'Drone ' + (i + 1),
+              color: '#ff3366',
+              x: Math.random() * game.canvas.width,
+              y: Math.random() * game.canvas.height,
+              tags: ['enemy'],
+              radius: 14
+            });
+          }
+        }
+
+        const p = game.player;
+        const { keys, mouse } = game;
+
+        // Input
+        if (keys['w'] || keys['arrowup']) p.vy -= p.speed;
+        if (keys['s'] || keys['arrowdown']) p.vy += p.speed;
+        if (keys['a'] || keys['arrowleft']) p.vx -= p.speed;
+        if (keys['d'] || keys['arrowright']) p.vx += p.speed;
+
+        const speed = Math.sqrt(p.vx ** 2 + p.vy ** 2);
+        if (speed > p.maxSpeed) {
+          const r = p.maxSpeed / speed;
+          p.vx *= r;
+          p.vy *= r;
+        }
+
+        // Shoot
+        if (mouse.down && Date.now() - p.lastShot > 150) {
+          game.shoot(p, mouse.x, mouse.y);
+          p.lastShot = Date.now();
+        }
+
+        // AI: chase player
+        game.entities.forEach(ent => {
+          if (ent.tags?.includes('enemy')) {
+            const dx = p.x - ent.x;
+            const dy = p.y - ent.y;
+            const dist = game.getDistance(p, ent);
+            if (dist > 0) {
+              ent.vx += (dx / dist) * 0.2;
+              ent.vy += (dy / dist) * 0.2;
+            }
+            if (game.checkCollision(p, ent)) {
+              p.health -= 0.4;
+              ent.vx *= -2;
+              ent.vy *= -2;
+            }
+          }
+        });
+
+        // Projectile hits
+        game.projectiles.forEach(proj => {
+          game.entities.forEach(ent => {
+            if (ent.id !== proj.owner && game.checkCollision(proj, ent)) {
+              ent.health -= 25;
+              proj.life = 0;
+              if (ent.health <= 0 && proj.owner === p.id) p.score += 100;
+            }
+          });
+        });
+
+        // Death / respawn
+        game.entities.forEach(ent => {
+          if (ent.health <= 0) {
+            if (ent === p) {
+              game.announce('RE-SYNCING...');
+              p.health = 100;
+              p.x = game.canvas.width / 2;
+              p.y = game.canvas.height / 2;
+            } else {
+              game.cup.removeEntity(ent);
+              setTimeout(() => {
+                game.spawn({
+                  name: 'Drone ' + Math.floor(Math.random() * 99),
+                  color: '#ff3366',
+                  x: Math.random() * game.canvas.width,
+                  y: Math.random() * game.canvas.height,
+                  tags: ['enemy'],
+                  radius: 14
+                });
+              }, 2000);
+            }
+          }
+        });
+
+        // UI (coffee-ui components)
+        hpBar.update(p.health, 100);
+        const sorted = [...game.entities].sort((a, b) => (b.score || 0) - (a.score || 0));
+        leaderboardEl.replaceChildren(...sorted.slice(0, 6).map(e => coffee.scoreRow({ color: e.color, label: e.name, value: e.score || 0 }).el));
+      },
+
+      onDraw: (ctx, game) => {
+        // Custom: aim line for player
+        const p = game.player;
+        if (p && game.mouse) {
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+          ctx.setLineDash([5, 5]);
+          ctx.moveTo(p.x, p.y);
+          ctx.lineTo(game.mouse.x, game.mouse.y);
+          ctx.stroke();
+        }
+      },
+
+      onAnnounce: (msg) => announcer.show(msg)
+    });
+  </script>
+</body>
+</html>

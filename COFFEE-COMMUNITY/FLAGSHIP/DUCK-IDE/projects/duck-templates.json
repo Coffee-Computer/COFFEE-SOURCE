@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "description": "coffee.play game templates (HTML shells, not *POC). Paths are relative to COFFEE-SOURCE (resolved via duck-ide-shell.js).",
+  "templates": [
+    {
+      "id": "circle-dude",
+      "title": "Circle-Dude",
+      "subtitle": "Pac maze · playMazeGame",
+      "file": "COFFEE-PLAY/TEMPLATES/CIRCLE-DUDE/CIRCLE-DUDE.html"
+    },
+    {
+      "id": "shipz",
+      "title": "Shipz",
+      "subtitle": "Asteroids · playAsteroidsGame",
+      "file": "COFFEE-PLAY/TEMPLATES/SHIPZ/SHIPZ.html"
+    },
+    {
+      "id": "manny",
+      "title": "Manny",
+      "subtitle": "Platformer · playPlatformerGame",
+      "file": "COFFEE-PLAY/TEMPLATES/MANNY/MANNY.html"
+    },
+    {
+      "id": "super-shapes",
+      "title": "Super Shapes",
+      "subtitle": "Tetromino · playTetrominoGame",
+      "file": "COFFEE-PLAY/TEMPLATES/SUPER-SHAPES/SUPER-SHAPES.html"
+    },
+    {
+      "id": "stay-alive",
+      "title": "Stay Alive",
+      "subtitle": "Survival · playSurvivalGame",
+      "file": "COFFEE-PLAY/TEMPLATES/STAY-ALIVE/STAY-ALIVE.html"
+    },
+    {
+      "id": "zomboni",
+      "title": "Zomboni",
+      "subtitle": "Waves · playZomboniGame",
+      "file": "COFFEE-PLAY/TEMPLATES/ZOMBONI/ZOMBONI.html"
+    },
+    {
+      "id": "my-farm",
+      "title": "myFARM",
+      "subtitle": "Farm sim · playFarmGame",
+      "file": "COFFEE-PLAY/TEMPLATES/MY-FARM/MY-FARM.html"
+    },
+    {
+      "id": "sweet-tooth",
+      "title": "Sweet Tooth",
+      "subtitle": "Match grid · playSweetToothGame",
+      "file": "COFFEE-PLAY/TEMPLATES/SWEET-TOOTH/SWEET-TOOTH.html"
+    },
+    {
+      "id": "territory",
+      "title": "Territory",
+      "subtitle": "Tile sandbox · playTerritoryGame",
+      "file": "COFFEE-PLAY/TEMPLATES/TERRITORY/TERRITORY.html"
+    },
+    {
+      "id": "lyfe",
+      "title": "LYFE",
+      "subtitle": "Life sim · playLyfeGame",
+      "file": "COFFEE-PLAY/TEMPLATES/LYFE/LYFE.html"
+    },
+    {
+      "id": "bouncy",
+      "title": "BOUNCY",
+      "subtitle": "Stacker physics · playBouncyGame",
+      "file": "COFFEE-PLAY/TEMPLATES/BOUNCY/BOUNCY.html"
+    }
+  ]
+}

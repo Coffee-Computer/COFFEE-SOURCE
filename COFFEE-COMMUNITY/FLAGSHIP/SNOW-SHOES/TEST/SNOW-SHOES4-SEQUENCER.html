@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snow Sequencer - MIDI & Piano</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: #1e293b;
+            --accent: #38bdf8;
+            --grid-line: #334155;
+            --note-color: #0ea5e9;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: #f1f5f9;
+            font-family: 'Inter', system-ui, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            user-select: none;
+        }
+
+        /* --- MIDI Roll Container --- */
+        .midi-container {
+            display: grid;
+            grid-template-columns: 60px 1fr;
+            grid-template-rows: 1fr;
+            height: 100%;
+            overflow: hidden;
+            border: 1px solid var(--grid-line);
+        }
+
+        .piano-keys {
+            background: #1e293b;
+            overflow-y: scroll;
+            scrollbar-width: none;
+            border-right: 2px solid #000;
+        }
+
+        .piano-keys::-webkit-scrollbar { display: none; }
+
+        .key-row {
+            height: 30px;
+            border-bottom: 1px solid #0f172a;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 5px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .key-white { background: #f8fafc; color: #64748b; }
+        .key-black { background: #020617; color: #94a3b8; }
+        .key-active { background: var(--accent) !important; color: white !important; }
+
+        .grid-viewport {
+            overflow: auto;
+            position: relative;
+            background: #0f172a;
+        }
+
+        #midi-canvas {
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 40px 30px; /* 40px width per beat/step, 30px height per note */
+            cursor: crosshair;
+        }
+
+        .playhead {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 2px;
+            height: 100%;
+            background: #ef4444;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* --- Controls --- */
+        .control-panel {
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--grid-line);
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        .btn-transport {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .sound-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            background: #334155;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+
+        .sound-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: #7dd3fc;
+        }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Header / Transport Controls -->
+    <div class="control-panel">
+        <div class="flex items-center gap-2">
+            <h1 class="text-xl font-black italic tracking-tighter text-sky-400 mr-4">SNOW SEQUENCER</h1>
+            <button id="play-btn" class="btn-transport bg-sky-500 hover:bg-sky-400 text-white">
+                <svg id="play-icon" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <svg id="pause-icon" class="hidden" viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            </button>
+            <button id="stop-btn" class="btn-transport bg-slate-700 hover:bg-slate-600 text-white">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+            </button>
+        </div>
+
+        <div class="h-8 w-px bg-slate-700"></div>
+
+        <div class="flex flex-col">
+            <label class="text-[10px] text-slate-500 font-bold uppercase">Sound Engine</label>
+            <div class="flex gap-2 mt-1">
+                <button onclick="setSound('synth')" class="sound-btn active" id="btn-synth">Poly Lead</button>
+                <button onclick="setSound('bass')" class="sound-btn" id="btn-bass">Sub Thump</button>
+                <button onclick="setSound('bell')" class="sound-btn" id="btn-bell">Crystal Bell</button>
+            </div>
+        </div>
+
+        <div class="flex flex-col">
+            <label class="text-[10px] text-slate-500 font-bold uppercase">Tempo</label>
+            <div class="flex items-center gap-2 mt-1">
+                <input type="range" id="tempo-slider" min="60" max="180" value="120" class="w-32 accent-sky-500">
+                <span id="tempo-val" class="text-sm font-mono font-bold w-8">120</span>
+            </div>
+        </div>
+
+        <div class="ml-auto text-xs text-slate-500 italic">
+            Double click to add/remove notes • Drag to move
+        </div>
+    </div>
+
+    <!-- MIDI / Grid Interface -->
+    <div class="flex-grow overflow-hidden">
+        <div class="midi-container">
+            <div id="piano-keys" class="piano-keys">
+                <!-- Keys generated via JS -->
+            </div>
+            <div class="grid-viewport" id="grid-viewport">
+                <div id="playhead" class="playhead"></div>
+                <canvas id="midi-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const NOTES = ['B', 'A#', 'A', 'G#', 'G', 'F#', 'F', 'E', 'D#', 'D', 'C#', 'C'];
+        const OCTAVES = [5, 4, 3, 2];
+        const CELL_W = 40;
+        const CELL_H = 30;
+        const GRID_STEPS = 32;
+        const NOTE_LIST = [];
+        OCTAVES.forEach(o => NOTES.forEach(n => NOTE_LIST.push(`${n}${o}`)));
+
+        // --- Audio Engine ---
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        let currentSound = 'synth';
+        let isPlaying = false;
+        let tempo = 120;
+        let currentStep = 0;
+        let nextTickTime = 0;
+
+        const sounds = {
+            synth: (freq, time) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(freq, time);
+                gain.gain.setValueAtTime(0.2, time);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.5);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.5);
+            },
+            bass: (freq, time) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(freq / 2, time);
+                gain.gain.setValueAtTime(0.5, time);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.3);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.3);
+            },
+            bell: (freq, time) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(freq * 2, time);
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.0001, time + 1.2);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(time);
+                osc.stop(time + 1.2);
+            }
+        };
+
+        function getFreq(noteName) {
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const octave = parseInt(noteName.slice(-1));
+            const key = noteName.slice(0, -1);
+            const n = notes.indexOf(key);
+            return 440 * Math.pow(2, (n - 9 + (octave - 4) * 12) / 12);
+        }
+
+        function setSound(s) {
+            currentSound = s;
+            document.querySelectorAll('.sound-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${s}`).classList.add('active');
+        }
+
+        // --- MIDI Data & UI ---
+        let notesData = []; // { x, y } in grid units
+        const canvas = document.getElementById('midi-canvas');
+        const c = canvas.getContext('2d');
+        const piano = document.getElementById('piano-keys');
+        const playhead = document.getElementById('playhead');
+
+        function initGrid() {
+            canvas.width = GRID_STEPS * CELL_W;
+            canvas.height = NOTE_LIST.length * CELL_H;
+
+            NOTE_LIST.forEach((name, i) => {
+                const key = document.createElement('div');
+                key.className = `key-row ${name.includes('#') ? 'key-black' : 'key-white'}`;
+                key.innerHTML = `<span>${name}</span>`;
+                key.dataset.note = name;
+                key.onmousedown = () => {
+                    sounds[currentSound](getFreq(name), ctx.currentTime);
+                    key.classList.add('key-active');
+                };
+                key.onmouseup = () => key.classList.remove('key-active');
+                key.onmouseleave = () => key.classList.remove('key-active');
+                piano.appendChild(key);
+            });
+            draw();
+        }
+
+        function draw() {
+            c.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Highlight bar starts
+            for(let i=0; i<GRID_STEPS; i+=4) {
+                c.fillStyle = 'rgba(255,255,255,0.03)';
+                c.fillRect(i * CELL_W, 0, CELL_W, canvas.height);
+            }
+
+            // Draw notes
+            notesData.forEach(note => {
+                c.fillStyle = '#0ea5e9';
+                c.strokeStyle = '#7dd3fc';
+                c.lineWidth = 2;
+                c.roundRect(note.x * CELL_W + 2, note.y * CELL_H + 2, CELL_W - 4, CELL_H - 4, 4);
+                c.fill();
+                c.stroke();
+            });
+        }
+
+        // Interaction
+        canvas.ondblclick = (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((e.clientX - rect.left) / CELL_W);
+            const y = Math.floor((e.clientY - rect.top) / CELL_H);
+            
+            const existing = notesData.findIndex(n => n.x === x && n.y === y);
+            if (existing !== -1) {
+                notesData.splice(existing, 1);
+            } else {
+                notesData.push({ x, y });
+                sounds[currentSound](getFreq(NOTE_LIST[y]), ctx.currentTime);
+            }
+            draw();
+        };
+
+        // --- Sequencer Logic ---
+        function scheduler() {
+            while (nextTickTime < ctx.currentTime + 0.1) {
+                scheduleNote(currentStep, nextTickTime);
+                nextStep();
+            }
+        }
+
+        function nextStep() {
+            const secondsPerBeat = 60.0 / tempo / 4; // 16th notes
+            nextTickTime += secondsPerBeat;
+            currentStep = (currentStep + 1) % GRID_STEPS;
+        }
+
+        function scheduleNote(step, time) {
+            // Move playhead
+            setTimeout(() => {
+                playhead.style.transform = `translateX(${step * CELL_W}px)`;
+            }, (time - ctx.currentTime) * 1000);
+
+            // Play notes at this step
+            notesData.filter(n => n.x === step).forEach(n => {
+                sounds[currentSound](getFreq(NOTE_LIST[n.y]), time);
+            });
+        }
+
+        let timerID;
+        function togglePlay() {
+            if (ctx.state === 'suspended') ctx.resume();
+            isPlaying = !isPlaying;
+            document.getElementById('play-icon').classList.toggle('hidden', isPlaying);
+            document.getElementById('pause-icon').classList.toggle('hidden', !isPlaying);
+
+            if (isPlaying) {
+                nextTickTime = ctx.currentTime;
+                timerID = setInterval(scheduler, 25);
+            } else {
+                clearInterval(timerID);
+            }
+        }
+
+        document.getElementById('play-btn').onclick = togglePlay;
+        document.getElementById('stop-btn').onclick = () => {
+            if (isPlaying) togglePlay();
+            currentStep = 0;
+            playhead.style.transform = `translateX(0px)`;
+        };
+
+        document.getElementById('tempo-slider').oninput = (e) => {
+            tempo = e.target.value;
+            document.getElementById('tempo-val').innerText = tempo;
+        };
+
+        // Initialize
+        initGrid();
+
+        // Sync scrolling
+        const viewport = document.getElementById('grid-viewport');
+        viewport.onscroll = () => {
+            piano.scrollTop = viewport.scrollTop;
+        };
+    </script>
+    <!-- Snow Shoes host bridge: sync BPM from parent DAW when opened as iframe plugin -->
+    <script src="../snow-shoes-embed.js"></script>
+    <script>
+        (function () {
+            if (!window.SnowShoesEmbed) return;
+            SnowShoesEmbed.init({ debug: false });
+            SnowShoesEmbed.onTransport(function (s) {
+                if (s.bpm == null) return;
+                var sl = document.getElementById('tempo-slider');
+                var tv = document.getElementById('tempo-val');
+                if (sl && String(sl.value) !== String(s.bpm)) {
+                    sl.value = String(s.bpm);
+                    sl.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+                if (tv) tv.textContent = String(s.bpm);
+            });
+        })();
+    </script>
+</body>
+</html>

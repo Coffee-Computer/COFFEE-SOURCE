@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Kite">
+  <meta name="cce:id" content="kite">
+  <meta name="cce:icon" content="🪁">
+  <meta name="cce:color" content="#00aaff">
+  <meta name="cce:description" content="Paint — coffee.draw + coffee.plex + save strokes">
+  <title>Kite α — Coffee paint</title>
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-SCENE2D/coffee-scene2d.js"></script>
+  <script src="../../../COFFEE-PLEX/coffee-plex.js"></script>
+  <script src="../../../COFFEE-DRAW/coffee-draw.js"></script>
+  <link rel="stylesheet" href="./kite.css">
+</head>
+<body class="kite-root">
+  <div class="kite-main" id="kite-main">
+    <div class="kite-stage-wrap" id="kite-stage"></div>
+  </div>
+  <div id="kite-dock-anchor"></div>
+  <p class="kite-hint">coffee-ui floatStack · toolDock · pillStrip · plex</p>
+
+  <script>
+(function () {
+  var STORAGE_KEY = 'kite-alpha-doc';
+  var dark = true;
+
+  var BRUSH_ICONS = {
+    pen: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg>',
+    brush: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="8" opacity="0.4"/></svg>',
+    sketch: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L15.5 3.5z"/></svg>',
+    marker: '<svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="4" width="12" height="16" rx="2"/></svg>',
+    eraser: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 11l-8-8-9 9 8 8 9-9z"/><path d="M5 19l14-14"/></svg>'
+  };
+
+  function applyTheme() {
+    coffee.injectTheme(dark ? 'dark' : 'light');
+    document.documentElement.style.setProperty('--coffee-accent', '#00aaff');
+  }
+  applyTheme();
+
+  var modes = (coffee.plex && coffee.plex.modes) ? coffee.plex.modes() : [
+    { id: 'pen', label: 'Pen' },
+    { id: 'brush', label: 'Soft' },
+    { id: 'sketch', label: 'Sketch' },
+    { id: 'marker', label: 'Marker' },
+    { id: 'eraser', label: 'Eraser' }
+  ];
+
+  var drawRoot = coffee.draw({
+    brush: { size: 10, color: '#000000', opacity: 1, mode: 'pen' },
+    background: '#ffffff',
+    width: 920,
+    height: 560
+  });
+
+  document.getElementById('kite-stage').appendChild(drawRoot);
+  var api = drawRoot.draw;
+
+  var mainEl = document.getElementById('kite-main');
+
+  var sizeInput;
+  var opacityInput;
+  var sizeInputMobile;
+  var colorInput;
+  var pillStripRef;
+
+  function syncUiFromBrush() {
+    var b = api.getBrush();
+    var sz = String(Math.round(b.size));
+    var op = String(Math.round(b.opacity * 100));
+    if (sizeInput) sizeInput.value = sz;
+    if (opacityInput) opacityInput.value = op;
+    if (sizeInputMobile) sizeInputMobile.value = sz;
+    if (colorInput) colorInput.value = b.color;
+    if (pillStripRef) pillStripRef.setValue(b.mode);
+  }
+
+  function persistDoc() {
+    try {
+      coffee.save(STORAGE_KEY, {
+        v: 1,
+        strokes: api.exportStrokes(),
+        brush: api.getBrush()
+      });
+      coffee.toast('Saved', 'success', 1400);
+    } catch (e) {
+      console.warn(e);
+      document.body.appendChild(coffee.msg('Could not save (storage full).', 'warning'));
+    }
+  }
+
+  function loadDoc() {
+    var d = coffee.load(STORAGE_KEY);
+    if (!d || !d.strokes) {
+      coffee.toast('Nothing saved yet', 'info', 1600);
+      return;
+    }
+    api.loadStrokes(d.strokes);
+    if (d.brush && typeof d.brush === 'object') {
+      api.setBrush(d.brush);
+    }
+    syncUiFromBrush();
+    coffee.toast('Loaded', 'info', 1400);
+  }
+
+  function exportPng() {
+    var canvas = drawRoot.scene2d && drawRoot.scene2d.canvas;
+    if (!canvas) return;
+    var link = document.createElement('a');
+    link.download = 'kite-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }
+
+  /* —— Floating stack (coffee.floatStack + floatGroup) —— */
+  var floatStack = coffee.floatStack({ anchor: 'top-end' });
+  floatStack.setAttribute('aria-label', 'Tools');
+
+  var brand = document.createElement('span');
+  brand.className = 'kite-float-brand';
+  brand.textContent = '🪁 KITE';
+
+  colorInput = document.createElement('input');
+  colorInput.type = 'color';
+  colorInput.title = 'Color';
+  colorInput.value = api.getBrush().color;
+  colorInput.addEventListener('input', function () {
+    api.setBrush({ color: colorInput.value });
+  });
+
+  var gQuick = coffee.floatGroup([
+    brand,
+    colorInput,
+    coffee.iconButton({
+      html: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>',
+      title: 'Undo',
+      onClick: function () { api.undo(); }
+    }),
+    coffee.iconButton({
+      html: '<svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>',
+      title: 'Clear canvas',
+      variant: 'danger',
+      onClick: function () {
+        if (confirm('Clear canvas?')) api.clear();
+      }
+    })
+  ]);
+
+  var sr1 = document.createElement('div');
+  sr1.className = 'kite-slider-row';
+  var l1 = document.createElement('span');
+  l1.className = 'kite-lab';
+  l1.textContent = 'Size';
+  sr1.appendChild(l1);
+  sizeInput = coffee.slider({
+    min: 1,
+    max: 100,
+    step: 1,
+    value: api.getBrush().size,
+    onInput: function (v) {
+      api.setBrush({ size: v });
+      if (sizeInputMobile) sizeInputMobile.value = String(Math.round(v));
+    },
+    style: { width: '100%' }
+  });
+  sr1.appendChild(sizeInput);
+
+  var sr2 = document.createElement('div');
+  sr2.className = 'kite-slider-row';
+  var l2 = document.createElement('span');
+  l2.className = 'kite-lab';
+  l2.textContent = 'Opacity';
+  sr2.appendChild(l2);
+  opacityInput = coffee.slider({
+    min: 1,
+    max: 100,
+    step: 1,
+    value: 100,
+    onInput: function (v) {
+      api.setBrush({ opacity: v / 100 });
+    },
+    style: { width: '100%' }
+  });
+  sr2.appendChild(opacityInput);
+
+  var gSliders = coffee.floatGroup([sr1, sr2], {
+    style: {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: '14px',
+      minWidth: '168px'
+    }
+  });
+  gSliders.classList.add('kite-sliders-desktop');
+
+  var saveBtn = coffee.button('Save', persistDoc, { style: { minHeight: '44px', fontSize: '13px' } });
+  saveBtn.classList.add('kite-save-accent');
+  var themeBtn = coffee.button(dark ? 'Light UI' : 'Dark UI', function () {
+    dark = !dark;
+    themeBtn.textContent = dark ? 'Light UI' : 'Dark UI';
+    applyTheme();
+  }, { style: { minHeight: '40px', fontSize: '12px' } });
+
+  var gSave = coffee.floatGroup([
+    saveBtn,
+    coffee.button('Load', loadDoc, { style: { minHeight: '40px', fontSize: '12px' } }),
+    coffee.button('Export PNG', exportPng, { style: { minHeight: '40px', fontSize: '12px' } }),
+    themeBtn
+  ], {
+    style: {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: '8px',
+      minWidth: '140px'
+    }
+  });
+
+  floatStack.appendChild(gQuick);
+  floatStack.appendChild(gSliders);
+  floatStack.appendChild(gSave);
+  mainEl.appendChild(floatStack);
+
+  /* —— Bottom dock (coffee.toolDock + pillStrip) —— */
+  var pillItems = modes.map(function (m) {
+    return {
+      id: m.id,
+      title: m.label,
+      content: BRUSH_ICONS[m.id] || BRUSH_ICONS.pen
+    };
+  });
+
+  pillStripRef = coffee.pillStrip({
+    items: pillItems,
+    value: api.getBrush().mode,
+    onSelect: function (id) {
+      api.setBrush({ mode: id });
+      syncUiFromBrush();
+    }
+  });
+
+  var mobileSizeEl = document.createElement('div');
+  mobileSizeEl.className = 'kite-mobile-size';
+  sizeInputMobile = document.createElement('input');
+  sizeInputMobile.type = 'range';
+  sizeInputMobile.min = '1';
+  sizeInputMobile.max = '100';
+  sizeInputMobile.step = '1';
+  sizeInputMobile.value = String(Math.round(api.getBrush().size));
+  sizeInputMobile.addEventListener('input', function () {
+    var v = parseFloat(sizeInputMobile.value);
+    api.setBrush({ size: v });
+    if (sizeInput) sizeInput.value = String(Math.round(v));
+  });
+  var sizeTag = document.createElement('span');
+  sizeTag.className = 'kite-mobile-size-tag';
+  sizeTag.textContent = 'SIZE';
+  mobileSizeEl.appendChild(sizeInputMobile);
+  mobileSizeEl.appendChild(sizeTag);
+
+  var dock = coffee.toolDock([pillStripRef.el, mobileSizeEl]);
+  document.getElementById('kite-dock-anchor').replaceWith(dock);
+
+  syncUiFromBrush();
+})();
+  </script>
+</body>
+</html>

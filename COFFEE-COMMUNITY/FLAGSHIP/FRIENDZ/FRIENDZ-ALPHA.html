@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="cce:name" content="Friendz">
+  <meta name="cce:id" content="friendz-alpha">
+  <meta name="cce:icon" content="🤝">
+  <meta name="cce:color" content="#d4a373">
+  <meta name="cce:description" content="CE worlds directory — profile.json + iframe viewer, coffee.drive roster">
+  <title>Friendz α — CE directory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="FRIENDZ-ALPHA.css">
+  <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
+  <script src="../../../COFFEE-UI/coffee-ui.js"></script>
+  <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
+  <script src="../../../COFFEE-DRIVE/coffee-drive.js"></script>
+</head>
+<body>
+  <div class="fz-app" id="fz-root">
+    <header class="fz-header">
+      <div class="fz-brand">
+        <div class="fz-logo" aria-hidden="true">🤝</div>
+        <div>
+          <h1 class="fz-title">Coffee.Friendz()</h1>
+          <p class="fz-sub">CE worlds · profile.json + viewer</p>
+        </div>
+      </div>
+      <div class="fz-header-mid">
+        <div class="fz-search-wrap">
+          <span aria-hidden="true">⌕</span>
+          <input type="search" id="fz-search" class="fz-search" placeholder="Filter by name, handle, bio, tags…" autocomplete="off" aria-label="Filter worlds" />
+        </div>
+      </div>
+      <div class="fz-header-actions">
+        <button type="button" class="fz-btn fz-btn-ghost" id="fz-btn-reset" title="Replace roster with demo entry">Demo roster</button>
+        <button type="button" class="fz-btn fz-btn-primary" id="fz-btn-add">+ Add world</button>
+      </div>
+    </header>
+
+    <main class="fz-main">
+      <div class="fz-lead">
+        <h2>The directory</h2>
+        <p>
+          Bookmark other builders’ <strong class="fz-mono">profile.json</strong> URLs and a <strong>viewer</strong> page (e.g. Community Profile).
+          Cards hydrate from JSON when same-origin or CORS allows. Roster persists in <span class="fz-mono">coffee.drive('friendz')</span>.
+        </p>
+      </div>
+      <div id="fz-grid" class="fz-grid" role="list"></div>
+    </main>
+
+    <p class="fz-footer-hint fz-mono">POC layout preserved in <code>TEST/FRIEDZ1-POC.html</code> · serve COFFEE-SOURCE over HTTP</p>
+  </div>
+
+  <div class="fz-drawer-backdrop" id="fz-drawer-backdrop" aria-hidden="true"></div>
+  <aside class="fz-drawer" id="fz-drawer" aria-hidden="true" aria-label="Add world">
+    <div class="fz-drawer-head">
+      <h3>Add world</h3>
+      <button type="button" class="fz-btn fz-btn-ghost" id="fz-drawer-close" aria-label="Close">✕</button>
+    </div>
+    <div class="fz-drawer-body">
+      <label class="fz-label" for="fz-in-profile">profile.json URL</label>
+      <input type="url" id="fz-in-profile" class="fz-input" placeholder="https://…/profile.json" />
+      <label class="fz-label" for="fz-in-viewer">Viewer URL (iframe)</label>
+      <input type="url" id="fz-in-viewer" class="fz-input" placeholder="https://…/COMMUNITY-PROFILE.html?profile=…" />
+      <p class="fz-hint">
+        Remote <span class="fz-mono">profile.json</span> must send <span class="fz-mono">Access-Control-Allow-Origin</span> (or use same host).
+        Viewer can be any page you trust to embed.
+      </p>
+      <div class="fz-drawer-actions">
+        <button type="button" class="fz-btn fz-btn-primary" id="fz-btn-save-world">Save to roster</button>
+        <button type="button" class="fz-btn fz-btn-ghost" id="fz-btn-cancel-world">Cancel</button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="fz-overlay" id="fz-overlay" role="dialog" aria-modal="true" aria-label="Profile viewer">
+    <div class="fz-viewer">
+      <div class="fz-viewer-bar">
+        <div class="fz-viewer-meta">
+          <div class="fz-viewer-avatar" id="fz-v-avatar"></div>
+          <div class="fz-viewer-titles">
+            <h3 id="fz-v-name">—</h3>
+            <p id="fz-v-handle" class="fz-mono">—</p>
+          </div>
+        </div>
+        <div class="fz-viewer-actions">
+          <a id="fz-v-external" href="#" target="_blank" rel="noopener noreferrer">Open in tab ↗</a>
+          <button type="button" class="fz-btn fz-btn-ghost" id="fz-v-close" aria-label="Close viewer">✕</button>
+        </div>
+      </div>
+      <div class="fz-viewer-frame-wrap">
+        <div class="fz-loader" id="fz-v-loader">
+          <div class="fz-spinner" aria-hidden="true"></div>
+          <span class="fz-mono" style="color:#71717a;text-transform:uppercase;letter-spacing:0.08em">Loading…</span>
+        </div>
+        <iframe id="fz-v-iframe" title="World viewer" src=""></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function () {
+  var DRIVE_ID = 'friendz';
+  var ROSTER_KEY = 'friendz-roster';
+
+  if (window.coffee && coffee.injectTheme) {
+    coffee.injectTheme('dark');
+    document.documentElement.style.setProperty('--coffee-accent', '#d4a373');
+  }
+
+  function newWorldId() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return 'world-' + crypto.randomUUID();
+    return 'world-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function getSeedWorlds() {
+    var base = new URL('../../COMMUNITY-PROFILE/', window.location.href);
+    var profileJsonUrl = new URL('profile.json', base).href;
+    var viewerUrl = new URL('COMMUNITY-PROFILE.html?profile=' + encodeURIComponent('profile.json'), base).href;
+    return [
+      {
+        id: newWorldId(),
+        profileJsonUrl: profileJsonUrl,
+        viewerUrl: viewerUrl
+      }
+    ];
+  }
+
+  function dicebearUrl(avatar, seed) {
+    var a = avatar || {};
+    if (a.imageUrl && String(a.imageUrl).trim()) return String(a.imageUrl).trim();
+    var style = a.style || 'adventurer';
+    var s = seed != null ? seed : (a.seed || 'Coffee');
+    var bg = a.backgroundColor || 'b6e3f4,c0aede,d1d4f9';
+    return 'https://api.dicebear.com/7.x/' + encodeURIComponent(style) + '/svg?seed=' + encodeURIComponent(s) + '&backgroundColor=' + encodeURIComponent(bg);
+  }
+
+  function metaToTags(meta) {
+    if (!Array.isArray(meta)) return [];
+    return meta.slice(0, 4).map(function (m) {
+      if (!m) return '';
+      if (m.label && m.value) return String(m.label) + ': ' + String(m.value);
+      if (m.label) return String(m.label);
+      return '';
+    }).filter(Boolean);
+  }
+
+  async function fetchProfileJson(url) {
+    try {
+      var res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function profileToCard(profile, world) {
+    if (!profile || typeof profile !== 'object') {
+      var seed = String(world.profileJsonUrl || world.id || 'x').slice(-24);
+      return {
+        name: 'Unknown world',
+        handle: world.profileJsonUrl ? '…' + world.profileJsonUrl.slice(-32) : '@?',
+        bio: 'Could not load profile.json (CORS, offline, or bad URL). Open viewer anyway.',
+        avatarUrl: dicebearUrl(null, seed),
+        tags: ['CE']
+      };
+    }
+    var name = profile.name || 'Unnamed';
+    var handle = profile.handle || '@?';
+    var bio = (profile.about && profile.about.body) ? String(profile.about.body) : '';
+    var tags = metaToTags(profile.meta);
+    if (tags.length === 0 && Array.isArray(profile.achievements)) {
+      tags = profile.achievements.slice(0, 3).map(function (x) { return x.title || ''; }).filter(Boolean);
+    }
+    if (tags.length === 0) tags = ['CE profile'];
+    return {
+      name: name,
+      handle: handle.indexOf('@') === 0 ? handle : '@' + handle.replace(/^@/, ''),
+      bio: bio,
+      avatarUrl: dicebearUrl(profile.avatar, profile.avatar && profile.avatar.seed),
+      tags: tags
+    };
+  }
+
+  async function loadRoster() {
+    var drive = coffee.drive(DRIVE_ID);
+    if (!drive) return null;
+    var doc = await drive.load(ROSTER_KEY);
+    if (doc && Array.isArray(doc.worlds)) return doc.worlds;
+    return null;
+  }
+
+  async function saveRoster(worlds) {
+    var drive = coffee.drive(DRIVE_ID);
+    if (!drive) throw new Error('No drive');
+    await drive.save({ id: ROSTER_KEY, worlds: worlds });
+  }
+
+  var state = {
+    worlds: [],
+    hydrateCache: {},
+    filter: ''
+  };
+
+  function matchesFilter(card, q) {
+    if (!q) return true;
+    var s = q.toLowerCase();
+    var blob = [card.name, card.handle, card.bio].concat(card.tags || []).join(' ').toLowerCase();
+    return blob.indexOf(s) !== -1;
+  }
+
+  async function ensureHydrated(world) {
+    if (state.hydrateCache[world.id]) return state.hydrateCache[world.id];
+    var p = world.profileJsonUrl ? await fetchProfileJson(world.profileJsonUrl) : null;
+    var card = profileToCard(p, world);
+    state.hydrateCache[world.id] = card;
+    return card;
+  }
+
+  function openDrawer() {
+    document.getElementById('fz-drawer-backdrop').classList.add('fz-open');
+    document.getElementById('fz-drawer').classList.add('fz-open');
+    document.getElementById('fz-drawer').setAttribute('aria-hidden', 'false');
+    document.getElementById('fz-drawer-backdrop').setAttribute('aria-hidden', 'false');
+    document.getElementById('fz-in-profile').value = '';
+    document.getElementById('fz-in-viewer').value = '';
+    document.getElementById('fz-in-profile').focus();
+  }
+
+  function closeDrawer() {
+    document.getElementById('fz-drawer-backdrop').classList.remove('fz-open');
+    document.getElementById('fz-drawer').classList.remove('fz-open');
+    document.getElementById('fz-drawer').setAttribute('aria-hidden', 'true');
+    document.getElementById('fz-drawer-backdrop').setAttribute('aria-hidden', 'true');
+  }
+
+  function showLoader() {
+    var el = document.getElementById('fz-v-loader');
+    if (el) el.style.display = 'flex';
+  }
+
+  function hideLoader() {
+    var el = document.getElementById('fz-v-loader');
+    if (el) el.style.display = 'none';
+  }
+
+  function closeOverlay() {
+    var o = document.getElementById('fz-overlay');
+    var iframe = document.getElementById('fz-v-iframe');
+    o.classList.remove('fz-active');
+    document.body.style.overflow = '';
+    setTimeout(function () { iframe.src = ''; }, 200);
+  }
+
+  async function openOverlay(world) {
+    var card = await ensureHydrated(world);
+    var overlay = document.getElementById('fz-overlay');
+    var iframe = document.getElementById('fz-v-iframe');
+    document.getElementById('fz-v-name').textContent = card.name;
+    document.getElementById('fz-v-handle').textContent = card.handle;
+    document.getElementById('fz-v-avatar').innerHTML = '<img src="' + card.avatarUrl.replace(/"/g, '&quot;') + '" alt="">';
+    var ext = document.getElementById('fz-v-external');
+    ext.href = world.viewerUrl || '#';
+    ext.style.pointerEvents = world.viewerUrl ? 'auto' : 'none';
+    ext.style.opacity = world.viewerUrl ? '1' : '0.4';
+    showLoader();
+    iframe.src = world.viewerUrl || 'about:blank';
+    overlay.classList.add('fz-active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  async function renderGrid() {
+    var grid = document.getElementById('fz-grid');
+    grid.innerHTML = '';
+    var q = state.filter.trim();
+    if (state.worlds.length === 0) {
+      var empty0 = document.createElement('div');
+      empty0.className = 'fz-empty fz-mono';
+      empty0.textContent = 'No worlds yet — Add world or load Demo roster.';
+      grid.appendChild(empty0);
+      return;
+    }
+    var pairs = await Promise.all(state.worlds.map(function (world) {
+      return ensureHydrated(world).then(function (card) {
+        return { world: world, card: card };
+      });
+    }));
+    var shown = 0;
+    pairs.forEach(function (_ref) {
+      var world = _ref.world;
+      var card = _ref.card;
+      if (!matchesFilter(card, q)) return;
+      shown++;
+      var article = document.createElement('article');
+      article.className = 'fz-card';
+      article.setAttribute('role', 'listitem');
+      article.innerHTML =
+        '<button type="button" class="fz-card-remove" aria-label="Remove from roster" title="Remove">×</button>' +
+        '<div class="fz-card-top">' +
+          '<div class="fz-card-avatar"><img src="' + card.avatarUrl.replace(/"/g, '&quot;') + '" alt=""></div>' +
+        '</div>' +
+        '<h3 class="fz-card-name"></h3>' +
+        '<p class="fz-card-handle fz-mono"></p>' +
+        '<p class="fz-card-bio"></p>' +
+        '<div class="fz-tags"></div>';
+      article.querySelector('.fz-card-name').textContent = card.name;
+      article.querySelector('.fz-card-handle').textContent = card.handle;
+      article.querySelector('.fz-card-bio').textContent = card.bio;
+      var tagsEl = article.querySelector('.fz-tags');
+      card.tags.forEach(function (t) {
+        var sp = document.createElement('span');
+        sp.className = 'fz-tag';
+        sp.textContent = t;
+        tagsEl.appendChild(sp);
+      });
+      article.querySelector('.fz-card-remove').addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!confirm('Remove this world from your roster?')) return;
+        state.worlds = state.worlds.filter(function (w) { return w.id !== world.id; });
+        delete state.hydrateCache[world.id];
+        saveRoster(state.worlds).then(function () {
+          if (coffee.toast) coffee.toast('Removed from roster', 'info');
+          renderGrid();
+        }).catch(function () {
+          if (coffee.toast) coffee.toast('Could not save roster', 'error');
+        });
+      });
+      article.addEventListener('click', function (e) {
+        if (e.target.closest('.fz-card-remove')) return;
+        openOverlay(world);
+      });
+      grid.appendChild(article);
+    });
+    if (shown === 0) {
+      var emptyF = document.createElement('div');
+      emptyF.className = 'fz-empty fz-mono';
+      emptyF.textContent = 'No matches — clear search or add worlds.';
+      grid.appendChild(emptyF);
+    }
+  }
+
+  async function init() {
+    var worlds = await loadRoster();
+    if (!worlds || worlds.length === 0) {
+      worlds = getSeedWorlds();
+      try {
+        await saveRoster(worlds);
+        if (coffee.toast) coffee.toast('Loaded starter CE profile (Community Profile)', 'info', 4000);
+      } catch (e) {
+        if (coffee.toast) coffee.toast('Drive unavailable — roster is session-only', 'warning', 5000);
+      }
+    }
+    state.worlds = worlds;
+    await renderGrid();
+
+    document.getElementById('fz-search').addEventListener('input', function () {
+      state.filter = this.value;
+      renderGrid();
+    });
+
+    document.getElementById('fz-btn-add').addEventListener('click', openDrawer);
+    document.getElementById('fz-drawer-close').addEventListener('click', closeDrawer);
+    document.getElementById('fz-btn-cancel-world').addEventListener('click', closeDrawer);
+    document.getElementById('fz-drawer-backdrop').addEventListener('click', closeDrawer);
+
+    document.getElementById('fz-btn-save-world').addEventListener('click', async function () {
+      var pu = document.getElementById('fz-in-profile').value.trim();
+      var vu = document.getElementById('fz-in-viewer').value.trim();
+      if (!pu || !vu) {
+        if (coffee.toast) coffee.toast('Enter both profile.json URL and viewer URL', 'warning');
+        return;
+      }
+      try {
+        new URL(pu);
+        new URL(vu);
+      } catch (e) {
+        if (coffee.toast) coffee.toast('Invalid URL', 'error');
+        return;
+      }
+      var w = { id: newWorldId(), profileJsonUrl: pu, viewerUrl: vu };
+      state.worlds.push(w);
+      delete state.hydrateCache[w.id];
+      try {
+        await saveRoster(state.worlds);
+        closeDrawer();
+        if (coffee.toast) coffee.toast('World saved', 'success');
+        renderGrid();
+      } catch (err) {
+        state.worlds.pop();
+        if (coffee.toast) coffee.toast('Could not save to drive', 'error');
+      }
+    });
+
+    document.getElementById('fz-btn-reset').addEventListener('click', function () {
+      if (!confirm('Replace entire roster with the demo Community Profile entry?')) return;
+      state.worlds = getSeedWorlds();
+      state.hydrateCache = {};
+      saveRoster(state.worlds).then(function () {
+        if (coffee.toast) coffee.toast('Roster reset to demo', 'info');
+        renderGrid();
+      });
+    });
+
+    document.getElementById('fz-v-close').addEventListener('click', closeOverlay);
+    document.getElementById('fz-overlay').addEventListener('click', function (e) {
+      if (e.target.id === 'fz-overlay') closeOverlay();
+    });
+    document.getElementById('fz-v-iframe').addEventListener('load', hideLoader);
+
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        closeOverlay();
+        closeDrawer();
+      }
+    });
+  }
+
+  init();
+})();
+  </script>
+</body>
+</html>

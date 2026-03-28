@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee.Friendz() // Creator Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+        :root {
+            --coffee-gold: #d4a373;
+            --coffee-dark: #09090b;
+            --coffee-card: #18181b;
+            --coffee-accent: #27272a;
+        }
+
+        body {
+            background-color: var(--coffee-dark);
+            color: #f4f4f5;
+            font-family: 'Space Grotesk', sans-serif;
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(212, 163, 115, 0.05) 1px, transparent 0);
+            background-size: 24px 24px;
+        }
+
+        .mono { font-family: 'Space Mono', monospace; }
+
+        .creator-card {
+            background: var(--coffee-card);
+            border: 1px solid var(--coffee-accent);
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .creator-card:hover {
+            border-color: var(--coffee-gold);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -10px rgba(212, 163, 115, 0.2);
+        }
+
+        .creator-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--coffee-gold);
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+            transform-origin: left;
+        }
+
+        .creator-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(9, 9, 11, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 100;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        .profile-container {
+            width: 95%;
+            max-width: 1100px;
+            height: 90vh;
+            background: #111;
+            border: 1px solid var(--coffee-accent);
+            border-radius: 24px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .overlay.active .profile-container {
+            transform: scale(1);
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            background: #000;
+        }
+
+        .search-bar {
+            background: rgba(39, 39, 42, 0.5);
+            border: 1px solid var(--coffee-accent);
+        }
+
+        .search-bar:focus-within {
+            border-color: var(--coffee-gold);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--coffee-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--coffee-accent); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--coffee-gold); }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- NAVIGATION -->
+    <nav class="border-b border-zinc-800 sticky top-0 bg-zinc-950/80 backdrop-blur-md z-50">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-[#d4a373] rounded-xl flex items-center justify-center rotate-3">
+                    <i data-lucide="users" class="text-zinc-950 w-6 h-6"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tighter">Coffee.Friendz()</h1>
+                    <p class="mono text-[10px] text-zinc-500 uppercase tracking-widest">Creator Network v1.0</p>
+                </div>
+            </div>
+            
+            <div class="hidden md:flex flex-1 max-w-md mx-12">
+                <div class="search-bar w-full px-4 py-2 rounded-full flex items-center gap-2">
+                    <i data-lucide="search" class="w-4 h-4 text-zinc-500"></i>
+                    <input type="text" placeholder="Search by tech, name, or vibe..." class="bg-transparent border-none outline-none text-sm w-full text-zinc-300">
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4">
+                <button class="bg-[#d4a373] text-zinc-950 px-4 py-2 rounded-lg font-bold text-sm hover:brightness-110 transition-all">
+                    + Add Profile
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- MAIN GRID -->
+    <main class="max-w-7xl mx-auto px-6 py-12">
+        <div class="mb-12">
+            <h2 class="text-3xl font-bold mb-2">The Directory</h2>
+            <p class="text-zinc-500 max-w-xl">Explore independent builders, designers, and coffee-fueled creators from across the network.</p>
+        </div>
+
+        <div id="friends-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <!-- Cards will be injected here by JS -->
+        </div>
+    </main>
+
+    <!-- PROFILE OVERLAY -->
+    <div id="profile-overlay" class="overlay items-center justify-center p-4">
+        <div class="profile-container shadow-2xl">
+            <div class="bg-zinc-900 border-b border-zinc-800 p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="viewer-avatar" class="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700"></div>
+                    <div>
+                        <h3 id="viewer-name" class="text-sm font-bold">Creator Profile</h3>
+                        <p id="viewer-handle" class="mono text-[10px] text-zinc-500">@handle</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a id="viewer-external" href="#" target="_blank" class="text-xs text-zinc-400 hover:text-white flex items-center gap-1">
+                        <i data-lucide="external-link" class="w-4 h-4"></i> Open Direct
+                    </a>
+                    <button onclick="closeProfile()" class="p-2 hover:bg-zinc-800 rounded-lg transition-colors">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 relative bg-zinc-950">
+                <div id="loading-spinner" class="absolute inset-0 flex items-center justify-center bg-zinc-950 z-10">
+                    <div class="flex flex-col items-center gap-3">
+                        <div class="w-8 h-8 border-2 border-[#d4a373] border-t-transparent rounded-full animate-spin"></div>
+                        <p class="mono text-[10px] text-zinc-500 uppercase tracking-widest">Warming up the brew...</p>
+                    </div>
+                </div>
+                <iframe id="profile-iframe" src="" onload="hideLoading()"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const creators = [
+            {
+                name: "Alex Miller",
+                handle: "alex_bean",
+                bio: "Full-stack architect. Rust enthusiast. Building open-source sidecars for AI.",
+                tech: ["Rust", "Next.js", "Ollama"],
+                seed: "Alex",
+                status: "online",
+                url: "coffee_profile.html" // References the file we just made
+            },
+            {
+                name: "Sarah Chen",
+                handle: "sarah_codes",
+                bio: "UI/UX Designer & Web3 explorer. Turning caffeine into pixel-perfect components.",
+                tech: ["Figma", "React", "Tailwind"],
+                seed: "Sarah",
+                status: "busy",
+                url: "https://example.com"
+            },
+            {
+                name: "Marcus Void",
+                handle: "void_walker",
+                bio: "Backend sorcerer. Working on distributed systems and high-frequency data.",
+                tech: ["Go", "Kubernetes", "Redis"],
+                seed: "Marcus",
+                status: "online",
+                url: "https://example.com"
+            },
+            {
+                name: "Elena Sky",
+                handle: "sky_high",
+                bio: "Creative technologist. Making the web more colorful and accessible.",
+                tech: ["Three.js", "GSAP", "A11y"],
+                seed: "Elena",
+                status: "away",
+                url: "https://example.com"
+            },
+            {
+                name: "Riley Fox",
+                handle: "fox_fire",
+                bio: "Indie hacker. Building micro-SaaS and documentation tools.",
+                tech: ["Python", "Flask", "SQLite"],
+                seed: "Riley",
+                status: "online",
+                url: "https://example.com"
+            },
+            {
+                name: "Jordan Wu",
+                handle: "wu_tang_dev",
+                bio: "Embedded systems nerd. Coffee + Circuitry = Magic.",
+                tech: ["C++", "Arduino", "IoT"],
+                seed: "Jordan",
+                status: "online",
+                url: "https://example.com"
+            }
+        ];
+
+        function initGrid() {
+            const grid = document.getElementById('friends-grid');
+            creators.forEach((creator, index) => {
+                const card = document.createElement('div');
+                card.className = 'creator-card p-6 rounded-2xl cursor-pointer group';
+                card.onclick = () => openProfile(index);
+                
+                const statusColor = creator.status === 'online' ? 'bg-emerald-500' : (creator.status === 'busy' ? 'bg-rose-500' : 'bg-amber-500');
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="w-14 h-14 rounded-xl bg-zinc-800 p-1 border border-zinc-700 group-hover:border-[#d4a373] transition-colors overflow-hidden">
+                            <img src="https://api.dicebear.com/7.x/adventurer/svg?seed=${creator.seed}" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex items-center gap-1.5 px-2 py-1 bg-zinc-900 rounded-full border border-zinc-800">
+                            <span class="status-dot ${statusColor}"></span>
+                            <span class="mono text-[8px] text-zinc-400 uppercase tracking-tighter">${creator.status}</span>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <h3 class="font-bold text-lg group-hover:text-[#d4a373] transition-colors">${creator.name}</h3>
+                        <p class="mono text-[10px] text-zinc-500">@${creator.handle}</p>
+                    </div>
+                    <p class="text-xs text-zinc-400 mb-6 line-clamp-2 leading-relaxed">
+                        ${creator.bio}
+                    </p>
+                    <div class="flex flex-wrap gap-2 mt-auto">
+                        ${creator.tech.map(t => `<span class="px-2 py-1 bg-zinc-950 border border-zinc-800 rounded-md text-[9px] mono text-zinc-500">${t}</span>`).join('')}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function openProfile(index) {
+            const creator = creators[index];
+            const overlay = document.getElementById('profile-overlay');
+            const iframe = document.getElementById('profile-iframe');
+            const loader = document.getElementById('loading-spinner');
+            
+            document.getElementById('viewer-name').innerText = creator.name;
+            document.getElementById('viewer-handle').innerText = `@${creator.handle}`;
+            document.getElementById('viewer-avatar').innerHTML = `<img src="https://api.dicebear.com/7.x/adventurer/svg?seed=${creator.seed}" class="w-full h-full rounded-full">`;
+            document.getElementById('viewer-external').href = creator.url;
+            
+            loader.style.display = 'flex';
+            iframe.src = creator.url;
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeProfile() {
+            const overlay = document.getElementById('profile-overlay');
+            const iframe = document.getElementById('profile-iframe');
+            overlay.classList.remove('active');
+            document.body.style.overflow = 'auto';
+            setTimeout(() => { iframe.src = ""; }, 300);
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-spinner').style.display = 'none';
+        }
+
+        // Close on escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeProfile();
+        });
+
+        // Close on background click
+        document.getElementById('profile-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'profile-overlay') closeProfile();
+        });
+
+        window.onload = () => {
+            initGrid();
+            lucide.createIcons();
+        };
+    </script>
+</body>
+</html>
