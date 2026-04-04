@@ -1,91 +1,103 @@
-# coffee.ai
+# COFFEE-SOURCE
 
-Base AI module. Provider-agnostic chat completions. Depends on coffee.request.
+Welcome to `COFFEE-SOURCE`, a comprehensive and modular codebase designed to provide a rich set of tools and components for various applications. This repository is structured into distinct `COFFEE-*` modules, each addressing a specific domain or functionality.
 
-## Usage
+## Overview
 
-```html
-<script src="coffee-request.js"></script>
-<script src="coffee-ai.js"></script>
+`COFFEE-SOURCE` aims to be a versatile foundation, offering building blocks for AI, animation, art, UI, financial tools, and much more. The modular design allows for independent development, testing, and integration of components.
+
+## Modules
+
+The repository is organized into several `COFFEE-*` directories, each representing a self-contained module:
+
+*   **COFFEE-AI**: Artificial intelligence and machine learning components.
+*   **COFFEE-ANIMATE**: Tools and utilities for animations.
+*   **COFFEE-ART**: Artistic rendering and graphical elements.
+*   **COFFEE-BASE**: Foundational utilities and base classes.
+*   **COFFEE-BEE**: (Functionality to be detailed)
+*   **COFFEE-BLOB**: Blob manipulation and storage utilities.
+*   **COFFEE-BRAND**: Branding assets, like ASCII art for the OS.
+*   **COFFEE-BRICK**: (Functionality to be detailed, potentially related to UI components or layout)
+*   **COFFEE-CADENCE**: (Functionality to be detailed, potentially timing or rhythm related)
+*   **COFFEE-CASH**: Financial tools, currency management, and related utilities.
+*   **COFFEE-CHAT**: Chat functionalities and communication components.
+*   **COFFEE-CODE**: Code generation, analysis, or manipulation tools.
+*   **COFFEE-COIL**: (Functionality to be detailed, potentially related to data streams or reactive programming)
+*   **COFFEE-COMMUNITY**: Components for community features, user interaction, and social aspects.
+*   **COFFEE-CONNECT**: Connectivity, networking, and integration utilities.
+*   **COFFEE-CONTEXT**: Context management and state handling.
+*   **COFFEE-CONTROL**: Control flow and command execution components.
+*   **COFFEE-CRM**: Customer Relationship Management tools.
+*   **COFFEE-CUP**: (Functionality to be detailed, potentially related to UI elements or containerization)
+*   **COFFEE-DISTRO**: Distribution and deployment configurations.
+*   **COFFEE-DOT**: Dot notation utilities or graph visualization.
+*   **COFFEE-DRAW**: Drawing and graphics primitives.
+*   **COFFEE-DRIVE**: File system interaction and drive management.
+*   **COFFEE-FILE**: File manipulation and utility functions.
+*   **COFFEE-FILTER**: Data filtering and processing.
+*   **COFFEE-FORGE**: Development tools, build processes, or code generation.
+*   **COFFEE-FORMS**: Form creation and handling utilities.
+*   **COFFEE-FRAME**: UI framing, windowing, or layout management.
+*   **COFFEE-FUZZ**: (Functionality to be detailed, potentially fuzz testing or data generation)
+*   **COFFEE-GIT**: Git integration and version control utilities.
+*   **COFFEE-GPU**: GPU-accelerated computing and graphics.
+*   **COFFEE-GRAPH**: Graph data structures and algorithms.
+*   **COFFEE-INSPECTOR**: Debugging and inspection tools.
+*   **COFFEE-INSTALL**: Installation and setup scripts.
+*   **COFFEE-LIST**: List manipulation and rendering.
+*   **COFFEE-MARKDOWN**: Markdown parsing and rendering.
+*   **COFFEE-MASTO**: (Functionality to be detailed, potentially Mastodon integration)
+*   **COFFEE-MODAL**: Modal dialogs and overlays.
+*   **COFFEE-MONACO**: Monaco Editor integration.
+*   **COFFEE-NEBULA**: (Functionality to be detailed)
+*   **COFFEE-NOSTR**: Nostr protocol integration.
+*   **COFFEE-OMNI**: Omnidirectional or universal utilities.
+*   **COFFEE-PATTERN**: Design patterns or template utilities.
+*   **COFFEE-PEER**: Peer-to-peer networking components.
+*   **COFFEE-PIX**: Pixel manipulation and image processing.
+*   **COFFEE-PLAY**: Playback and media control.
+*   **COFFEE-PLEX**: Complex data structures or media management.
+*   **COFFEE-POSIX**: POSIX-compliant system interactions.
+*   **COFFEE-QUE**: Queue management and asynchronous processing.
+*   **COFFEE-REQUEST**: HTTP requests and network communication.
+*   **COFFEE-RUSTY**: Rust-related components or bindings.
+*   **COFFEE-SCENE2D**: 2D scene management and rendering.
+*   **COFFEE-SCENE3D**: 3D scene management and rendering.
+*   **COFFEE-SCREEN**: Screen manipulation and display utilities.
+*   **COFFEE-SHADE**: Shading and visual effects.
+*   **COFFEE-SHADER**: Shader development and management.
+*   **COFFEE-SHADOW**: Shadow DOM or UI isolation.
+*   **COFFEE-SHELL**: Shell functionalities and command execution.
+*   **COFFEE-SHOT**: Screenshot or image capture utilities.
+*   **COFFEE-SKATER**: (Functionality to be detailed)
+*   **COFFEE-SLASH**: Command-line parsing or routing.
+*   **COFFEE-SNAKE**: (Functionality to be detailed, potentially game or data structure related)
+*   **COFFEE-SVG**: SVG manipulation and rendering.
+*   **COFFEE-SYNTH**: Synthesizer or audio generation.
+*   **COFFEE-TABLE**: Table data structures and rendering.
+*   **COFFEE-TASK**: Task management and scheduling.
+*   **COFFEE-TERMINAL**: Terminal emulation and interaction.
+*   **COFFEE-TOAST**: Toast notifications.
+*   **COFFEE-TRANSPORT**: Data transport and messaging.
+*   **COFFEE-UI**: User Interface components and framework.
+*   **COFFEE-WIRE**: Wiring and dependency injection.
+*   **COFFEE-YAY**: (Functionality to be detailed)
+
+## Getting Started
+
+To get started with `COFFEE-SOURCE`, clone the repository:
+
+```bash
+git clone https://github.com/your-username/coffee-source.git
+cd coffee-source
 ```
 
-```js
-const response = await coffee.ai.complete({
-  provider: 'github',
-  apiKey: 'ghp_xxx',
-  model: 'gpt-4o',
-  messages: [{ role: 'user', content: 'Hello' }],
-  system: 'You are a helpful assistant.',
-  temperature: 0.7,
-  maxTokens: 1500
-});
+Each module typically includes its own `README.md` with specific instructions for usage, development, and testing.
 
-const text = response.choices[0].message.content;
-```
+## Contributing
 
-## Options
+Contributions are welcome! Please refer to individual module `README.md` files for specific contribution guidelines, or the main project's `CONTRIBUTING.md` (if available) for general guidelines.
 
-| Option | Default | Description |
-|--------|---------|-------------|
-| provider | `'github'` | `'github'`, `'openai'`, `'gemini'`, `'ollama'` |
-| apiKey | `''` | Bearer token (BYOK) |
-| model | provider default | Model ID |
-| messages | `[]` | `[{ role, content }]` |
-| system | — | System message (prepended) |
-| temperature | 0.7 | 0–1 |
-| maxTokens | 1500 | Max output tokens |
-| timeout | 60000 | ms |
+## License
 
-## Providers
-
-- **github** — `models.inference.ai.azure.com` (GitHub Models API)
-- **openai** — `api.openai.com/v1`
-- **gemini** — `generativelanguage.googleapis.com` (Google AI Studio)
-- **ollama** — `localhost:11434` (no auth)
-
-## Returns
-
-Full API response (JSON). `response.choices[0].message.content` for text.
-
----
-
-## coffee.aiConfig (BYOK + optional UI)
-
-**File:** `coffee-ai-config.js` (load after `coffee-ai.js`; no extra deps).
-
-Shared storage for demo keys — **same logical ids as KATI / BEE-DEMO / AI-DEMO:**
-
-| Provider | `coffee.aiConfig.storageId(id)` |
-|----------|----------------------------------|
-| GitHub Models | `ai-api-key-github` |
-| OpenAI | `ai-api-key-openai` |
-| Gemini | `ai-api-key-gemini` |
-
-Uses `coffee.save` / `coffee.load` when **coffee-control** is present; otherwise `localStorage` key `coffee_<id>` with JSON-encoded string (same shape).
-
-```html
-<script src="coffee-ai.js"></script>
-<script src="coffee-ai-config.js"></script>
-```
-
-```js
-coffee.aiConfig.get('gemini');
-coffee.aiConfig.set('openai', sk);
-coffee.aiConfig.mount(document.getElementById('host'), {
-  cardClass: 'settings-card',
-  labelClass: 'settings-label',
-  inputClass: 'settings-input',
-  hintClass: 'settings-hint'
-});
-coffee.aiConfig.saveForm(document.getElementById('host'));
-```
-
-**SURF** (`FLAGSHIP/SURF/SURF-ALPHA.html`) mounts this block in Settings. Legacy `surf.katiApiKey` is still read for Gemini until the user saves once (then canonical storage wins).
-
-### Provider + model (SURF / Bee-style)
-
-- **`coffee.aiConfig.getProvider()`** / **`setProvider('gemini'|'openai'|'github'|'ollama')`** — stored as `ai-pref-provider`.
-- **`coffee.aiConfig.getModel(provider)`** / **`setModel(provider, modelId)`** — per provider, `ai-pref-model-<provider>`.
-- Pass **`includeProviderModel: true`** to **`mount(...)`** to append the two `<select>`s (same card styling as key fields via `opts`). **`saveForm`** / **`writeForm`** include provider + model when those selects exist.
-
-Server stats for dashboards: **`COFFEE-SERVER/lib/browser/coffee-server-stats.js`** → **`coffee.serverStats.snapshot({ customBase })`** (used by SERVER-DEMO and SURF Relay).
+This project is licensed under the terms available in the `LICENSE` file at the root of this repository.
