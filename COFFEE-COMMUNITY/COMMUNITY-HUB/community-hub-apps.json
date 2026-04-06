@@ -1,4 +1,16 @@
 [
+
+  {
+    "id": "source",
+    "icon": "github",
+    "tag": "Flagship",
+    "tagTone": "green",
+    "title": "Coffee Source (GitHub)",
+    "description": "The official GitHub repository for Coffee Source.",
+    "footer": "Source Code",
+    "buttonLabel": "OPEN",
+    "url": "https://github.com/Coffee-Computer/COFFEE-SOURCE"
+  },
   {
     "id": "store",
     "tag": "Community",
@@ -8,15 +20,5 @@
     "footer": "α · apps/store",
     "buttonLabel": "OPEN",
     "url": "../apps/store.html"
-  },
-  {
-    "id": "temp",
-    "tag": "Flagship",
-    "tagTone": "green",
-    "title": "TEMP",
-    "description": "Maintainer job board — roles from temp-jobs.json.",
-    "footer": "α · FLAGSHIP/TEMP",
-    "buttonLabel": "OPEN",
-    "url": "../FLAGSHIP/TEMP/TEMP-ALPHA.html"
   }
 ]

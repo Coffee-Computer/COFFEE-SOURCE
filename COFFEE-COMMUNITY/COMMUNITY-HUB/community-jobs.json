@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Lead: Coffee.Kernel",
+    "sub_title": "C++, Rust // Memory Management & Roasting Engine",
+    "stipend_label": "Stipend",
+    "stipend_value": "2.4 ETH / Qtr",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Maintainer: Coffee.SDK (Go)",
+    "sub_title": "Golang // API Wrappers & Developer Experience",
+    "stipend_label": "Stipend",
+    "stipend_value": "1.2 ETH / Qtr",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Community Manager",
+    "sub_title": "Engagement, Moderation // Social & Events",
+    "stipend_label": "Stipend",
+    "stipend_value": "0.8 ETH / Qtr",
+    "button_label": "APPLY"
+  }
+]
