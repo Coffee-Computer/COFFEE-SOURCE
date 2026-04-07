@@ -1,23 +1,58 @@
 [
   {
-    "title": "Lead: Coffee.Kernel",
-    "sub_title": "C++, Rust // Memory Management & Roasting Engine",
-    "stipend_label": "Stipend",
-    "stipend_value": "2.4 ETH / Qtr",
+    "title": "Creative Director, Coffee",
+    "sub_title": "Look & feel // flagship & α creative bar",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
     "button_label": "APPLY"
   },
   {
-    "title": "Maintainer: Coffee.SDK (Go)",
-    "sub_title": "Golang // API Wrappers & Developer Experience",
-    "stipend_label": "Stipend",
-    "stipend_value": "1.2 ETH / Qtr",
+    "title": "Product & Flagship Lead",
+    "sub_title": "Demos vs platform // arc, fork & long-term shape",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
     "button_label": "APPLY"
   },
   {
-    "title": "Community Manager",
-    "sub_title": "Engagement, Moderation // Social & Events",
-    "stipend_label": "Stipend",
-    "stipend_value": "0.8 ETH / Qtr",
+    "title": "UX / Interaction Lead",
+    "sub_title": "Vanilla JS & HTML shells // IA + craft, not Figma-only",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Creative Technologist",
+    "sub_title": "Play · Scene · Shaders // DUCK-IDE-shaped prototypes",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Narrative & Community Story",
+    "sub_title": "Positioning · onboarding copy // contributor-facing story",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Ecosystem & Integrations Vision",
+    "sub_title": "Nostr, data, social angles // strategy before wiring",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Lead, Experimental Apps",
+    "sub_title": "1–2 flagship α lines // concept → shippable HTML",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
+    "button_label": "APPLY"
+  },
+  {
+    "title": "Design Engineering Lead",
+    "sub_title": "COFFEE-UI · tokens // flagship polish in code",
+    "stipend_label": "Compensation",
+    "stipend_value": "Volunteer / discuss",
     "button_label": "APPLY"
   }
 ]

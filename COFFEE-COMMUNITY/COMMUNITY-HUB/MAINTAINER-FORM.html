@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintainer application · Coffee Hub</title>
+    <link rel="stylesheet" href="COMMUNITY-HUB.css">
+    <style id="ch-maint-form-skin">
+        /* Self-contained layout when COMMUNITY-HUB.css is slow/missing inside iframe */
+        #maint-root {
+            padding: 1rem 1.25rem 1.75rem;
+            margin: 0 auto;
+            box-sizing: border-box;
+            width: 100%;
+            max-width: min(36rem, 100%);
+            min-width: 0;
+        }
+        #maint-root.is-embed {
+            padding: 0.35rem 0.15rem 1rem;
+            max-width: none;
+        }
+        #maint-root .ch-maint-back {
+            font-size: 0.875rem;
+            margin: 0 0 1rem;
+        }
+        #maint-root .ch-maint-back a {
+            color: var(--ch-accent, #eab308);
+            font-weight: 600;
+            text-decoration: none;
+        }
+        #maint-root .ch-maint-back a:hover {
+            text-decoration: underline;
+        }
+        #maint-root.is-embed .ch-maint-back,
+        #maint-root.is-embed .ch-maint-standalone-title,
+        #maint-root.is-embed .ch-apply-intro {
+            display: none;
+        }
+        #maint-root .ch-maint-standalone-title {
+            margin: 0 0 0.5rem;
+        }
+        #maint-root .ch-apply-intro {
+            margin: 0 0 1.15rem;
+        }
+
+        #maint-root #ch-apply-form {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 1.15rem;
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+        }
+        #maint-root #ch-apply-form .ch-apply-field {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.4rem;
+            width: 100%;
+            min-width: 0;
+            margin: 0;
+        }
+        #maint-root #ch-apply-form .ch-apply-row2 {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 1rem;
+            width: 100%;
+        }
+        @media (min-width: 480px) {
+            #maint-root #ch-apply-form .ch-apply-row2 {
+                grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            }
+        }
+        #maint-root #ch-apply-form .ch-apply-control,
+        #maint-root #ch-apply-form select.ch-apply-control {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+            min-width: 0;
+        }
+        #maint-root #ch-apply-form .ch-apply-check {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 0.65rem;
+            width: 100%;
+            margin: 0;
+            cursor: pointer;
+        }
+        #maint-root #ch-apply-form .ch-apply-check span {
+            flex: 1;
+            min-width: 0;
+            line-height: 1.45;
+        }
+        #maint-root #ch-apply-form .ch-apply-check input {
+            flex-shrink: 0;
+            margin-top: 0.2rem;
+        }
+        #maint-root #ch-apply-form .ch-apply-actions {
+            margin-top: 0.35rem;
+            width: 100%;
+        }
+        #maint-root #ch-apply-form .ch-btn-apply {
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        #maint-root #ch-apply-form #ch-apply-status {
+            margin: 0;
+            padding-top: 0.25rem;
+        }
+        /* Honeypot: no layout bleed, no accidental text */
+        #maint-root #ch-apply-botcheck {
+            position: absolute;
+            left: -10000px;
+            top: 0;
+            width: 1px;
+            height: 1px;
+            margin: 0;
+            padding: 0;
+            opacity: 0;
+            pointer-events: none;
+            border: 0;
+            appearance: none;
+        }
+    </style>
+</head>
+<body class="ch-hub">
+    <div id="maint-root" class="ch-maint-page">
+        <p class="ch-maint-back"><a href="COMMUNITY-HUB.html">← Back to Coffee Hub</a></p>
+        <h1 class="ch-apply-panel-title ch-maint-standalone-title">Vision &amp; maintainer interest</h1>
+        <p class="ch-apply-intro">Fields match <span class="ch-mono">MAINTAINER-JOBS.md</span>. We read every message.</p>
+
+        <form id="ch-apply-form" class="ch-apply-form" action="https://api.web3forms.com/submit" method="POST" novalidate>
+            <label class="ch-apply-field">
+                <span class="ch-apply-label">Role <span class="ch-apply-req">*</span></span>
+                <select id="ch-apply-role" name="role" class="ch-apply-control" required>
+                    <option value="">Choose a role…</option>
+                    <option value="Creative Director, Coffee">Creative Director, Coffee</option>
+                    <option value="Product &amp; Flagship Lead">Product &amp; Flagship Lead</option>
+                    <option value="UX / Interaction Lead">UX / Interaction Lead</option>
+                    <option value="Creative Technologist">Creative Technologist</option>
+                    <option value="Narrative &amp; Community Story">Narrative &amp; Community Story</option>
+                    <option value="Ecosystem &amp; Integrations Vision">Ecosystem &amp; Integrations Vision</option>
+                    <option value="Lead, Experimental Apps">Lead, Experimental Apps</option>
+                    <option value="Design Engineering Lead">Design Engineering Lead</option>
+                    <option value="Other / multiple roles">Other / multiple roles</option>
+                </select>
+            </label>
+            <div class="ch-apply-row2">
+                <label class="ch-apply-field">
+                    <span class="ch-apply-label">Name <span class="ch-apply-req">*</span></span>
+                    <input id="ch-apply-name" name="name" type="text" class="ch-apply-control" autocomplete="name" required />
+                </label>
+                <label class="ch-apply-field">
+                    <span class="ch-apply-label">Email <span class="ch-apply-req">*</span></span>
+                    <input id="ch-apply-email" name="email" type="email" class="ch-apply-control" autocomplete="email" required />
+                </label>
+            </div>
+            <label class="ch-apply-field">
+                <span class="ch-apply-label">Why Coffee / why this role <span class="ch-apply-req">*</span></span>
+                <textarea id="ch-apply-why" name="why_coffee" class="ch-apply-control ch-apply-textarea" rows="5" required placeholder="Short pitch, prior relevant work, what you’d ship first."></textarea>
+            </label>
+            <label class="ch-apply-field">
+                <span class="ch-apply-label">Links (site, GitHub, portfolio)</span>
+                <input id="ch-apply-links" name="links" type="text" class="ch-apply-control" autocomplete="url" placeholder="https://" />
+            </label>
+            <label class="ch-apply-field">
+                <span class="ch-apply-label">Availability / timezone</span>
+                <input id="ch-apply-availability" name="availability" type="text" class="ch-apply-control" placeholder="e.g. UTC−5, ~10h/week" />
+            </label>
+            <label class="ch-apply-check">
+                <input id="ch-apply-ce-ack" name="ce_freeze_ack" type="checkbox" value="yes" required />
+                <span>I understand Community Edition is feature-frozen; I’m interested in vision, docs, and future-facing work as described in the repo.</span>
+            </label>
+            <input type="checkbox" id="ch-apply-botcheck" name="botcheck" class="ch-apply-hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+            <div class="ch-apply-actions">
+                <button id="ch-apply-submit" type="submit" class="ch-btn-apply">Submit application</button>
+            </div>
+            <p id="ch-apply-status" class="ch-apply-status" role="status" aria-live="polite"></p>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            /** [Web3Forms](https://docs.web3forms.com/) — allowlist domains in the dashboard. */
+            var WEB3FORMS_ACCESS_KEY = 'b05ba409-18bc-4391-8502-0c7e0fd62c00';
+
+            var params = new URLSearchParams(window.location.search);
+            var embed = params.get('embed') === '1' || window.self !== window.top;
+            var root = document.getElementById('maint-root');
+            if (embed && root) {
+                root.classList.add('is-embed');
+            }
+
+            function prefillRoleFromQuery() {
+                var sel = document.getElementById('ch-apply-role');
+                if (!sel) return;
+                var raw = params.get('role');
+                if (!raw || !String(raw).trim()) {
+                    sel.selectedIndex = 0;
+                    return;
+                }
+                var title = String(raw).trim();
+                var matched = false;
+                for (var i = 0; i < sel.options.length; i++) {
+                    if (sel.options[i].value === title) {
+                        sel.selectedIndex = i;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    sel.value = 'Other / multiple roles';
+                }
+            }
+
+            function initForm() {
+                var form = document.getElementById('ch-apply-form');
+                if (!form) return;
+
+                prefillRoleFromQuery();
+
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    var hp = document.getElementById('ch-apply-botcheck');
+                    if (hp && hp.checked) return;
+
+                    var statusEl = document.getElementById('ch-apply-status');
+                    var submitBtn = document.getElementById('ch-apply-submit');
+                    var roleEl = document.getElementById('ch-apply-role');
+                    var nameEl = document.getElementById('ch-apply-name');
+                    var emailEl = document.getElementById('ch-apply-email');
+                    var whyEl = document.getElementById('ch-apply-why');
+                    var linksEl = document.getElementById('ch-apply-links');
+                    var availEl = document.getElementById('ch-apply-availability');
+                    var ackEl = document.getElementById('ch-apply-ce-ack');
+
+                    if (!form.reportValidity()) return;
+
+                    var role = roleEl ? roleEl.value : '';
+                    var bodyLines = [
+                        'Role interest: ' + role,
+                        '',
+                        'Why Coffee / fit:',
+                        whyEl ? whyEl.value : '',
+                        '',
+                        'Links:',
+                        linksEl && linksEl.value.trim() ? linksEl.value.trim() : '(none)',
+                        '',
+                        'Availability / timezone:',
+                        availEl && availEl.value.trim() ? availEl.value.trim() : '(not specified)',
+                        '',
+                        'CE freeze acknowledged: ' + (ackEl && ackEl.checked ? 'yes' : 'no')
+                    ];
+
+                    var payload = {
+                        access_key: WEB3FORMS_ACCESS_KEY.trim(),
+                        name: nameEl ? nameEl.value.trim() : '',
+                        email: emailEl ? emailEl.value.trim() : '',
+                        subject: 'Coffee Hub — ' + role,
+                        message: bodyLines.join('\n'),
+                        role: role,
+                        why_coffee: whyEl ? whyEl.value.trim() : '',
+                        links: linksEl ? linksEl.value.trim() : '',
+                        availability: availEl ? availEl.value.trim() : '',
+                        ce_freeze_ack: ackEl && ackEl.checked ? 'yes' : ''
+                    };
+
+                    if (statusEl) {
+                        statusEl.textContent = '';
+                        statusEl.className = 'ch-apply-status';
+                    }
+                    if (submitBtn) submitBtn.disabled = true;
+
+                    fetch('https://api.web3forms.com/submit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            Accept: 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                        .then(function (r) {
+                            return r.json().then(function (data) {
+                                return { ok: r.ok, data: data };
+                            });
+                        })
+                        .then(function (res) {
+                            if (res.ok && res.data && res.data.success) {
+                                if (statusEl) {
+                                    statusEl.textContent = 'Thanks — we got your message and will reply by email when we can.';
+                                    statusEl.classList.add('ch-apply-status--ok');
+                                }
+                                form.reset();
+                                prefillRoleFromQuery();
+                            } else {
+                                var msg =
+                                    (res.data && (res.data.message || res.data.error)) ||
+                                    'Something went wrong. Try again or email us directly.';
+                                if (statusEl) {
+                                    statusEl.textContent = msg;
+                                    statusEl.classList.add('ch-apply-status--err');
+                                }
+                            }
+                        })
+                        .catch(function () {
+                            if (statusEl) {
+                                statusEl.textContent = 'Network error. Check your connection and try again.';
+                                statusEl.classList.add('ch-apply-status--err');
+                            }
+                        })
+                        .finally(function () {
+                            if (submitBtn) submitBtn.disabled = false;
+                        });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initForm);
+            } else {
+                initForm();
+            }
+        })();
+    </script>
+</body>
+</html>

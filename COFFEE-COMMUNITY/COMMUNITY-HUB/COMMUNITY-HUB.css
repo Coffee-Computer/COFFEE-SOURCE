@@ -1,6 +1,12 @@
 /**
  * Coffee.Hub — Community hub (.ch-*)
  * Coffeed: warm mocha + amber (Community / FLAGSHIP α family). No Tailwind.
+ *
+ * Canonical source for `.ch-*` rules. The same text is embedded in
+ * COMMUNITY-HUB.html and MAINTAINER-FORM.html (`#ch-hub-inlined-css`) so the
+ * hub and iframe form render if this file fails to load (wrong base path,
+ * `file://`, packager preview, etc.). After editing here, re-inline:
+ * `python3 sync-hub-css.py` in this folder.
  */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=JetBrains+Mono:wght@400;500&display=swap');
@@ -641,6 +647,322 @@ body.ch-nav-mobile-active {
 
 .ch-btn-apply:hover {
   background: var(--ch-accent);
+}
+
+.ch-btn-apply.ch-btn-apply--disabled,
+.ch-btn-apply.ch-btn-apply--disabled:hover {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #fafaf9;
+}
+
+.ch-btn-apply:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+body.ch-apply-active {
+  overflow: hidden;
+}
+
+/* ——— Maintainer apply sheet (iframe → MAINTAINER-FORM.html) ——— */
+.ch-apply-layer {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 100vw;
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  z-index: 1000;
+  box-sizing: border-box;
+}
+
+.ch-apply-layer.ch-apply-open {
+  display: block;
+}
+
+.ch-apply-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  z-index: 0;
+  background: rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+
+.ch-apply-panel {
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 32rem;
+  max-height: min(92dvh, 920px);
+  margin: 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1.25rem 1.35rem 1.5rem;
+  box-sizing: border-box;
+  background: var(--ch-surface);
+  border: 1px solid var(--ch-border-strong);
+  border-radius: var(--ch-radius) var(--ch-radius) 0 0;
+  box-shadow: 0 -8px 48px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  transform: translateY(100%);
+}
+
+.ch-apply-iframe-wrap {
+  flex: 1 1 auto;
+  min-height: min(288px, 48vh);
+  height: clamp(280px, 58vh, 640px);
+  margin: 0;
+}
+
+.ch-apply-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  border: 0;
+  background: var(--ch-bg-elevated);
+  border-radius: var(--ch-radius-sm);
+}
+
+.ch-apply-layer.ch-apply-open .ch-apply-panel {
+  animation: ch-apply-sheet-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes ch-apply-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes ch-apply-modal-in {
+  from {
+    transform: translate(-50%, calc(-50% + 28px)) scale(0.94);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+.ch-apply-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+
+.ch-apply-panel-title {
+  font-size: 1.125rem;
+  font-weight: 800;
+  margin: 0;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.ch-apply-close {
+  flex-shrink: 0;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: -0.25rem -0.35rem 0 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--ch-radius-sm);
+  background: transparent;
+  color: var(--ch-muted);
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.ch-apply-close:hover {
+  background: var(--ch-accent-soft);
+  color: var(--ch-accent);
+}
+
+@media (min-width: 768px) {
+  .ch-apply-panel {
+    left: 50%;
+    right: auto;
+    bottom: auto;
+    top: 50%;
+    width: min(32rem, calc(100vw - 2rem));
+    margin: 0;
+    border-radius: var(--ch-radius);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+    transform: translate(-50%, calc(-50% + 28px)) scale(0.94);
+    opacity: 0;
+  }
+
+  .ch-apply-layer.ch-apply-open .ch-apply-panel {
+    animation: ch-apply-modal-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ch-apply-layer.ch-apply-open .ch-apply-panel {
+    animation: none;
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  @media (min-width: 768px) {
+    .ch-apply-layer.ch-apply-open .ch-apply-panel {
+      transform: translate(-50%, -50%) scale(1);
+    }
+  }
+}
+
+.ch-apply-intro {
+  font-size: 0.875rem;
+  color: var(--ch-muted-dim);
+  margin: 0 0 1rem;
+}
+
+/* Form fields inside panel (no second card chrome) */
+.ch-apply-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 1rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+@media (min-width: 768px) {
+  .ch-apply-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.ch-apply-field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.ch-apply-row2 {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .ch-apply-row2 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.ch-apply-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ch-muted);
+}
+
+.ch-apply-req {
+  color: var(--ch-accent);
+}
+
+.ch-apply-control {
+  font-family: var(--ch-font);
+  font-size: 0.9375rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--ch-radius-sm);
+  border: 1px solid var(--ch-border);
+  background: var(--ch-bg-elevated);
+  color: var(--ch-text);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ch-apply-control:focus {
+  outline: none;
+  border-color: var(--ch-border-strong);
+  box-shadow: 0 0 0 1px var(--ch-accent-soft);
+}
+
+select.ch-apply-control {
+  cursor: pointer;
+}
+
+.ch-apply-textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+.ch-apply-check {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+  color: var(--ch-muted);
+  cursor: pointer;
+}
+
+.ch-apply-check input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--ch-accent);
+}
+
+.ch-apply-actions {
+  margin-top: 0.25rem;
+}
+
+.ch-apply-status {
+  font-size: 0.875rem;
+  margin: 0;
+  min-height: 1.25em;
+}
+
+.ch-apply-status--ok {
+  color: var(--ch-code-green);
+}
+
+.ch-apply-status--err {
+  color: var(--ch-red);
+}
+
+.ch-apply-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* ——— Docs layout ——— */
