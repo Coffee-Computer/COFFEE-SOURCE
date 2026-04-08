@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Scene 3D: Generative Art</title>
+
+    <!-- Three.js first — coffee.scene3d requires window.THREE -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+
+    <!-- Coffee Source from jsDelivr (same tree as GitHub main). Forks: change gh/OWNER/REPO@BRANCH -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-UI/coffee-ui.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-SCENE3D/coffee-scene3d.js"></script>
+
+    <style>
+        html, body { margin: 0; height: 100%; }
+        body { background: #050505; color: #fff; overflow: hidden; font-family: monospace; }
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            pointer-events: none;
+        }
+        .controls { pointer-events: all; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; }
+        #scene-container {
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <h2>COFFEE-SCENE3D // GENERATIVE</h2>
+        <div id="controls-root" class="controls"></div>
+    </div>
+
+    <div id="scene-container"></div>
+
+    <script>
+        (function () {
+            coffee.injectTheme('dark');
+
+            var container = document.getElementById('scene-container');
+            var controlsRoot = document.getElementById('controls-root');
+            var w = window.innerWidth;
+            var h = window.innerHeight;
+
+            var shapes = [];
+            var count = 50;
+            for (var i = 0; i < count; i++) {
+                shapes.push({
+                    type: 'box',
+                    scale: Math.random() * 2 + 0.2,
+                    position: [
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20
+                    ],
+                    color: 0xbc986a
+                });
+            }
+
+            // Declarative API: coffee.scene3d (not coffee.scene / coffee.mesh)
+            var wrapper = coffee.scene3d({
+                shapes: shapes,
+                background: '#050505',
+                controls: false,
+                camera: { position: [0, 5, 25], lookAt: [0, 0, 0] },
+                container: container,
+                width: w,
+                height: h
+            });
+
+            var ctx = wrapper.scene3d;
+            var items = [];
+            for (var j = 0; j < ctx.scene.children.length; j++) {
+                var o = ctx.scene.children[j];
+                if (o.isMesh) items.push(o);
+            }
+
+            var btn = coffee.button('Randomize colors', function () {
+                items.forEach(function (m) {
+                    if (m.material && m.material.color) {
+                        m.material.color.setHex(Math.floor(Math.random() * 0xffffff));
+                    }
+                });
+            });
+            controlsRoot.appendChild(btn);
+
+            var frame = 0;
+            function artMotion() {
+                frame += 0.01;
+                items.forEach(function (item, idx) {
+                    item.rotation.x += 0.01;
+                    item.rotation.y += 0.02;
+                    item.position.y += Math.sin(frame + idx) * 0.02;
+                });
+                ctx.camera.position.x = Math.sin(frame * 0.5) * 30;
+                ctx.camera.position.z = Math.cos(frame * 0.5) * 30;
+                ctx.camera.lookAt(0, 0, 0);
+                requestAnimationFrame(artMotion);
+            }
+            artMotion();
+        })();
+    </script>
+</body>
+</html>

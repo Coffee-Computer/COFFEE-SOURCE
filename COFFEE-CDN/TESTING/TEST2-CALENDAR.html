@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Source Calendar</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f0f0; display: flex; justify-content: center; padding-top: 50px; }
+        #app-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 320px; }
+        
+        /* Calendar Specific Styling */
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin-top: 15px; }
+        .day-cell { height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 14px; }
+        .day-header { font-weight: bold; color: #666; font-size: 12px; }
+        .day-num { cursor: pointer; background: #f9f9f9; }
+        .day-num:hover { background: #e0e0e0; }
+        .is-today { background: #ffde59 !important; font-weight: bold; }
+        .empty { visibility: hidden; }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .month-label { font-weight: bold; font-size: 1.1rem; }
+    </style>
+
+    <!-- 1. Load the Coffee Source "Browser Stack" via your CDN loader -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="app-container">
+        <!-- The Coffee App will render here -->
+    </div>
+
+    <script>
+        // 2. Wait for the Coffee Source stack to be ready
+        window.addEventListener('coffee:cdn:ready', function () {
+            const container = document.getElementById('app-container');
+            
+            // Initial State
+            let viewDate = new Date();
+            const today = new Date();
+
+            function render() {
+                // Clear container
+                container.innerHTML = '';
+
+                const year = viewDate.getFullYear();
+                const month = viewDate.getMonth();
+                const monthName = viewDate.toLocaleString('default', { month: 'long' });
+
+                // Navigation Header using coffee.button UI helpers
+                const header = document.createElement('div');
+                header.className = 'calendar-nav';
+                
+                const prevBtn = coffee.button('❮', () => {
+                    viewDate.setMonth(viewDate.getMonth() - 1);
+                    render();
+                });
+
+                const label = document.createElement('span');
+                label.className = 'month-label';
+                label.innerText = `${monthName} ${year}`;
+
+                const nextBtn = coffee.button('❯', () => {
+                    viewDate.setMonth(viewDate.getMonth() + 1);
+                    render();
+                });
+
+                header.append(prevBtn, label, nextBtn);
+                container.appendChild(header);
+
+                // Grid Setup
+                const grid = document.createElement('div');
+                grid.className = 'calendar-grid';
+
+                // Weekday Headers
+                ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(day => {
+                    const dHead = document.createElement('div');
+                    dHead.className = 'day-cell day-header';
+                    dHead.innerText = day;
+                    grid.appendChild(dHead);
+                });
+
+                // Calculation
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+                // Empty padding
+                for (let i = 0; i < firstDay; i++) {
+                    const empty = document.createElement('div');
+                    empty.className = 'day-cell empty';
+                    grid.appendChild(empty);
+                }
+
+                // Days
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'day-cell day-num';
+                    dayEl.innerText = d;
+
+                    if (d === today.getDate() && month === today.getMonth() && year === today.getFullYear()) {
+                        dayEl.classList.add('is-today');
+                    }
+
+                    dayEl.onclick = () => alert(`Date selected: ${monthName} ${d}, ${year}`);
+                    grid.appendChild(dayEl);
+                }
+
+                container.appendChild(grid);
+            }
+
+            // Initial Draw
+            render();
+        });
+    </script>
+</body>
+</html>

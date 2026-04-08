@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Todo App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #fafafa;
+            display: flex;
+            justify-content: center;
+            padding-top: 50px;
+        }
+        #todo-app {
+            width: 400px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .todo-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            outline: none;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            animation: fadeIn 0.3s ease;
+        }
+        .todo-text { flex: 1; cursor: pointer; }
+        .todo-text.done { text-decoration: line-through; color: #888; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+
+    <!-- 1. Entry script: Load the known browser stack via your CDN loader -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="todo-app">
+        <h2 style="margin-top: 0; color: #333;">Coffee Tasks</h2>
+        <div id="ui-root"></div>
+    </div>
+
+    <script>
+        // 2. Gate app logic on 'coffee:cdn:ready' so window.coffee helpers exist
+        window.addEventListener('coffee:cdn:ready', function (event) {
+            const root = document.getElementById('ui-root');
+            
+            // App State
+            let tasks = [
+                { id: 1, text: "Explore Coffee Source", done: true },
+                { id: 2, text: "Build something cool", done: false }
+            ];
+
+            function render() {
+                // Clear existing UI
+                root.innerHTML = '';
+
+                // Create Input Area using standard DOM + Coffee Button
+                const inputGroup = document.createElement('div');
+                inputGroup.className = 'todo-input-group';
+
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.placeholder = 'What needs to be done?';
+                input.onkeydown = (e) => { if(e.key === 'Enter') addTask(); };
+
+                const addTask = () => {
+                    if (!input.value.trim()) return;
+                    tasks.push({ id: Date.now(), text: input.value, done: false });
+                    input.value = '';
+                    render();
+                };
+
+                // Use coffee.button helper from COFFEE-UI
+                const addBtn = coffee.button('Add', addTask);
+                
+                inputGroup.appendChild(input);
+                inputGroup.appendChild(addBtn);
+                root.appendChild(inputGroup);
+
+                // Create List
+                const list = document.createElement('div');
+                
+                tasks.forEach(task => {
+                    // Use coffee.row helper to layout the item
+                    const itemRow = document.createElement('div');
+                    itemRow.className = 'todo-item';
+
+                    const textSpan = document.createElement('span');
+                    textSpan.className = `todo-text ${task.done ? 'done' : ''}`;
+                    textSpan.innerText = task.text;
+                    textSpan.onclick = () => {
+                        task.done = !task.done;
+                        render();
+                    };
+
+                    // Use coffee.button for the delete action
+                    const delBtn = coffee.button('✕', () => {
+                        tasks = tasks.filter(t => t.id !== task.id);
+                        render();
+                    });
+                    
+                    // Simple styling for the delete button specifically
+                    delBtn.style.background = '#ff4d4d';
+                    delBtn.style.padding = '4px 8px';
+
+                    itemRow.appendChild(textSpan);
+                    itemRow.appendChild(delBtn);
+                    list.appendChild(itemRow);
+                });
+
+                root.appendChild(list);
+            }
+
+            // Initial render
+            render();
+            
+            console.log("Coffee Source Base loaded from:", event.detail.base);
+        });
+    </script>
+</body>
+</html>
