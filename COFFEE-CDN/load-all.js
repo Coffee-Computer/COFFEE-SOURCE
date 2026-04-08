@@ -6,11 +6,11 @@
  *
  * Or before the tag: window.COFFEE_CDN_BASE = 'https://.../';
  *
- * Order: (1) import map  (2) COFFEE-BASE  (3) parallel ESM imports  (4) rest of COFFEE-*/coffee-*.js in series
+ * Order: (1) import map  (2) COFFEE-BASE  (3) parallel ESM imports  (4) classic coffee-*.js at each COFFEE-* package root (CLASSIC_REST)
  *
  * When finished: window.COFFEE_LOAD_ALL_PROMISE resolves; document fires "coffee:cdn:ready".
  *
- * Limits: only files matching COFFEE-*/coffee-*.js (one level) + listed ESM extras. Nested paths (e.g. COFFEE-COMMUNITY/tools/*.js) are NOT auto-loaded. Some scripts may 404 or throw; failures are logged, not fatal.
+ * Limits: only listed top-level coffee-*.js under each COFFEE-* package + ESM extras. Nested paths (e.g. COFFEE-COMMUNITY/tools) are NOT auto-loaded. Some scripts may 404 or throw; failures are logged, not fatal.
  */
 (function () {
   var cur = document.currentScript;
@@ -43,7 +43,7 @@
     '@coffee/COFFEE-COMMUNITY/COMMUNITY-SPLASH/community-coffee-title.js'
   ];
 
-  /** Every COFFEE-*/coffee-*.js at package root except ESM-only coffee-posix (base loaded first, not repeated). */
+  /** Top-level coffee-*.js per COFFEE-* package except ESM-only coffee-posix (base loaded first, not repeated). */
   var CLASSIC_REST = [
     'COFFEE-AI/coffee-ai-config.js',
     'COFFEE-AI/coffee-ai.js',

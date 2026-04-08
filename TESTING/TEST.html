@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Source Calendar</title>
+
+    <!--
+      Coffee CDN: one tag loads import map + COFFEE-BASE + ESM + classic COFFEE-*/coffee-*.js.
+      data-coffee-cdn = repo root (relative to this page: ../ from TESTING/).
+      Remote (jsDelivr): same path pattern, e.g.
+      src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+      data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/"
+    -->
+    <script src="../COFFEE-CDN/load-all.js" data-coffee-cdn="../"></script>
+
+    <style>
+        :root {
+            --accent: #d4a373;
+            --bg: #fefae0;
+            --text: #606c38;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 50px;
+        }
+
+        #calendar-app {
+            background: var(--white);
+            border: 3px solid var(--text);
+            border-radius: 8px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 8px 8px 0px var(--text);
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            background: var(--text);
+            color: var(--bg);
+            border: none;
+            padding: 5px 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .header-cell {
+            font-weight: bold;
+            text-align: center;
+            font-size: 0.8rem;
+            border-bottom: 2px solid var(--text);
+            padding-bottom: 5px;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .day:hover {
+            background-color: var(--accent);
+            color: white;
+            cursor: pointer;
+        }
+
+        .today {
+            background-color: var(--text);
+            color: var(--bg);
+            font-weight: bold;
+        }
+
+        .empty {
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+
+    <h1 style="margin-bottom: 30px;">COFFEE CALENDAR</h1>
+    <div id="calendar-app"></div>
+
+    <script>
+        (function () {
+            var root = document.getElementById('calendar-app');
+            var view = new Date();
+            var today = new Date();
+
+            var btnOpts = {
+                style: {
+                    backgroundColor: 'var(--text)',
+                    color: 'var(--bg)',
+                    minHeight: '36px',
+                    minWidth: '36px',
+                    padding: '5px 15px',
+                    fontWeight: '700',
+                    fontFamily: 'inherit',
+                    boxShadow: 'none',
+                    borderRadius: '4px'
+                }
+            };
+
+            function render() {
+                var coffee = window.coffee;
+                if (!coffee || typeof coffee.row !== 'function' || typeof coffee.button !== 'function') {
+                    root.textContent = 'coffee UI not available (did load-all finish?)';
+                    return;
+                }
+
+                root.innerHTML = '';
+                var year = view.getFullYear();
+                var month = view.getMonth();
+                var monthName = view.toLocaleString('default', { month: 'long' });
+                var firstDay = new Date(year, month, 1).getDay();
+                var daysInMonth = new Date(year, month + 1, 0).getDate();
+                var weekdays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+                var prev = coffee.button(
+                    '<',
+                    function () {
+                        var next = new Date(view);
+                        next.setMonth(view.getMonth() - 1);
+                        view = next;
+                        render();
+                    },
+                    btnOpts
+                );
+
+                var next = coffee.button(
+                    '>',
+                    function () {
+                        var n = new Date(view);
+                        n.setMonth(view.getMonth() + 1);
+                        view = n;
+                        render();
+                    },
+                    btnOpts
+                );
+
+                var label = document.createElement('strong');
+                label.textContent = monthName.toUpperCase() + ' ' + year;
+                label.style.color = 'var(--text)';
+
+                var controlsRow = coffee.row([prev, label, next], {
+                    style: {
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        width: '100%',
+                        marginBottom: '20px',
+                        flexWrap: 'nowrap',
+                        gap: '8px'
+                    }
+                });
+                controlsRow.className = 'controls';
+
+                var grid = document.createElement('div');
+                grid.className = 'grid';
+
+                weekdays.forEach(function (w) {
+                    var h = document.createElement('div');
+                    h.className = 'header-cell';
+                    h.textContent = w;
+                    grid.appendChild(h);
+                });
+
+                for (var i = 0; i < firstDay; i++) {
+                    var pad = document.createElement('div');
+                    pad.className = 'cell empty';
+                    grid.appendChild(pad);
+                }
+
+                for (var d = 1; d <= daysInMonth; d++) {
+                    var isToday =
+                        d === today.getDate() &&
+                        month === today.getMonth() &&
+                        year === today.getFullYear();
+                    var cell = document.createElement('div');
+                    cell.className = 'cell day' + (isToday ? ' today' : '');
+                    cell.textContent = String(d);
+                    grid.appendChild(cell);
+                }
+
+                var stack = coffee.col([controlsRow, grid], { style: { width: '100%' } });
+                stack.className = 'container';
+                root.appendChild(stack);
+            }
+
+            var started = false;
+            function start() {
+                if (started) return;
+                started = true;
+                render();
+            }
+
+            window.addEventListener('coffee:cdn:ready', start);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') {
+                p.then(start).catch(start);
+            }
+        })();
+    </script>
+</body>
+</html>

@@ -14,7 +14,7 @@
  *
  * Default: jsDelivr against Coffee-Computer/COFFEE-SOURCE @ main. Change the fallback below if you fork.
  *
- * To load the whole in-repo browser stack with ONE tag (import map + base + ESM + all COFFEE-*/coffee-*.js), use **load-all.js** instead.
+ * To load the whole in-repo browser stack with ONE tag (import map + base + ESM + classic coffee-*.js roots), use **load-all.js** instead.
  */
 (function () {
   var cur = document.currentScript;
