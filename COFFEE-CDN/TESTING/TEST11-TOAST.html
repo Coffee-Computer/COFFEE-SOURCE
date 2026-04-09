@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Feedback Lab</title>
+    <style>
+        body { padding: 40px; font-family: sans-serif; display: flex; justify-content: center; transition: background 0.3s; }
+        #lab-root { width: 100%; max-width: 600px; }
+        .section { margin-bottom: 30px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 15px; }
+        h3 { color: #bc986a; border-bottom: 1px solid #333; padding-bottom: 8px; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+
+    <!-- Load the full stack. load-all.js pulls UI and TOAST automatically -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="lab-root">
+        <h1 style="margin-bottom: 5px;">Feedback Lab</h1>
+        <p style="color: #666; margin-bottom: 30px;">Testing <code>COFFEE-TOAST</code> and <code>coffee.msg</code> patterns.</p>
+
+        <div id="theme-section" class="section"></div>
+        <div id="toast-section" class="section"></div>
+        <div id="msg-section" class="section"></div>
+        
+        <div class="section">
+            <h3>Custom Logic Lab</h3>
+            <div id="custom-section" class="btn-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            // Initial Theme
+            let currentTheme = 'dark';
+            coffee.injectTheme(currentTheme);
+
+            const toastRoot = document.getElementById('toast-section');
+            const msgRoot = document.getElementById('msg-section');
+            const themeRoot = document.getElementById('theme-section');
+            const customRoot = document.getElementById('custom-section');
+
+            // 1. Theme Controller
+            themeRoot.appendChild(coffee.button('Toggle Light/Dark Theme', () => {
+                currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                coffee.injectTheme(currentTheme);
+                document.body.style.background = currentTheme === 'dark' ? '#111' : '#f0f0f0';
+                coffee.toast(`Theme switched to ${currentTheme}`);
+            }));
+
+            // 2. COFFEE-TOAST Patterns
+            // Standard floating feedback
+            toastRoot.innerHTML = '<h3>Floating Toasts (COFFEE-TOAST)</h3>';
+            const tGrid = document.createElement('div');
+            tGrid.className = 'btn-grid';
+
+            tGrid.append(
+                coffee.button('Default Toast', () => coffee.toast('Basic notification')),
+                coffee.button('Success Toast', () => coffee.toast('Data saved successfully!', { type: 'success' })),
+                coffee.button('Error Toast', () => coffee.toast('Connection failed', { type: 'error' })),
+                coffee.button('Warning Toast', () => coffee.toast('Low disk space', { type: 'warning' }))
+            );
+            toastRoot.appendChild(tGrid);
+
+            // 3. coffee.msg Patterns
+            // Usually used for status bar or non-disruptive inline messages
+            msgRoot.innerHTML = '<h3>Status Messages (coffee.msg)</h3>';
+            const mGrid = document.createElement('div');
+            mGrid.className = 'btn-grid';
+
+            mGrid.append(
+                coffee.button('Status Info', () => coffee.msg('System idle')),
+                coffee.button('Status Busy', () => coffee.msg('Processing queue...', { loading: true })),
+                coffee.button('Clear Msg', () => coffee.msg(null))
+            );
+            msgRoot.appendChild(mGrid);
+
+            // 4. Advanced Interaction Lab
+            customRoot.append(
+                coffee.button('Chain Reactions', () => {
+                    coffee.msg('Starting sequence...');
+                    setTimeout(() => {
+                        coffee.toast('Stage 1 Complete');
+                        setTimeout(() => {
+                            coffee.toast('All systems go!', { type: 'success' });
+                            coffee.msg('Sequence finished.');
+                        }, 1000);
+                    }, 1000);
+                }),
+                coffee.button('Multiple Toasts', () => {
+                    coffee.toast('First');
+                    coffee.toast('Second');
+                    coffee.toast('Third');
+                })
+            );
+
+            // Verify logic
+            console.log("Feedback Lab initialized.");
+            if (!coffee.toast) console.error("COFFEE-TOAST package not detected in load-all.js");
+        });
+    </script>
+</body>
+</html>

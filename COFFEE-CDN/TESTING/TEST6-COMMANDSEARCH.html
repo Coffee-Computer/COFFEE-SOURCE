@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Command Bar + Nebula</title>
+    <style>
+        body {
+            background-color: #0c0c0c;
+            color: #d1d1d1;
+            font-family: 'Inter', -apple-system, sans-serif;
+            display: flex;
+            justify-content: center;
+            padding-top: 10vh;
+            margin: 0;
+        }
+
+        #command-bar-container {
+            width: 550px;
+            background: #141414;
+            border: 1px solid #222;
+            border-radius: 10px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+
+        .search-wrapper {
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #222;
+        }
+
+        .nebula-icon { color: #bc986a; margin-right: 10px; font-weight: bold; }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 20px 5px;
+            font-size: 18px;
+            outline: none;
+        }
+
+        #results-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .search-result {
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-left: 2px solid transparent;
+            gap: 12px;
+        }
+
+        .search-result:hover, .search-result.active {
+            background: #1f1f1f;
+            border-left-color: #bc986a;
+        }
+
+        .result-meta {
+            font-size: 12px;
+            color: #888;
+            background: #000;
+            padding: 3px 8px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .result-snippet {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            line-height: 1.35;
+            max-height:       3.2em;
+            overflow: hidden;
+        }
+
+        .section-header {
+            padding: 10px 20px 5px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #444;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+    </style>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="command-bar-container">
+        <div class="search-wrapper">
+            <span class="nebula-icon">✦</span>
+            <input type="text" id="main-input" placeholder="Search (type or press Enter)…" autofocus autocomplete="off">
+        </div>
+        <div id="results-list"></div>
+    </div>
+
+    <script>
+        (function () {
+            var input = document.getElementById('main-input');
+            var listRoot = document.getElementById('results-list');
+            var timer;
+
+            /** Local title filter (COFFEE-FILTER is coffee.filterCss only — not array search). */
+            function filterByTitle(items, q, key) {
+                var needle = String(q || '').trim().toLowerCase();
+                if (!needle) return items.slice();
+                return items.filter(function (it) {
+                    return String(it[key] || '').toLowerCase().indexOf(needle) !== -1;
+                });
+            }
+
+            function sectionHeader(text) {
+                var h = document.createElement('div');
+                h.className = 'section-header';
+                h.textContent = text;
+                return h;
+            }
+
+            function renderResultRow(item) {
+                var el = document.createElement('div');
+                el.className = 'search-result';
+                var left = document.createElement('div');
+                left.style.minWidth = '0';
+                var title = document.createElement('div');
+                title.textContent = item.title;
+                left.appendChild(title);
+                if (item.snippet) {
+                    var sn = document.createElement('div');
+                    sn.className = 'result-snippet';
+                    sn.textContent = item.snippet;
+                    left.appendChild(sn);
+                }
+                var meta = document.createElement('span');
+                meta.className = 'result-meta';
+                meta.textContent = item.type || '';
+                el.appendChild(left);
+                el.appendChild(meta);
+                el.onclick = function () {
+                    if (typeof item.run === 'function') item.run();
+                };
+                return el;
+            }
+
+            async function performSearch(rawQuery) {
+                var query = String(rawQuery || '').trim();
+                listRoot.innerHTML = '';
+
+                var actions = [
+                    { title: 'Open Calendar', type: 'Action', run: function () { alert('Calendar'); } },
+                    { title: 'New Document', type: 'Action', run: function () { alert('New document'); } }
+                ];
+                var filteredActions = filterByTitle(actions, query, 'title');
+
+                var wikiItems = [];
+                if (query.length > 1 && typeof coffee.nebula !== 'undefined' && coffee.nebula.wikiSearch) {
+                    try {
+                        var wiki = await coffee.nebula.wikiSearch(query, { limit: 8, images: false });
+                        var rows = wiki.results || [];
+                        wikiItems = rows.map(function (r) {
+                            return {
+                                title: r.title,
+                                type: 'Wikipedia',
+                                snippet: r.snippet || '',
+                                run: function () {
+                                    window.open(r.url, '_blank', 'noopener,noreferrer');
+                                }
+                            };
+                        });
+                    } catch (err) {
+                        console.warn('[command search] wikiSearch', err);
+                    }
+                }
+
+                if (filteredActions.length === 0 && wikiItems.length === 0) {
+                    var empty = document.createElement('div');
+                    empty.style.cssText = 'padding:20px;color:#666;font-size:14px';
+                    empty.textContent = query.length > 1
+                        ? 'No results. Try different words.'
+                        : 'Type to filter actions, or 2+ characters for Wikipedia.';
+                    listRoot.appendChild(empty);
+                    return;
+                }
+
+                if (filteredActions.length > 0) {
+                    listRoot.appendChild(sectionHeader('Actions'));
+                    listRoot.appendChild(coffee.list(filteredActions, {
+                        renderItem: renderResultRow,
+                        gap: '0'
+                    }));
+                }
+                if (wikiItems.length > 0) {
+                    listRoot.appendChild(sectionHeader('Wikipedia'));
+                    listRoot.appendChild(coffee.list(wikiItems, {
+                        renderItem: renderResultRow,
+                        gap: '0'
+                    }));
+                }
+            }
+
+            function start() {
+                if (typeof coffee === 'undefined' || typeof coffee.list !== 'function') {
+                    listRoot.textContent = 'coffee UI / list not ready.';
+                    return;
+                }
+
+                input.addEventListener('input', function (e) {
+                    clearTimeout(timer);
+                    timer = setTimeout(function () {
+                        performSearch(e.target.value);
+                    }, 150);
+                });
+
+                input.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(timer);
+                        performSearch(input.value);
+                    }
+                });
+
+                window.addEventListener('keydown', function (e) {
+                    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
+                        e.preventDefault();
+                        input.focus();
+                    }
+                });
+
+                performSearch('');
+                console.log('Nebula command bar ready (coffee.nebula.wikiSearch + coffee.list).');
+            }
+
+            var started = false;
+            function onceStart() {
+                if (started) return;
+                started = true;
+                start();
+            }
+
+            window.addEventListener('coffee:cdn:ready', onceStart);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') {
+                p.then(onceStart).catch(onceStart);
+            }
+        })();
+    </script>
+</body>
+</html>

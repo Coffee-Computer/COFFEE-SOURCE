@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Task Board</title>
+    <style>
+        body { background: #121212; color: #e0e0e0; font-family: sans-serif; margin: 0; padding: 20px; }
+        #board-root { display: flex; gap: 20px; align-items: flex-start; overflow-x: auto; padding-bottom: 20px; }
+        
+        .column { 
+            background: #1a1a1a; 
+            border-radius: 8px; 
+            width: 300px; 
+            min-width: 300px; 
+            display: flex; 
+            flex-direction: column; 
+            max-height: 90vh;
+            border: 1px solid #333;
+        }
+
+        .column-header { padding: 15px; font-weight: bold; text-transform: uppercase; color: #bc986a; border-bottom: 1px solid #333; display: flex; justify-content: space-between; }
+        .task-list { padding: 10px; overflow-y: auto; flex: 1; min-height: 50px; }
+        
+        /* Custom card styling to override defaults for a 'task' feel */
+        .coffee-card { margin-bottom: 10px; background: #252525 !important; border: 1px solid #444 !important; }
+        .task-actions { display: flex; gap: 5px; margin-top: 10px; justify-content: flex-end; }
+        
+        .add-zone { padding: 10px; border-top: 1px solid #333; }
+        input { background: #000; border: 1px solid #444; color: white; padding: 8px; width: 100%; box-sizing: border-box; border-radius: 4px; }
+    </style>
+
+    <!-- Load the Coffee Source stack via CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <h2 style="margin-bottom: 20px;">Project Workspace</h2>
+    <div id="board-root"></div>
+
+    <script>
+        (function () {
+        function start() {
+            const boardRoot = document.getElementById('board-root');
+            const LS_KEY = 'coffee_task_board_data';
+            const DRIVE_APP = 'coffee-task-board';
+            const BOARD_ROW_ID = 'main';
+
+            /**
+             * COFFEE-DRIVE API: coffee.drive(appName) → { save, load, list, … }.
+             * save/load use IndexedDB rows { id, … } — not drive.get(key) / put(key, string).
+             */
+            var store =
+                typeof coffee.drive === 'function' ? coffee.drive(DRIVE_APP) : null;
+
+            let board = {
+                columns: [
+                    { id: 'todo', title: 'To Do', tasks: [] },
+                    { id: 'doing', title: 'In Progress', tasks: [] },
+                    { id: 'done', title: 'Completed', tasks: [] }
+                ]
+            };
+
+            function normalizeLoaded(b) {
+                if (!b || !Array.isArray(b.columns) || b.columns.length !== 3) return;
+                board = b;
+            }
+
+            async function save() {
+                try {
+                    if (store) {
+                        await store.save({ id: BOARD_ROW_ID, columns: board.columns });
+                    } else {
+                        localStorage.setItem(LS_KEY, JSON.stringify(board));
+                    }
+                } catch (e) {
+                    console.warn('[task board] save', e);
+                    try {
+                        localStorage.setItem(LS_KEY, JSON.stringify(board));
+                    } catch (_) {}
+                }
+                render();
+            }
+
+            async function load() {
+                try {
+                    if (store) {
+                        var row = await store.load(BOARD_ROW_ID);
+                        if (row) normalizeLoaded({ columns: row.columns });
+                    } else {
+                        var raw = localStorage.getItem(LS_KEY);
+                        if (raw) {
+                            try {
+                                normalizeLoaded(JSON.parse(raw));
+                            } catch (_) {}
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[task board] load', e);
+                    try {
+                        var r2 = localStorage.getItem(LS_KEY);
+                        if (r2) {
+                            try {
+                                normalizeLoaded(JSON.parse(r2));
+                            } catch (_) {}
+                        }
+                    } catch (_) {}
+                }
+                render();
+            }
+
+            // 3. UI Construction
+            function render() {
+                boardRoot.innerHTML = '';
+
+                board.columns.forEach((col, colIdx) => {
+                    const colEl = document.createElement('div');
+                    colEl.className = 'column';
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.className = 'column-header';
+                    header.innerHTML = `<span>${col.title}</span> <small style="color:#666">${col.tasks.length}</small>`;
+
+                    // Task List
+                    const taskList = document.createElement('div');
+                    taskList.className = 'task-list';
+
+                    col.tasks.forEach((task, taskIdx) => {
+                        // Use coffee.card helper from COFFEE-UI
+                        const card = coffee.card(task.text);
+                        
+                        const actions = document.createElement('div');
+                        actions.className = 'task-actions';
+
+                        // Move Left
+                        if (colIdx > 0) {
+                            actions.appendChild(coffee.button('←', () => moveTask(colIdx, taskIdx, colIdx - 1)));
+                        }
+                        
+                        // Delete
+                        const delBtn = coffee.button('🗑', () => {
+                            col.tasks.splice(taskIdx, 1);
+                            save();
+                        });
+                        delBtn.style.background = '#300';
+                        actions.appendChild(delBtn);
+
+                        // Move Right
+                        if (colIdx < board.columns.length - 1) {
+                            actions.appendChild(coffee.button('→', () => moveTask(colIdx, taskIdx, colIdx + 1)));
+                        }
+
+                        card.appendChild(actions);
+                        taskList.appendChild(card);
+                    });
+
+                    // Add Task Zone
+                    const addZone = document.createElement('div');
+                    addZone.className = 'add-zone';
+                    const input = document.createElement('input');
+                    input.placeholder = "+ Add Task";
+                    input.onkeydown = (e) => {
+                        if (e.key === 'Enter' && input.value.trim()) {
+                            col.tasks.push({ id: Date.now(), text: input.value.trim() });
+                            input.value = '';
+                            save();
+                        }
+                    };
+                    addZone.appendChild(input);
+
+                    colEl.append(header, taskList, addZone);
+                    boardRoot.appendChild(colEl);
+                });
+            }
+
+            // 4. Action Helpers
+            function moveTask(fromColIdx, taskIdx, toColIdx) {
+                const task = board.columns[fromColIdx].tasks.splice(taskIdx, 1)[0];
+                board.columns[toColIdx].tasks.push(task);
+                save();
+            }
+
+            if (typeof coffee.injectTheme === 'function') coffee.injectTheme('dark');
+            load();
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

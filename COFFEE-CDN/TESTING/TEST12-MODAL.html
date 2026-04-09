@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Modal & Form Sandbox</title>
+    <style>
+        body { margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; transition: background 0.3s; }
+        #sandbox-hub { text-align: center; max-width: 400px; padding: 40px; background: rgba(128,128,128,0.05); border-radius: 20px; border: 1px dashed #444; }
+        
+        /* Custom form styling hints for COFFEE-FORMS */
+        .coffee-form-group { margin-bottom: 15px; text-align: left; }
+        .coffee-form-group label { display: block; font-size: 12px; margin-bottom: 5px; color: #bc986a; text-transform: uppercase; }
+        .coffee-form-group input, .coffee-form-group select { 
+            width: 100%; padding: 10px; background: #000; border: 1px solid #333; color: #fff; border-radius: 4px; box-sizing: border-box;
+        }
+        .coffee-form-error { color: #ff4d4d; font-size: 11px; margin-top: 4px; }
+        
+        /* Modal a11y focus highlight */
+        :focus { outline: 2px solid #bc986a; outline-offset: 2px; }
+    </style>
+
+    <!-- Load the full browser stack via COFFEE-CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="sandbox-hub">
+        <h2 style="margin-top: 0;">Component Lab</h2>
+        <p style="color: #666; font-size: 14px; margin-bottom: 30px;">Testing <code>COFFEE-MODAL</code> focus trapping and <code>COFFEE-FORMS</code> validation logic.</p>
+        <div id="trigger-root"></div>
+    </div>
+
+    <script>
+        (function () {
+        function start() {
+            /** Explicit mode — don't infer from body.style (empty rgb(), injectTheme doesn't set body bg). */
+            var themeMode = 'dark';
+
+            function applyPageChrome() {
+                coffee.injectTheme(themeMode);
+                if (themeMode === 'dark') {
+                    document.body.style.background = '#111';
+                    document.body.style.color = '#eee';
+                } else {
+                    document.body.style.background = '#f4f4f5';
+                    document.body.style.color = '#111';
+                }
+            }
+
+            applyPageChrome();
+
+            var triggerRoot = document.getElementById('trigger-root');
+
+            var formConfig = {
+                fields: [
+                    { name: 'username', label: 'Display Name', type: 'text', placeholder: 'e.g. CoffeeUser', required: true },
+                    { name: 'email', label: 'Email Address', type: 'email', placeholder: 'user@example.com', required: true },
+                    {
+                        name: 'role',
+                        label: 'Project Role',
+                        type: 'select',
+                        options: ['Developer', 'Designer', 'Maintainer', 'Architect']
+                    },
+                    { name: 'terms', label: 'Accept Coffee License', type: 'checkbox', required: true }
+                ],
+                onSubmit: function (data) {
+                    console.log('Form submitted:', data);
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast('Account created!', { type: 'success' });
+                    }
+                    if (window.currentModal) window.currentModal.close();
+                }
+            };
+
+            /** API: coffee.modal(contentNode, { title, onClose, closeOnOverlay }) — not one big options object. */
+            var openBtn = coffee.button('Launch onboarding flow', function () {
+                var formElement = coffee.form(formConfig);
+                var cancelBtn = coffee.button('Cancel', function () {
+                    if (window.currentModal) window.currentModal.close();
+                });
+                var footer = coffee.row([cancelBtn], {
+                    style: { justifyContent: 'flex-end', marginTop: '12px', gap: '8px' }
+                });
+                var bodyCol = coffee.col([formElement, footer], { style: { gap: '0' } });
+
+                window.currentModal = coffee.modal(bodyCol, {
+                    title: 'Create new identity',
+                    onClose: function () { window.currentModal = null; }
+                });
+
+                var box = window.currentModal.element && window.currentModal.element.querySelector('.coffee-modal-box');
+                if (box) box.style.maxWidth = 'min(90vw, 450px)';
+
+                console.log('Modal opened');
+            });
+
+            triggerRoot.appendChild(openBtn);
+
+            var themeBtn = coffee.button('Switch theme', function () {
+                themeMode = themeMode === 'dark' ? 'light' : 'dark';
+                applyPageChrome();
+            });
+            themeBtn.style.marginTop = '10px';
+            themeBtn.style.opacity = '0.85';
+            triggerRoot.appendChild(themeBtn);
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

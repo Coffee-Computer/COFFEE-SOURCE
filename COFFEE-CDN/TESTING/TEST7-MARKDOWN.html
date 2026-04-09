@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Markdown Scratchpad</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background: #1a1a1b; color: #d7dadc;
+            font-family: 'Inter', -apple-system, sans-serif;
+            overflow: hidden;
+        }
+
+        #app-root { height: 100vh; display: flex; flex-direction: column; }
+
+        .toolbar {
+            height: 50px;
+            background: #272729;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            border-bottom: 1px solid #343435;
+            justify-content: space-between;
+        }
+
+        .editor-container { flex: 1; display: flex; overflow: hidden; }
+
+        textarea {
+            flex: 1;
+            background: #1a1a1b;
+            color: #d7dadc;
+            border: none;
+            padding: 20px;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            border-right: 1px solid #343435;
+        }
+
+        .preview {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #ffffff;
+            color: #1a1a1b;
+        }
+
+        .preview.markdown-body { box-sizing: border-box; }
+
+        /* Basic Markdown Styling for the Preview */
+        .preview h1 { border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+        .preview code { background: #f6f8fa; padding: 0.2em 0.4em; border-radius: 3px; }
+        .preview pre { background: #f6f8fa; padding: 16px; overflow: auto; border-radius: 6px; }
+        .preview blockquote { border-left: 4px solid #dfe2e5; color: #6a737d; padding: 0 1em; }
+
+        .status-tag { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #bc986a; }
+    </style>
+
+    <!-- marked must exist before coffee-markdown.js (pulled in by load-all) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5.3.0/github-markdown.min.css">
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="app-root">
+        <div class="toolbar">
+            <div style="font-weight: bold; color: #bc986a;">COFFEE // MARKDOWN</div>
+            <div id="status" class="status-tag">Local Storage</div>
+        </div>
+        <div class="editor-container" id="editor-root"></div>
+    </div>
+
+    <script>
+        (function () {
+            function start() {
+                var editorRoot = document.getElementById('editor-root');
+                var status = document.getElementById('status');
+
+                var content = localStorage.getItem('coffee-scratchpad-data') ||
+                    '# Hello Coffee\n\nStart typing on the left to see the preview on the right.';
+
+                function updatePreview(text, container) {
+                    if (!coffee.markdown || typeof coffee.markdown.toHtml !== 'function') {
+                        container.textContent = text;
+                        return;
+                    }
+                    if (typeof coffee.markdown.supported === 'function' && !coffee.markdown.supported()) {
+                        container.innerHTML =
+                            '<p style="color:#b45309">Missing <code>marked</code>. Load it <em>before</em> <code>load-all.js</code> (see COFFEE-MARKDOWN).</p>' +
+                            '<pre style="white-space:pre-wrap">' +
+                            String(text).replace(/</g, '&lt;') +
+                            '</pre>';
+                        return;
+                    }
+                    container.innerHTML = coffee.markdown.toHtml(text);
+                }
+
+                function save(text) {
+                    localStorage.setItem('coffee-scratchpad-data', text);
+                    status.textContent = 'Local storage';
+                    if (coffee.drive && typeof coffee.drive.put === 'function') {
+                        status.textContent = 'Syncing…';
+                        Promise.resolve(coffee.drive.put('scratchpad.md', text))
+                            .then(function () { status.textContent = 'Synced'; })
+                            .catch(function () { status.textContent = 'Local only (drive error)'; });
+                    }
+                }
+
+                editorRoot.innerHTML = '';
+
+                var textarea = document.createElement('textarea');
+                textarea.value = content;
+                textarea.placeholder = 'Write markdown here…';
+
+                var preview = document.createElement('div');
+                preview.className = 'preview markdown-body';
+
+                textarea.oninput = function (e) {
+                    content = e.target.value;
+                    updatePreview(content, preview);
+                    save(content);
+                };
+
+                editorRoot.append(textarea, preview);
+                updatePreview(content, preview);
+                console.log('Markdown scratchpad ready (coffee.markdown.toHtml + marked).');
+            }
+
+            var started = false;
+            function once() {
+                if (started) return;
+                started = true;
+                start();
+            }
+            window.addEventListener('coffee:cdn:ready', once);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

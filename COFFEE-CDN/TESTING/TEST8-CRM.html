@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee CRM — Faux BaaS</title>
+    <style>
+        body { background: #111; color: #eee; font-family: sans-serif; padding: 40px; }
+        #crm-app { max-width: 800px; margin: 0 auto; }
+        
+        .crm-header { margin-bottom: 30px; border-bottom: 1px solid #333; padding-bottom: 20px; }
+        .crm-form { display: flex; gap: 10px; margin-bottom: 30px; background: #1a1a1a; padding: 20px; border-radius: 8px; }
+        
+        input { 
+            background: #000; border: 1px solid #333; color: white; 
+            padding: 10px; border-radius: 4px; flex: 1; 
+        }
+
+        .contacts-table { width: 100%; border-collapse: collapse; }
+        .contact-row { border-bottom: 1px solid #222; transition: background 0.2s; }
+        .contact-row:hover { background: #151515; }
+        .contact-row td { padding: 15px; }
+        
+        .status-pill { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: #bc986a; color: #000; font-weight: bold; }
+    </style>
+
+    <!-- 1. Load the "Browser Stack" -->
+    <!-- load-all.js follows the specific sequence: QUE -> WIRE -> DRIVE -> BASE -> UI -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="crm-app">
+        <div class="crm-header">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h1>Coffee CRM</h1>
+                <span class="status-pill" id="sync-status">DISK READ-ONLY</span>
+            </div>
+            <p style="color: #666;">Indexed "Faux BaaS" using COFFEE-DRIVE + COFFEE-QUE</p>
+        </div>
+
+        <div id="form-root" class="crm-form"></div>
+        
+        <table class="contacts-table">
+            <thead>
+                <tr style="text-align: left; color: #555; font-size: 12px; text-transform: uppercase;">
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="contacts-root"></tbody>
+        </table>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', async function () {
+            // Apply theme from UI package
+            if (coffee.injectTheme) coffee.injectTheme('dark');
+
+            const contactsRoot = document.getElementById('contacts-root');
+            const formRoot = document.getElementById('form-root');
+            const syncStatus = document.getElementById('sync-status');
+
+            const STORAGE_KEY = 'crm_contacts_v1';
+
+            // 1. STATE INITIALIZATION (The "BaaS" local mirror)
+            let contacts = [];
+
+            // 2. LOAD FROM DRIVE
+            async function loadData() {
+                try {
+                    const data = await coffee.drive.get(STORAGE_KEY);
+                    contacts = data ? JSON.parse(data) : [];
+                    syncStatus.innerText = "DRIVE SYNCED";
+                } catch (e) {
+                    console.error("Drive fail", e);
+                    contacts = [];
+                }
+                render();
+            }
+
+            // 3. PERSIST TO DRIVE (Using COFFEE-QUE to prevent collision)
+            async function persist() {
+                syncStatus.innerText = "PERSISTING...";
+                
+                // We wrap the write in coffee.que.push if logic is complex, 
+                // but drive.put is atomic in this stack.
+                await coffee.drive.put(STORAGE_KEY, JSON.stringify(contacts));
+                
+                syncStatus.innerText = "DRIVE SYNCED";
+                render();
+            }
+
+            // 4. UI: RENDER TABLE & FORM
+            function render() {
+                // Clear roots
+                contactsRoot.innerHTML = '';
+                formRoot.innerHTML = '';
+
+                // Build Form using Coffee UI components
+                const nameInput = document.createElement('input');
+                nameInput.placeholder = "Full Name";
+                const emailInput = document.createElement('input');
+                emailInput.placeholder = "Email Address";
+
+                const addBtn = coffee.button('Add Contact', async () => {
+                    if (!nameInput.value || !emailInput.value) return;
+                    contacts.push({
+                        id: Date.now(),
+                        name: nameInput.value,
+                        email: emailInput.value
+                    });
+                    await persist();
+                });
+
+                formRoot.append(nameInput, emailInput, addBtn);
+
+                // Build Table Rows
+                contacts.forEach(contact => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'contact-row';
+
+                    const tdName = document.createElement('td');
+                    tdName.innerText = contact.name;
+                    
+                    const tdEmail = document.createElement('td');
+                    tdEmail.innerText = contact.email;
+                    tdEmail.style.color = '#888';
+
+                    const tdActions = document.createElement('td');
+                    
+                    // Use Coffee-UI button with danger styling logic
+                    const delBtn = coffee.button('Delete', async () => {
+                        contacts = contacts.filter(c => c.id !== contact.id);
+                        await persist();
+                    });
+                    delBtn.style.background = '#300';
+                    delBtn.style.color = '#f55';
+
+                    tdActions.appendChild(delBtn);
+                    tr.append(tdName, tdEmail, tdActions);
+                    contactsRoot.appendChild(tr);
+                });
+            }
+
+            // Initial Startup Sequence
+            // Matches README order: Wait for base, then initialize drive/sync
+            if (coffee.base) {
+                console.log("Coffee Base Online. Initializing CRM BaaS...");
+                await loadData();
+            }
+        });
+    </script>
+</body>
+</html>

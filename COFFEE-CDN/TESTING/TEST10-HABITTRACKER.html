@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Cadence — Habit Tracker</title>
+    <style>
+        body { background: #0f0f0f; color: #e0e0e0; font-family: 'Inter', sans-serif; padding: 20px; display: flex; justify-content: center; }
+        #app-root { width: 100%; max-width: 500px; }
+        
+        .habit-card { 
+            background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 20px; margin-bottom: 20px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .habit-title { font-size: 1.2rem; font-weight: bold; color: #bc986a; }
+        .streak-count { font-size: 0.9rem; background: #2a2218; color: #ffab40; padding: 4px 10px; border-radius: 20px; border: 1px solid #443525; }
+
+        .cadence-grid { display: flex; gap: 8px; justify-content: space-between; margin: 15px 0; }
+        .day-circle { 
+            width: 35px; height: 35px; border-radius: 50%; border: 2px solid #333;
+            display: flex; align-items: center; justify-content: center; font-size: 10px; color: #666;
+            transition: all 0.2s ease;
+        }
+        .day-circle.completed { background: #bc986a; border-color: #bc986a; color: #000; font-weight: bold; }
+        .day-circle.today { border-color: #ffab40; color: #ffab40; }
+
+        .stats { font-size: 0.8rem; color: #666; margin-top: 10px; border-top: 1px solid #222; padding-top: 10px; }
+    </style>
+
+    <!-- Load the Coffee Source stack via CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="app-root">
+        <h2 style="text-align: center; margin-bottom: 30px; letter-spacing: 2px;">HABIT CADENCE</h2>
+        <div id="habits-list"></div>
+    </div>
+
+    <script>
+        (function () {
+        function start() {
+            const listRoot = document.getElementById('habits-list');
+
+            /*
+             * COFFEE-CADENCE (coffee-cadence.js) is music transport UI (transportStrip),
+             * not habit streaks — there is no coffee.cadence.getStreak.
+             */
+            let habits = [
+                { id: 'water', title: 'Hydration', history: [] },
+                { id: 'code', title: 'Deep Work', history: [] },
+                { id: 'walk', title: 'Daily Walk', history: [] }
+            ];
+
+            const store = typeof coffee.drive === 'function' ? coffee.drive('habit-tracker') : null;
+
+            function parseYMD(iso) {
+                var p = String(iso).split('T')[0].split('-').map(Number);
+                return new Date(p[0], p[1] - 1, p[2]);
+            }
+
+            /** Consecutive calendar days ending at last completion; broken if last check-in >1 day behind today. */
+            function computeStreak(history) {
+                var arr = [];
+                (history || []).forEach(function (h) {
+                    var d = String(h || '').split('T')[0];
+                    if (d && arr.indexOf(d) === -1) arr.push(d);
+                });
+                arr.sort();
+                if (!arr.length) return 0;
+
+                var today = new Date();
+                today.setHours(0, 0, 0, 0);
+                var last = parseYMD(arr[arr.length - 1]);
+                var gap = Math.round((today - last) / 864e5);
+                if (gap > 1) return 0;
+
+                var streak = 1;
+                for (var i = arr.length - 1; i > 0; i--) {
+                    var cur = parseYMD(arr[i]);
+                    var prev = parseYMD(arr[i - 1]);
+                    if (Math.round((cur - prev) / 864e5) === 1) streak++;
+                    else break;
+                }
+                return streak;
+            }
+
+            async function load() {
+                try {
+                    if (store) {
+                        var saved = await store.load('habits-state');
+                        if (saved && Array.isArray(saved.data)) habits = saved.data;
+                    }
+                } catch (e) {
+                    console.warn('[habit tracker] load', e);
+                }
+                render();
+            }
+
+            async function save() {
+                try {
+                    if (store) {
+                        await store.save({ id: 'habits-state', data: habits });
+                    }
+                } catch (e) {
+                    console.warn('[habit tracker] save', e);
+                }
+                render();
+            }
+
+            function getLast7Days() {
+                var days = [];
+                for (var i = 6; i >= 0; i--) {
+                    var d = new Date();
+                    d.setDate(d.getDate() - i);
+                    days.push(d.toISOString().split('T')[0]);
+                }
+                return days;
+            }
+
+            function render() {
+                listRoot.innerHTML = '';
+                const week = getLast7Days();
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                habits.forEach(function (habit) {
+                    const card = document.createElement('div');
+                    card.className = 'habit-card';
+
+                    const streak = computeStreak(habit.history);
+
+                    // Header
+                    const header = document.createElement('div');
+                    header.className = 'header-row';
+                    header.innerHTML = `<span class="habit-title">${habit.title}</span>
+                                        <span class="streak-count">🔥 ${streak} DAY STREAK</span>`;
+
+                    // Day Circles
+                    const grid = document.createElement('div');
+                    grid.className = 'cadence-grid';
+
+                    week.forEach(date => {
+                        const isDone = habit.history.includes(date);
+                        const isToday = date === todayStr;
+                        const dayName = new Date(date).toLocaleDateString('en-US', { weekday: 'narrow' });
+
+                        const circle = document.createElement('div');
+                        circle.className = `day-circle ${isDone ? 'completed' : ''} ${isToday ? 'today' : ''}`;
+                        circle.innerText = dayName;
+                        grid.appendChild(circle);
+                    });
+
+                    // Action Button (Coffee UI)
+                    const hasDoneToday = habit.history.includes(todayStr);
+                    const actionBtn = coffee.button(hasDoneToday ? 'COMPLETED' : 'MARK DONE', () => {
+                        if (hasDoneToday) {
+                            habit.history = habit.history.filter(d => d !== todayStr);
+                        } else {
+                            habit.history.push(todayStr);
+                        }
+                        save();
+                    });
+                    actionBtn.style.width = '100%';
+                    if (hasDoneToday) actionBtn.style.opacity = '0.5';
+
+                    card.append(header, grid, actionBtn);
+                    listRoot.appendChild(card);
+                });
+            }
+
+            if (typeof coffee.injectTheme === 'function') coffee.injectTheme('dark');
+            load();
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>
