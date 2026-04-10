@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Terminal // Mock FS</title>
+    <style>
+        body {
+            background: #0a0a0a;
+            color: #00ff41; /* Classic Matrix/Terminal Green */
+            font-family: 'Fira Code', 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #terminal-container {
+            width: 100%;
+            max-width: 800px;
+            height: 500px;
+            background: #000;
+            border: 1px solid #333;
+            border-radius: 8px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .terminal-header {
+            background: #1a1a1a;
+            padding: 8px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .dot-group { display: flex; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
+
+        #output {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            font-size: 14px;
+        }
+
+        .input-line {
+            display: flex;
+            padding: 10px 20px;
+            background: #050505;
+            border-top: 1px solid #111;
+        }
+
+        .prompt { color: #bc986a; margin-right: 10px; font-weight: bold; }
+
+        input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #00ff41;
+            font-family: inherit;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .dir-text { color: #4c9aff; }
+        .file-text { color: #eee; }
+    </style>
+
+    <!-- Load the Coffee Source stack via CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="terminal-container">
+        <div class="terminal-header">
+            <div class="dot-group">
+                <div class="dot red"></div>
+                <div class="dot yellow"></div>
+                <div class="dot green"></div>
+            </div>
+            <div style="font-size: 10px; color: #666; letter-spacing: 2px;">COFFEE_TERM v1.0.4</div>
+        </div>
+        <div id="output"></div>
+        <div class="input-line">
+            <span class="prompt" id="prompt-path">~ $</span>
+            <input type="text" id="term-input" autofocus spellcheck="false">
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const output = document.getElementById('output');
+            const input = document.getElementById('term-input');
+            const promptPath = document.getElementById('prompt-path');
+
+            // 1. Mock File System State
+            const fs = {
+                '~': {
+                    'projects': {
+                        'coffee-source.md': '# Coffee Source\nA modular CDN-first framework.',
+                        'todo.txt': '- Finish Terminal\n- Add Drive integration'
+                    },
+                    'about.txt': 'This is a mock CLI built with COFFEE-TERMINAL.',
+                    'logs': {}
+                }
+            };
+
+            let currentPath = ['~'];
+
+            function getDir(pathArr) {
+                return pathArr.reduce((acc, curr) => acc[curr], fs);
+            }
+
+            // 2. Terminal Logic (Dogfooding COFFEE-TERMINAL patterns)
+            function print(text, type = '') {
+                const line = document.createElement('div');
+                if (type) line.className = type;
+                line.innerHTML = text;
+                output.appendChild(line);
+                output.scrollTop = output.scrollHeight;
+            }
+
+            const commands = {
+                help: () => 'Available commands: ls, cd [dir], cat [file], clear, help, whoami',
+                whoami: () => 'coffee_user',
+                clear: () => { output.innerHTML = ''; return ''; },
+                ls: () => {
+                    const dir = getDir(currentPath);
+                    return Object.keys(dir).map(key => {
+                        return typeof dir[key] === 'object' 
+                            ? `<span class="dir-text">${key}/</span>` 
+                            : `<span class="file-text">${key}</span>`;
+                    }).join('  ');
+                },
+                cd: (args) => {
+                    if (!args || args === '~') {
+                        currentPath = ['~'];
+                    } else if (args === '..') {
+                        if (currentPath.length > 1) currentPath.pop();
+                    } else {
+                        const dir = getDir(currentPath);
+                        if (dir[args] && typeof dir[args] === 'object') {
+                            currentPath.push(args);
+                        } else {
+                            return `cd: no such directory: ${args}`;
+                        }
+                    }
+                    promptPath.innerText = `${currentPath.join('/')} $`;
+                    return '';
+                },
+                cat: (args) => {
+                    const dir = getDir(currentPath);
+                    if (dir[args] && typeof dir[args] === 'string') {
+                        return dir[args].replace(/\n/g, '<br>');
+                    }
+                    return `cat: ${args}: No such file`;
+                }
+            };
+
+            // 3. Input Handling
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const rawValue = input.value.trim();
+                    const [cmd, ...args] = rawValue.split(' ');
+                    
+                    print(`<span class="prompt">${promptPath.innerText}</span> ${rawValue}`);
+                    
+                    if (cmd) {
+                        if (commands[cmd]) {
+                            const result = commands[cmd](args.join(' '));
+                            if (result) print(result);
+                        } else {
+                            print(`command not found: ${cmd}`, 'file-text');
+                        }
+                    }
+                    
+                    input.value = '';
+                }
+            });
+
+            // Welcome Message
+            print("Welcome to Coffee Source Terminal");
+            print("Type 'help' to see available commands.");
+            print("");
+        });
+    </script>
+</body>
+</html>

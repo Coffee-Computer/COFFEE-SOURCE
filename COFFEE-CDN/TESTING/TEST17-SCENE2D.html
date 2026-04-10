@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Scene 2D Toy</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #111; font-family: sans-serif; }
+
+        #ui-layer {
+            position: absolute; top: 20px; left: 20px; z-index: 10;
+            display: flex; flex-direction: column; gap: 10px;
+            pointer-events: none;
+        }
+
+        #ui-layer > * { pointer-events: all; }
+
+        .hint {
+            position: absolute; bottom: 20px; right: 20px;
+            color: #666; font-size: 12px; letter-spacing: 1px;
+            pointer-events: none; text-transform: uppercase;
+        }
+
+        #scene-container { width: 100vw; height: 100vh; position: relative; }
+    </style>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+    <!-- coffee-scene2d.js is already in load-all.js — no second tag needed -->
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div id="header" style="color: #bc986a; font-weight: bold; margin-bottom: 10px;">SCENE2D // TOY</div>
+        <div id="controls"></div>
+    </div>
+
+    <div class="hint">Click canvas to spawn • COFFEE-SCENE2D has no built-in pan/zoom</div>
+
+    <div id="scene-container"></div>
+
+    <script>
+        (function () {
+        function start() {
+            var container = document.getElementById('scene-container');
+            var controls = document.getElementById('controls');
+
+            /*
+             * Real API (coffee-scene2d.js):
+             *   coffee.scene2d({ shapes, background, custom, container, width, height })
+             * shapes: { type: 'rect'|'circle'|'line'|'arc'|'ellipse'|'path', ... }
+             * Returns wrapper element; wrapper.scene2d = { canvas, ctx, shapes, render, ... }
+             * No sprites / interactive / setPan / setZoom — those were invented in the old TEST17.
+             */
+            var emojis = [{ x: 120, y: 120, text: '☕', size: 48 }];
+
+            var wrapper = coffee.scene2d({
+                container: container,
+                width: window.innerWidth,
+                height: window.innerHeight,
+                background: '#1a1a1a',
+                shapes: [
+                    { type: 'circle', x: 80, y: 80, radius: 8, fill: '#bc986a' }
+                ],
+                custom: function (sc) {
+                    sc.ctx.textAlign = 'center';
+                    sc.ctx.textBaseline = 'middle';
+                    emojis.forEach(function (e) {
+                        sc.ctx.font = e.size + 'px sans-serif';
+                        sc.ctx.fillText(e.text, e.x, e.y);
+                    });
+                }
+            });
+
+            var scene = wrapper.scene2d;
+            var canvas = scene.canvas;
+
+            function spawnAt(clientX, clientY) {
+                var r = canvas.getBoundingClientRect();
+                var x = clientX - r.left;
+                var y = clientY - r.top;
+                emojis.push({
+                    x: x,
+                    y: y,
+                    text: currentType,
+                    size: 28 + Math.random() * 36
+                });
+                scene.shapes.push({
+                    type: 'circle',
+                    x: x,
+                    y: y,
+                    radius: 6,
+                    fill: 'rgba(188,152,106,0.35)'
+                });
+                scene.render();
+                if (typeof coffee.toast === 'function') {
+                    coffee.toast('Spawned at ' + Math.round(x) + ', ' + Math.round(y), 'success');
+                }
+            }
+
+            canvas.addEventListener('click', function (e) {
+                spawnAt(e.clientX, e.clientY);
+            });
+
+            controls.appendChild(coffee.button('Clear', function () {
+                emojis.length = 0;
+                scene.shapes.length = 0;
+                scene.shapes.push({ type: 'circle', x: 80, y: 80, radius: 8, fill: '#bc986a' });
+                emojis.push({
+                    x: canvas.width / 2,
+                    y: canvas.height / 2,
+                    text: '☕',
+                    size: 48
+                });
+                scene.render();
+            }));
+
+            var spriteTypes = ['☕', '🍪', '🧊', '🔥', '✨'];
+            var currentType = spriteTypes[0];
+
+            var typeRow = document.createElement('div');
+            typeRow.style.marginTop = '10px';
+            spriteTypes.forEach(function (t) {
+                var btn = coffee.button(t, function () { currentType = t; });
+                btn.style.marginRight = '5px';
+                typeRow.appendChild(btn);
+            });
+            controls.appendChild(typeRow);
+
+            if (typeof coffee.injectTheme === 'function') coffee.injectTheme('dark');
+
+            console.log('Scene2D toy ready — coffee.scene2d({ shapes, custom, container, … })');
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

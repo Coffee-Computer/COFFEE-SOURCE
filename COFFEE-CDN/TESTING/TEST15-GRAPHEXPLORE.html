@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Graph Explorer</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #0f0f0f; color: #fff; font-family: sans-serif; overflow: hidden; }
+        #app-wrapper { display: flex; flex-direction: column; height: 100vh; }
+
+        .toolbar {
+            height: 50px; background: #1a1a1a; display: flex; align-items: center;
+            padding: 0 15px; border-bottom: 1px solid #333; gap: 10px;
+        }
+
+        .workspace { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+        #editor-pane { flex: 1; border-right: 1px solid #333; position: relative; min-width: 0; min-height: 0; }
+
+        #graph-pane {
+            flex: 2; background: #050505; position: relative; min-width: 0; min-height: 0;
+        }
+
+        /* COFFEE-GRAPH draws on a canvas — target must be <canvas> (or its id) */
+        #graph-canvas {
+            position: absolute; inset: 0; width: 100%; height: 100%;
+            display: block;
+        }
+
+        .pane-label {
+            position: absolute; top: 10px; right: 20px;
+            font-size: 10px; color: #bc986a; z-index: 5;
+            text-transform: uppercase; letter-spacing: 1px;
+            pointer-events: none;
+        }
+    </style>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</head>
+<body>
+
+    <div id="app-wrapper">
+        <div class="toolbar" id="toolbar">
+            <span style="color: #bc986a; font-weight: bold; margin-right: 15px;">COFFEE // GRAPH</span>
+        </div>
+        <div class="workspace">
+            <div id="editor-pane">
+                <div class="pane-label">Chart JSON</div>
+            </div>
+            <div id="graph-pane">
+                <div class="pane-label">COFFEE-GRAPH (bar / line)</div>
+                <canvas id="graph-canvas" aria-label="Chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+        function start() {
+            var graphPane = document.getElementById('graph-pane');
+            var canvas = document.getElementById('graph-canvas');
+            var toolbar = document.getElementById('toolbar');
+            var editor = null;
+
+            /*
+             * coffee.graph({ target, type, data, labels, roast }) — canvas bar/line charts.
+             * NOT a node–link / force graph. `data` = array of numbers; `labels` = categories.
+             */
+            var defaultData = {
+                type: 'bar',
+                roast: 'medium',
+                labels: ['coffee', 'ui', 'base', 'graph', 'drive'],
+                data: [5, 3, 4, 2, 3]
+            };
+
+            toolbar.appendChild(coffee.button('↻ Sync chart', function () { syncGraph(); }));
+            toolbar.appendChild(coffee.button('Toggle bar / line', function () {
+                if (!editor) return;
+                try {
+                    var o = JSON.parse(editor.getValue());
+                    o.type = o.type === 'line' ? 'bar' : 'line';
+                    editor.setValue(JSON.stringify(o, null, 2));
+                    syncGraph();
+                } catch (e) {
+                    console.warn(e);
+                }
+            }));
+
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+            require(['vs/editor/editor.main'], function () {
+                editor = monaco.editor.create(document.getElementById('editor-pane'), {
+                    value: JSON.stringify(defaultData, null, 2),
+                    language: 'json',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false }
+                });
+                syncGraph();
+            });
+
+            function syncGraph() {
+                if (!editor || !canvas) return;
+                try {
+                    var cfg = JSON.parse(editor.getValue());
+                    var data = cfg.data;
+                    if (!Array.isArray(data) || !data.length) {
+                        throw new Error('`data` must be a non-empty array of numbers');
+                    }
+                    var nums = data.map(function (n) { return Number(n); });
+                    if (nums.some(function (n) { return !isFinite(n); })) {
+                        throw new Error('`data` must be numbers');
+                    }
+
+                    coffee.graph({
+                        target: canvas,
+                        type: cfg.type === 'line' ? 'line' : 'bar',
+                        data: nums,
+                        labels: Array.isArray(cfg.labels) ? cfg.labels : [],
+                        roast: ['light', 'medium', 'dark', 'espresso'].indexOf(cfg.roast) !== -1 ? cfg.roast : 'medium'
+                    });
+
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast('Chart synced', { type: 'success' });
+                    }
+                } catch (e) {
+                    console.error(e);
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast(String(e.message || e), { type: 'error' });
+                    }
+                }
+            }
+
+            window.addEventListener('resize', function () {
+                if (editor) editor.layout();
+            });
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Scene 3D Gallery</title>
+    <style>
+        body { margin: 0; background: #050505; color: #eee; font-family: sans-serif; overflow: hidden; }
+        
+        #ui-overlay {
+            position: absolute; top: 20px; left: 20px; z-index: 2;
+            display: flex; flex-direction: column; gap: 15px; pointer-events: none;
+        }
+        #ui-overlay > * { pointer-events: all; }
+
+        .gallery-title { color: #bc986a; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        
+        /* Full-viewport mount so scene3d’s resize() gets non-zero getBoundingClientRect() on first frame */
+        #viewport {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            cursor: grab;
+            box-sizing: border-box;
+        }
+        
+        .stats-box { font-family: monospace; font-size: 11px; color: #666; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
+    </style>
+
+    <!-- 1. THREE + OrbitControls first — same major as COFFEE-SCENE3D README (coffee.scene3d expects window.THREE + THREE.OrbitControls) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+    <!-- 2. load-all pulls coffee-ui, coffee-scene3d.js, etc. (do not use coffee-scene-3d.js — that filename does not exist) -->
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="ui-overlay">
+        <div class="gallery-title">3D Gallery // Declarative</div>
+        <div id="controls"></div>
+        <div id="stats" class="stats-box">Objects: 0</div>
+    </div>
+
+    <div id="viewport"></div>
+
+    <script>
+        (function () {
+            var started = false;
+
+            function start() {
+                if (started) return;
+                if (!window.THREE) {
+                    console.error('Three.js not found. Load three.min.js before coffee.scene3d.');
+                    return;
+                }
+                if (!window.coffee || typeof coffee.scene3d !== 'function') {
+                    console.error('coffee.scene3d not available yet (load-all still loading?).');
+                    return;
+                }
+                started = true;
+
+                var viewport = document.getElementById('viewport');
+                var controls = document.getElementById('controls');
+                var stats = document.getElementById('stats');
+
+                if (typeof coffee.injectTheme === 'function') {
+                    coffee.injectTheme('dark');
+                }
+
+                var shapeData = [
+                    { type: 'box', position: [0, 1, 0], scale: [2, 2, 2], color: '#bc986a' }
+                ];
+
+                var galleryElement = null;
+
+                function refreshScene() {
+                    if (galleryElement) galleryElement.remove();
+
+                    var w = Math.max(320, window.innerWidth);
+                    var h = Math.max(240, window.innerHeight);
+
+                    galleryElement = coffee.scene3d({
+                        shapes: shapeData,
+                        camera: { position: [5, 5, 10], lookAt: [0, 0, 0] },
+                        controls: 'orbit',
+                        container: viewport,
+                        width: w,
+                        height: h,
+                        background: '#050505'
+                    });
+
+                    var ctx = galleryElement.scene3d;
+                    stats.innerText = 'Objects: ' + shapeData.length + ' | THREE r' + ctx.THREE.REVISION;
+                }
+
+                controls.appendChild(coffee.button('Add Sphere', function () {
+                    shapeData.push({
+                        type: 'sphere',
+                        position: [(Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10],
+                        scale: [0.5, 0.5, 0.5],
+                        color: Math.random() > 0.5 ? '#4c9aff' : '#ffab40'
+                    });
+                    refreshScene();
+                }));
+
+                controls.appendChild(coffee.button('Clear Gallery', function () {
+                    shapeData = [{ type: 'box', position: [0, 1, 0], scale: [2, 2, 2], color: '#bc986a' }];
+                    refreshScene();
+                }));
+
+                /* After layout: first paint sometimes yields 0×0 rects; coffee.scene3d’s animate() resize() fixes most cases, but deferring helps */
+                requestAnimationFrame(function () {
+                    requestAnimationFrame(refreshScene);
+                });
+
+                window.addEventListener('resize', function () {
+                    if (galleryElement && galleryElement.scene3d) {
+                        var r = galleryElement.scene3d;
+                        r.camera.aspect = window.innerWidth / window.innerHeight;
+                        r.camera.updateProjectionMatrix();
+                        r.renderer.setSize(window.innerWidth, window.innerHeight);
+                    }
+                });
+            }
+
+            window.addEventListener('coffee:cdn:ready', start);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') {
+                p.then(start).catch(start);
+            }
+        })();
+    </script>
+</body>
+</html>

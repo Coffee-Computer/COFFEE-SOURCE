@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Dot // Architecture Sketcher</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #111; color: #eee; font-family: 'Inter', sans-serif; overflow: hidden; }
+        #app-root { display: flex; flex-direction: column; height: 100vh; }
+
+        .toolbar {
+            height: 50px; background: #1a1a1a; display: flex; align-items: center;
+            padding: 0 15px; border-bottom: 1px solid #333; gap: 10px;
+        }
+
+        .workspace { flex: 1; display: flex; overflow: hidden; min-height: 0; }
+
+        #editor-container {
+            flex: 1; background: #1a1a1a; display: flex; flex-direction: column;
+            border-right: 1px solid #333; min-width: 0;
+        }
+
+        textarea {
+            flex: 1; background: transparent; color: #ffab40;
+            border: none; padding: 20px; font-family: 'Fira Code', monospace;
+            font-size: 14px; line-height: 1.5; outline: none; resize: none;
+            min-height: 0;
+        }
+
+        #preview-pane {
+            flex: 1.5; background: #fff; position: relative;
+            display: flex; align-items: center; justify-content: center;
+            overflow: auto;
+        }
+
+        #preview-pane svg { max-width: 95%; max-height: 95%; }
+
+        .pane-label {
+            position: absolute; top: 10px; right: 20px;
+            font-size: 10px; color: #bc986a; z-index: 5;
+            text-transform: uppercase; letter-spacing: 1px;
+            pointer-events: none;
+        }
+    </style>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+
+    <!--
+      Graphviz in the browser: Viz.js (COFFEE-DOT in-repo is *game* 2D canvas — coffee.dot.create, not DOT language).
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script>
+</head>
+<body>
+
+    <div id="app-root">
+        <div class="toolbar" id="toolbar">
+            <span style="color: #bc986a; font-weight: bold; margin-right: 10px;">COFFEE // DOT</span>
+        </div>
+        <div class="workspace">
+            <div id="editor-container">
+                <div class="pane-label">DOT SOURCE</div>
+                <textarea id="dot-input" spellcheck="false"></textarea>
+            </div>
+            <div id="preview-pane">
+                <div class="pane-label" style="color: #666;">DIAGRAM PREVIEW (Viz.js)</div>
+                <div id="dot-output"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+        function start() {
+            var input = document.getElementById('dot-input');
+            var output = document.getElementById('dot-output');
+            var toolbar = document.getElementById('toolbar');
+
+            var sampleDot = [
+                'digraph G {',
+                '  node [shape=box, style=filled, color="#bc986a", fontname="sans-serif", fontcolor=white];',
+                '  edge [color="#444"];',
+                '  rankdir=LR;',
+                '',
+                '  "COFFEE-BASE" -> "COFFEE-UI";',
+                '  "COFFEE-BASE" -> "COFFEE-DOT";',
+                '  "COFFEE-DOT" -> "SVG Render";',
+                '  "COFFEE-UI" -> "User View";',
+                '}'
+            ].join('\n');
+
+            input.value = sampleDot;
+
+            toolbar.appendChild(coffee.button('Generate diagram', function () { renderDot(); }));
+            toolbar.appendChild(coffee.button('Clear', function () {
+                input.value = 'digraph G {\n\n}';
+                renderDot();
+            }));
+
+            var viz = null;
+            try {
+                if (typeof Viz === 'function') {
+                    viz = new Viz();
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+
+            var store = typeof coffee.drive === 'function' ? coffee.drive('dot-sketches') : null;
+
+            async function renderDot() {
+                var code = input.value.trim();
+                output.innerHTML = '';
+                if (!code) return;
+
+                if (!viz || typeof viz.renderSVGElement !== 'function') {
+                    output.innerHTML = '<p style="color:#b45309;padding:16px;">Viz.js failed to load. Check network / CDN.</p>';
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast('Viz.js not available', { type: 'error' });
+                    }
+                    return;
+                }
+
+                try {
+                    var svg = await viz.renderSVGElement(code);
+                    output.appendChild(svg);
+
+                    if (store) {
+                        try {
+                            await store.save({ id: 'last-sketch', code: code });
+                        } catch (e) {
+                            console.warn('[dot] drive save', e);
+                        }
+                    }
+
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast('Diagram updated', { type: 'success' });
+                    }
+                } catch (e) {
+                    console.error('Graphviz:', e);
+                    var msg = (e && e.message) ? e.message : String(e);
+                    output.innerHTML = '<pre style="color:#b91c1c;padding:16px;white-space:pre-wrap;font-size:12px;">' +
+                        msg.replace(/</g, '&lt;') + '</pre>';
+                    if (typeof coffee.toast === 'function') {
+                        coffee.toast('DOT error: ' + msg, { type: 'error' });
+                    }
+                }
+            }
+
+            var timer;
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(renderDot, 500);
+            });
+
+            if (typeof coffee.injectTheme === 'function') coffee.injectTheme('dark');
+            renderDot();
+        }
+
+        var started = false;
+        function once() {
+            if (started) return;
+            started = true;
+            start();
+        }
+        window.addEventListener('coffee:cdn:ready', once);
+        var p = window.COFFEE_LOAD_ALL_PROMISE;
+        if (p && typeof p.then === 'function') p.then(once).catch(once);
+        })();
+    </script>
+</body>
+</html>

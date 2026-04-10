@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Playground // Monaco</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #1e1e1e; color: #fff; font-family: sans-serif; overflow: hidden; }
+        #playground-root { display: flex; flex-direction: column; height: 100vh; }
+        
+        .toolbar { 
+            height: 50px; background: #252526; display: flex; align-items: center; 
+            padding: 0 15px; border-bottom: 1px solid #333; gap: 10px;
+        }
+
+        .main-view { flex: 1; display: flex; overflow: hidden; }
+        
+        /* Monaco container needs explicit size */
+        #editor-container { flex: 1; border-right: 1px solid #333; }
+        
+        #preview-container { flex: 1; background: #fff; position: relative; }
+        iframe { width: 100%; height: 100%; border: none; background: white; }
+
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: #1e1e1e; display: flex; align-items: center; justify-content: center;
+            z-index: 10; color: #bc986a; font-family: monospace;
+        }
+    </style>
+
+    <!-- 1. Load Coffee Source stack -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+
+    <!-- 2. Monaco AMD Loader (Lazy loading utility) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</head>
+<body>
+
+    <div id="playground-root">
+        <div class="toolbar" id="toolbar">
+            <span style="color: #bc986a; font-weight: bold; margin-right: 10px;">COFFEE_PLAYGROUND</span>
+        </div>
+        <div class="main-view">
+            <div id="editor-container">
+                <div id="editor-loading" class="loading-overlay">Initializing Monaco...</div>
+            </div>
+            <div id="preview-container">
+                <iframe id="preview-frame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const toolbar = document.getElementById('toolbar');
+            const previewFrame = document.getElementById('preview-frame');
+            let editor = null;
+
+            // 1. Initial UI with Coffee builders
+            const runBtn = coffee.button('▶ Run Code', () => updatePreview());
+            const resetBtn = coffee.button('↺ Reset', () => {
+                editor.setValue('<h1>Hello Coffee</h1>\n<script>\n  console.log("Ready.");\n<\/script>');
+                updatePreview();
+            });
+            toolbar.append(runBtn, resetBtn);
+
+            // 2. Lazy-load Monaco Editor logic
+            require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+            
+            require(['vs/editor/editor.main'], function () {
+                document.getElementById('editor-loading').remove();
+                
+                editor = monaco.editor.create(document.getElementById('editor-container'), {
+                    value: [
+                        '<!DOCTYPE html>',
+                        '<html>',
+                        '<head>',
+                        '  <style>',
+                        '    body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fdfdfd; }',
+                        '    h1 { color: #bc986a; border: 2px solid #bc986a; padding: 20px; border-radius: 10px; }',
+                        '  </style>',
+                        '</head>',
+                        '<body>',
+                        '  <h1>Coffee Source Playground</h1>',
+                        '  <script>',
+                        '    console.log("Hello from Monaco!");',
+                        '  <\/script>',
+                        '</body>',
+                        '</html>'
+                    ].join('\n'),
+                    language: 'html',
+                    theme: 'vs-dark',
+                    automaticLayout: true,
+                    minimap: { enabled: false },
+                    fontSize: 14
+                });
+
+                // Auto-run on changes (optional, debounced)
+                let timeout;
+                editor.onDidChangeModelContent(() => {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(updatePreview, 1000);
+                });
+
+                updatePreview();
+            });
+
+            // 3. Sync Editor -> Preview
+            function updatePreview() {
+                if (!editor) return;
+                const code = editor.getValue();
+                const blob = new Blob([code], { type: 'text/html' });
+                previewFrame.src = URL.createObjectURL(blob);
+                
+                // Persistence Hook (Sync-shaped)
+                if (coffee.drive) {
+                    coffee.drive.put('playground_last_code', code);
+                }
+            }
+
+            // Accessibility: Handle Resize
+            window.addEventListener('resize', () => {
+                if (editor) editor.layout();
+            });
+        });
+    </script>
+</body>
+</html>

@@ -53,8 +53,11 @@ Gate app logic on the promise and/or this event so **`window.coffee`** (from COF
 | `coffee.drive.get(key)` / `coffee.drive.put(key, string)` | **`coffee.drive` is a factory:** **`var store = coffee.drive('my-app')`**, then **`store.save({ id, … })`**, **`store.load(id)`**, **`store.list()`**, **`store.remove(id)`**, **`store.clear()`**, etc. IndexedDB uses **`keyPath: 'id'`** — persist **objects**, not opaque string blobs on `coffee.drive` itself. |
 | `coffee.cadence.getStreak(…)` / habit “cadence” math | **`coffee.cadence`** is **`{ version, transportStrip }`** (**COFFEE-CADENCE**) — **music transport UI** on **`coffee.transport`**, **not** streaks or scheduling. Habit streaks = **your own** date logic (see **`TEST10-HABITTRACKER.html`**). |
 | `coffee.modal({ title, content, actions, … })` (one object) | **Signature:** **`coffee.modal(content, { title, onClose, closeOnOverlay })`**. **First arg** = **string** or **HTMLElement** (the body). There are **no** `content` / `actions` / `maxWidth` keys on the second object — add **footer buttons** inside **`content`** (e.g. **`coffee.col([ form, coffee.row([…buttons]) ])`**). Returns **`{ close, element }`**. For confirms, use **`coffee.dialog(message, opts)`**. |
+| `coffee.graph(container, opts)` or **`{ nodes, links }`** “network” data | **`coffee.graph` takes one object:** **`coffee.graph({ target, type, data, labels, roast, … })`**. **`target`** must be a **`<canvas>`** (or element id string). **`data`** = **array of numbers** (series values). **`type`:** **`'bar'`** \| **`'line'`**. **`labels`** = categories. **`roast`:** **`light` \| `medium` \| `dark` \| `espresso`** (palette). **Not** a force-directed / node–link graph — use another lib or custom drawing for that. |
+| `coffee.dot('digraph { … }')` / Graphviz **DOT** → SVG | **`coffee.dot`** is **not** callable and **not** Graphviz. **COFFEE-DOT** exposes **`coffee.dot.create(canvas)`**, **`coffee.dot.draw`**, etc. — a **2D game canvas** renderer (entities, grid). For **Graphviz DOT** in the browser, add **Viz.js** (or **@hpcc-js/wasm**) separately — see **`TEST16-GRAPHVIZ.html`**. |
+| `coffee.scene2d({ sprites, interactive, onClick })` / **`scene.update()`**, **`setPan`**, **`setZoom`** | **`coffee.scene2d({ shapes, background, custom, container, width, height })`** (**COFFEE-SCENE2D**). **`shapes`** are **geometry specs** (`type: 'rect' \| 'circle' \| 'line' \| 'arc' \| 'ellipse' \| 'path'`, plus coords/colors)—**not** emoji “sprites.” Returns a **wrapper**; **`wrapper.scene2d`** is **`{ canvas, ctx, shapes, render, width, height }`**. Call **`wrapper.scene2d.render()`** after mutating **`shapes`**. There is **no** built-in pan/zoom or `onClick`—use **`custom(ctx)`** for extra drawing (e.g. `fillText`) and **`canvas.addEventListener`** for input. See **`TEST17-SCENE2D.html`**. |
 
-Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle).
+Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle); **`COFFEE-CDN/TESTING/TEST15-GRAPHEXPLORE.html`** (**`coffee.graph`** bar/line + JSON); **`COFFEE-CDN/TESTING/TEST16-GRAPHVIZ.html`** (Graphviz via **Viz.js**, not **`coffee.dot`**); **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`** (**`coffee.scene2d`**); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`coffee.scene3d`** + **`load-all.js`**).
 
 ### COFFEE-MARKDOWN
 
@@ -81,12 +84,45 @@ Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wik
 - **`coffee.dialog(message, opts)`** wraps **`coffee.modal`** for OK/Cancel-style flows.
 - **File:** **`COFFEE-MODAL/coffee-modal.js`**.
 
+### COFFEE-GRAPH (canvas charts)
+
+- **API:** **`coffee.graph({ target, type, data, labels, roast, animate, onClick, onHover, … })`** — see **`COFFEE-GRAPH/coffee-graph.js`**.
+- **`target`:** required — **canvas** element or **`id`** of a **canvas**. Passing a **`<div>`** yields **`CoffeeGraph: Missing canvas (target)`**.
+- **Charts only:** bar/line series. Do **not** confuse with **graph** meaning **nodes and edges** (DAGs, social graphs, etc.).
+- **`coffee.graphPalettes`** — light / medium / dark / espresso **roast** colors.
+
+### COFFEE-DOT (2D game canvas, not Graphviz)
+
+- **`coffee.dot`** = **`{ create, draw, drawGrid, drawEntity, drawProjectile }`** — renders **game state** (entities, projectiles, camera) to a **`<canvas>`**. See **`COFFEE-DOT/coffee-dot.js`**.
+- **Do not** confuse the package name **DOT** with **Graphviz DOT** language. There is **`coffee.dot.create(canvas)`**, **not** **`coffee.dot(sourceString)`**.
+- **Graphviz diagrams:** use an external WASM build (e.g. **Viz.js**) in addition to **`load-all.js`**.
+
+### COFFEE-SCENE2D (Canvas 2D)
+
+- **File:** **`COFFEE-SCENE2D/coffee-scene2d.js`**. Included in **`load-all.js`**—do **not** invent a second filename.
+- **API:** **`coffee.scene2d({ shapes, background, custom, container, width, height })`**. **`shapes`:** `{ type: 'rect'|'circle'|'line'|'arc'|'ellipse'|'path', … }` with geometry fields (`x`, `y`, `fill`, `stroke`, etc.)—see file header in **`coffee-scene2d.js`**.
+- **`custom: (ctx) => {}`** receives **`ctx`** = **`{ canvas, ctx, width, height, shapes }`** (2D context). Use for text, overlays, or anything beyond built-in shape types.
+- **Return value:** **wrapper** element; **`wrapper.scene2d.render()`** redraws after you change **`wrapper.scene2d.shapes`** (same array reference) or when you need a refresh.
+- **Not included:** pan/zoom camera, `sprites` arrays, **`scene.update()`** (use **`render()`**), or declarative hit-testing—implement with **`canvas`** listeners and math.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`**.
+
+### COFFEE-DRAW (sketch pad)
+
+- **Depends on** **`coffee.scene2d`**. **`load-all.js`** lists **`COFFEE-SCENE2D/coffee-scene2d.js` immediately before** **`COFFEE-DRAW/coffee-draw.js`** so scene2d is defined first.
+- **API:** **`coffee.draw({ brush: { size, color, opacity, mode }, background, width, height, onStrokeComplete })`** — **one** options object; **append** the returned wrapper to the DOM. Methods live on **`wrapper.draw`** (**`setBrush`**, **`clear`**, **`undo`**, **`exportStrokes`**, …)—see **`COFFEE-DRAW/coffee-draw.js`**.
+- **Not valid:** **`coffee.draw(container, opts)`**, **`pad.setColor`**, **`pad.toBlob`** — use **`wrapper.draw.setBrush`**, **`wrapper.scene2d.canvas.toBlob`**, etc.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST19-DRAW.html`**.
+
 ### COFFEE-SCENE3D (3D)
 
-- **Package directory:** **`COFFEE-SCENE3D`** (not `COFFEE-SCENE-3D`). **File:** **`coffee-scene3d.js`** (not `coffee-scene-3d.js`).
-- **API:** **`coffee.scene3d({ shapes, camera, background, controls, container, … })`** returns a **wrapper element**; **`wrapper.scene3d`** is `{ scene, camera, renderer, THREE, controls }`. There is **no** `coffee.scene` or `coffee.mesh` in this package.
-- **Three.js:** Load **`window.THREE`** *before* `coffee-scene3d.js` (e.g. `three@0.128` from npm CDN). Optional: **`OrbitControls`** on `THREE` if you use **`controls: 'orbit'`** (see **`COFFEE-SCENE3D/SCENE3D-DEMO.html`**).
+- **Package directory:** **`COFFEE-SCENE3D`** (not `COFFEE-SCENE-3D`). **File:** **`coffee-scene3d.js`** (not `coffee-scene-3d.js`—that path **404s**).
+- **API:** **`coffee.scene3d({ shapes, camera, lights, background, controls, custom, container, width, height })`** returns a **wrapper element**; **`wrapper.scene3d`** is **`{ scene, camera, renderer, THREE, controls }`**. There is **no** `coffee.scene` or `coffee.mesh` in this package.
+- **Three.js:** Load **`window.THREE`** **before** any script that defines **`coffee.scene3d`**. Use the **same** Three.js **major** for **`OrbitControls`** (e.g. **`three@0.128.0`** + **`…/examples/js/controls/OrbitControls.js`** from the **same** version). **`controls: 'orbit'`** requires **`THREE.OrbitControls`** on **`window.THREE`**.
+- **`container`:** Pass **`container: element`** (or a selector string) so the wrapper mounts **inside** your layout. For **full-viewport** pages, give the container **real size** (e.g. **`position: fixed; inset: 0`** or **`100vw` / `100vh`**) so the internal **`resize()`** loop gets **non-zero** **`getBoundingClientRect()`** on first paint; optionally defer the first build with **`requestAnimationFrame`** (see **`TEST18-SCENE3D.html`**).
+- **`load-all.js`** already loads **`coffee-scene3d.js`** after **COFFEE-UI**—you still **must** include **Three + OrbitControls** in **separate** `<script>` tags **above** **`load-all.js`** if you need 3D. Do **not** add a second **`coffee-scene3d.js`** tag unless you are cherry-picking without **`load-all.js`**.
+- **Init:** Gate on **`coffee:cdn:ready`** **and/or** **`COFFEE_LOAD_ALL_PROMISE`** with a **`started`** flag so **`coffee.scene3d`** exists and **`THREE`** is ready.
 - **`coffee.scene3d`** is a **classic IIFE**; prefer **`<script src="…/coffee-scene3d.js">`** (jsDelivr gh URL) rather than `import '@coffee/…/coffee-scene3d.js'` unless you know the file is valid as an ES module side-effect.
+- **Demos:** **`COFFEE-SCENE3D/SCENE3D-DEMO.html`**; **`COFFEE-CDN/TESTING/TEST4-3D.html`** (cherry-pick); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`load-all.js`** + THREE).
 
 ## ES modules vs classic
 
@@ -96,7 +132,7 @@ Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wik
 ## `load-all.js` limits
 
 - It loads **only** paths listed inside **`load-all.js`** (top-level **`coffee-*.js`** per package + listed ESM paths). It does **not** auto-discover every `.js` in the monorepo or deep paths (e.g. arbitrary `tools/` subtrees).
-- Order matters for some dependencies; failures are often **logged** and **non-fatal**—check the console.
+- Order matters for some dependencies; failures are often **logged** and **non-fatal**—check the console. Example: **`coffee.draw`** must run **after** **`coffee-scene2d.js`** (see **`CLASSIC_REST`** in **`load-all.js`**).
 
 ## Editing CDN loader sources (for maintainers)
 
@@ -137,14 +173,25 @@ Inside **`/*.js` block comments** `/* ... */`, the substring **`*/`** **ends the
 
 ```html
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-UI/coffee-ui.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-SCENE3D/coffee-scene3d.js"></script>
+<div id="scene-mount"></div>
 <script>
   coffee.injectTheme('dark');
-  var el = coffee.scene3d({ shapes: [{ type: 'box', scale: 1, position: [0, 0, 0], color: '#4c9aff' }], width: 400, height: 300 });
-  document.body.appendChild(el);
+  var mount = document.getElementById('scene-mount');
+  coffee.scene3d({
+    shapes: [{ type: 'box', scale: 1, position: [0, 1, 0], color: '#4c9aff' }],
+    camera: { position: [0, 5, 10], lookAt: [0, 0, 0] },
+    controls: 'orbit',
+    container: mount,
+    width: 400,
+    height: 300
+  });
 </script>
 ```
+
+**`load-all.js` + Three.js (3D):** put **`three.min.js`** and **`OrbitControls.js`** **before** **`load-all.js`**. Do **not** reference **`coffee-scene-3d.js`** (wrong name). Use **`coffee.scene3d({ …, container: el, … })`** for full-page views when possible.
 
 **`load-all.js` + markdown (remember `marked` first):**
 

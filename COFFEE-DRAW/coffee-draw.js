@@ -5,21 +5,14 @@
  *
  * If coffee.plex is loaded first, strokes use plex modes for live draw + replay.
  * Load order: coffee-scene2d → coffee-plex (optional) → coffee-draw
+ *
+ * coffee.scene2d is checked at call time (not only at script load) so load-all.js can list
+ * coffee-draw after scene2d without permanently stubbing coffee.draw.
  */
 
 (function () {
   if (typeof window === 'undefined') return;
   const coffee = window.coffee || {};
-  if (!coffee.scene2d) {
-    coffee.draw = function () {
-      const err = document.createElement('div');
-      err.style.cssText = 'padding:24px;color:#ef4444;background:#1a1a1a;border-radius:8px';
-      err.textContent = 'coffee.draw() requires coffee.scene2d. Load scene2d first.';
-      return err;
-    };
-    window.coffee = coffee;
-    return;
-  }
 
   function hasPlex() {
     return coffee.plex && typeof coffee.plex.apply === 'function' && typeof coffee.plex.reset === 'function';
@@ -58,7 +51,7 @@
     }
   }
 
-  coffee.draw = function (opts = {}) {
+  function drawImpl(opts = {}) {
     const {
       brush = {},
       background = '#ffffff',
@@ -219,6 +212,16 @@
     };
 
     return view;
+  }
+
+  coffee.draw = function (opts = {}) {
+    if (!coffee.scene2d) {
+      const err = document.createElement('div');
+      err.style.cssText = 'padding:24px;color:#ef4444;background:#1a1a1a;border-radius:8px';
+      err.textContent = 'coffee.draw() requires coffee.scene2d. Load scene2d first.';
+      return err;
+    }
+    return drawImpl(opts);
   };
 
   window.coffee = coffee;

@@ -62,6 +62,8 @@
     'COFFEE-CRM/coffee-crm.js',
     'COFFEE-CUP/coffee-cup.js',
     'COFFEE-DOT/coffee-dot.js',
+    /* COFFEE-DRAW depends on coffee.scene2d — must load after COFFEE-SCENE2D */
+    'COFFEE-SCENE2D/coffee-scene2d.js',
     'COFFEE-DRAW/coffee-draw.js',
     'COFFEE-DRIVE/coffee-drive.js',
     'COFFEE-FILE/coffee-file.js',
@@ -91,7 +93,6 @@
     'COFFEE-QUE/coffee-que.js',
     'COFFEE-REQUEST/coffee-request.js',
     'COFFEE-RUSTY/coffee-rusty.js',
-    'COFFEE-SCENE2D/coffee-scene2d.js',
     'COFFEE-SCENE3D/coffee-scene3d.js',
     'COFFEE-SCREEN/coffee-screen.js',
     'COFFEE-SHADE/coffee-shade.js',
