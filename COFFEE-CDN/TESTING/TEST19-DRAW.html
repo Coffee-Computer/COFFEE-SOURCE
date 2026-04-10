@@ -32,6 +32,13 @@
         .label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 
+    <!--
+      coffee-draw.js runs inside load-all *before* coffee-scene2d.js on older @main builds,
+      which permanently stubbed coffee.draw. Preload scene2d so draw’s IIFE sees coffee.scene2d.
+      (Repo load-all.js now orders scene2d → draw; this keeps jsDelivr working pre-merge.)
+    -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-SCENE2D/coffee-scene2d.js"></script>
+
     <script
         src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
         data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
@@ -58,6 +65,10 @@
                 if (started) return;
                 if (!window.coffee || typeof coffee.draw !== 'function') {
                     console.error('coffee.draw not ready');
+                    return;
+                }
+                if (!coffee.scene2d) {
+                    console.error('coffee.scene2d missing — ensure COFFEE-SCENE2D loads before COFFEE-DRAW (see script tags above).');
                     return;
                 }
                 started = true;

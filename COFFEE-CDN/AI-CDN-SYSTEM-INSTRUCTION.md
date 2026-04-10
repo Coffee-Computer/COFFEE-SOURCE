@@ -108,7 +108,7 @@ Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wik
 
 ### COFFEE-DRAW (sketch pad)
 
-- **Depends on** **`coffee.scene2d`**. **`load-all.js`** lists **`COFFEE-SCENE2D/coffee-scene2d.js` immediately before** **`COFFEE-DRAW/coffee-draw.js`** so scene2d is defined first.
+- **Depends on** **`coffee.scene2d`**. **`load-all.js`** lists **`COFFEE-SCENE2D/coffee-scene2d.js` immediately before** **`COFFEE-DRAW/coffee-draw.js`** so scene2d is defined first. Older **`load-all`** builds loaded **draw before scene2d**, which made **`coffee.draw`** a permanent error stub—**preload** `<script src="…/COFFEE-SCENE2D/coffee-scene2d.js"></script>` **before** **`load-all.js`** if you pull **`@main`** from jsDelivr and hit that (see **`TEST19-DRAW.html`**).
 - **API:** **`coffee.draw({ brush: { size, color, opacity, mode }, background, width, height, onStrokeComplete })`** — **one** options object; **append** the returned wrapper to the DOM. Methods live on **`wrapper.draw`** (**`setBrush`**, **`clear`**, **`undo`**, **`exportStrokes`**, …)—see **`COFFEE-DRAW/coffee-draw.js`**.
 - **Not valid:** **`coffee.draw(container, opts)`**, **`pad.setColor`**, **`pad.toBlob`** — use **`wrapper.draw.setBrush`**, **`wrapper.scene2d.canvas.toBlob`**, etc.
 - **Demo:** **`COFFEE-CDN/TESTING/TEST19-DRAW.html`**.
