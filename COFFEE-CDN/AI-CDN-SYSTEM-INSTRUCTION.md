@@ -56,8 +56,12 @@ Gate app logic on the promise and/or this event so **`window.coffee`** (from COF
 | `coffee.graph(container, opts)` or **`{ nodes, links }`** “network” data | **`coffee.graph` takes one object:** **`coffee.graph({ target, type, data, labels, roast, … })`**. **`target`** must be a **`<canvas>`** (or element id string). **`data`** = **array of numbers** (series values). **`type`:** **`'bar'`** \| **`'line'`**. **`labels`** = categories. **`roast`:** **`light` \| `medium` \| `dark` \| `espresso`** (palette). **Not** a force-directed / node–link graph — use another lib or custom drawing for that. |
 | `coffee.dot('digraph { … }')` / Graphviz **DOT** → SVG | **`coffee.dot`** is **not** callable and **not** Graphviz. **COFFEE-DOT** exposes **`coffee.dot.create(canvas)`**, **`coffee.dot.draw`**, etc. — a **2D game canvas** renderer (entities, grid). For **Graphviz DOT** in the browser, add **Viz.js** (or **@hpcc-js/wasm**) separately — see **`TEST16-GRAPHVIZ.html`**. |
 | `coffee.scene2d({ sprites, interactive, onClick })` / **`scene.update()`**, **`setPan`**, **`setZoom`** | **`coffee.scene2d({ shapes, background, custom, container, width, height })`** (**COFFEE-SCENE2D**). **`shapes`** are **geometry specs** (`type: 'rect' \| 'circle' \| 'line' \| 'arc' \| 'ellipse' \| 'path'`, plus coords/colors)—**not** emoji “sprites.” Returns a **wrapper**; **`wrapper.scene2d`** is **`{ canvas, ctx, shapes, render, width, height }`**. Call **`wrapper.scene2d.render()`** after mutating **`shapes`**. There is **no** built-in pan/zoom or `onClick`—use **`custom(ctx)`** for extra drawing (e.g. `fillText`) and **`canvas.addEventListener`** for input. See **`TEST17-SCENE2D.html`**. |
+| `coffee.svg('circle', { cx, cy, r })` / **`coffee.svg('svg', …)`** as a **tag builder** | **`coffee.svg({ svg, width, height, onSelect })`** (**COFFEE-SVG**) — **one** options object. Pass an existing **`<svg>`** element (or omit to create). Returns an **engine** with **`setTool('select'\|'rect'\|'circle'\|'text')`**, **`getSelected()`**, **`updateSelected(prop, val)`**, **`setFillColor`**, **`clear`**, **`export`**, **`getSVG()`**, … — **not** a DOM factory. Users **draw by dragging** on the artboard. See **`TEST20-SVG.html`**. |
+| **`coffee.pattern(opts)`** / **`coffee.pattern.toDataURL`** — visual **CSS** or **PNG** tiles | **`coffee.pattern`** is an **object** (**COFFEE-PATTERN**), **not** a function. Use **`coffee.pattern.emptyPianoRoll({ stepCount, notes })`**, **`emptyDrum({ stepCount, padIds })`**, **`clone(p)`**, **`isPianoRoll`**, **`isDrum`** — **sequencer** JSON for piano + drum machines (**no** audio engine here). See **`TEST21-PATTERN.html`**. |
+| **`coffee.gpu(canvas, fragmentShaderString)`** / **`inst.render({ u_time })`** | **`coffee.gpu({ canvas?, container, shapes, camera, background, width, height, custom })`** (**COFFEE-GPU**) — **WebGPU** 3D (**`box`** / **`sphere`** meshes), **WGSL** pipeline built-in—**not** user GLSL fullscreen passes. Returns a **wrapper**; **`wrapper.gpu.stop()`** / **`wrapper.gpu.start()`** control the internal loop—**no** **`render(uniforms)`**. Requires **`navigator.gpu`**. See **`TEST22-SHADER.html`** (filename says “shader”; demo is **GPU** scenes). |
+| **`session.execute('banner')`**, **`session.reset()`** (Coffee Shell) | **`coffee.shell.createSession` / `createSessionAsync`** returns **`{ mount, handleCommand, print, … }`** — use **`session.handleCommand('banner')`**, **`session.handleCommand('reset')`**, and **`session.mount()`** first. **`customCommands`** handlers are **`(ctx, args, raw)`**. See **`TEST28-SHELL.html`**. |
 
-Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle); **`COFFEE-CDN/TESTING/TEST15-GRAPHEXPLORE.html`** (**`coffee.graph`** bar/line + JSON); **`COFFEE-CDN/TESTING/TEST16-GRAPHVIZ.html`** (Graphviz via **Viz.js**, not **`coffee.dot`**); **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`** (**`coffee.scene2d`**); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`coffee.scene3d`** + **`load-all.js`**).
+Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle); **`COFFEE-CDN/TESTING/TEST15-GRAPHEXPLORE.html`** (**`coffee.graph`** bar/line + JSON); **`COFFEE-CDN/TESTING/TEST16-GRAPHVIZ.html`** (Graphviz via **Viz.js**, not **`coffee.dot`**); **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`** (**`coffee.scene2d`**); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`coffee.scene3d`** + **`load-all.js`**); **`COFFEE-CDN/TESTING/TEST19-DRAW.html`** (**`coffee.draw`**); **`COFFEE-CDN/TESTING/TEST20-SVG.html`** (**`coffee.svg`** engine); **`COFFEE-CDN/TESTING/TEST21-PATTERN.html`** (**`coffee.pattern`** sequencer data); **`COFFEE-CDN/TESTING/TEST22-SHADER.html`** (**`coffee.gpu`** WebGPU 3D); **`COFFEE-CDN/TESTING/TEST23-FLOW.html`** (**`coffee.coil`** — filename **FLOW**); **`COFFEE-CDN/TESTING/TEST24-SHADOWN.html`** (**`coffee.shadow`**); **`COFFEE-CDN/TESTING/TEST25-SHADE.html`** (**`coffee.shade`**); **`COFFEE-CDN/TESTING/TEST26-PIX.html`** (**`coffee.pix`**); **`COFFEE-CDN/TESTING/TEST27-ASCII.html`** (ASCII splash + **`coffee.heading`**); **`COFFEE-CDN/TESTING/TEST28-SHELL.html`** (**`coffee.shell`**).
 
 ### COFFEE-MARKDOWN
 
@@ -112,6 +116,65 @@ Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wik
 - **API:** **`coffee.draw({ brush: { size, color, opacity, mode }, background, width, height, onStrokeComplete })`** — **one** options object; **append** the returned wrapper to the DOM. Methods live on **`wrapper.draw`** (**`setBrush`**, **`clear`**, **`undo`**, **`exportStrokes`**, …)—see **`COFFEE-DRAW/coffee-draw.js`**.
 - **Not valid:** **`coffee.draw(container, opts)`**, **`pad.setColor`**, **`pad.toBlob`** — use **`wrapper.draw.setBrush`**, **`wrapper.scene2d.canvas.toBlob`**, etc.
 - **Demo:** **`COFFEE-CDN/TESTING/TEST19-DRAW.html`**.
+
+### COFFEE-SVG (vector artboard)
+
+- **File:** **`COFFEE-SVG/coffee-svg.js`**. Included in **`load-all.js`**.
+- **API:** **`coffee.svg({ svg: svgElement?, width, height, onSelect })`**. If **`svg`** is an existing **`<svg>`** in the DOM, that node becomes the **artboard**; otherwise the module creates one. **`onSelect`** is called when the selected shape changes (**`HTMLElement | null`**).
+- **Return value:** an **object** (not a DOM node), e.g. **`setTool(tool)`** — **`'select'`** \| **`'rect'`** \| **`'circle'`** \| **`'text'`**; **`getTool()`**; **`setFillColor(color)`**; **`getSelected()`**; **`updateSelected(prop, val)`** — geometry (**`x`**, **`y`**, **`width`**, **`height`**, **`cx`**, **`cy`**, **`r`**, …), **`fill`**, **`text`**, **`fontSize`**, **`opacity`**; **`deleteSelected()`**; **`clear()`**; **`export()`** (opens serialized SVG in a new tab); **`getSVG()`** (root **`<svg>`** element).
+- **Interaction:** pick a tool and **drag** on the artboard to create shapes; use **Select** and click to edit. Shapes live under **`[data-coffee-svg-shapes]`** inside the SVG.
+- **Not included:** declarative **`coffee.svg(tagName, attrs)`** helpers, React-style trees, or Graphviz—this is a **small interactive editor**, not an SVG string templating API.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST20-SVG.html`**. Package README / **`SVG-POC1`** for more context.
+
+### COFFEE-PATTERN (sequencer JSON)
+
+- **File:** **`COFFEE-PATTERN/coffee-pattern.js`**. Included in **`load-all.js`**.
+- **`coffee.pattern`** is a **plain object** — **do not** call **`coffee.pattern(...)`** as a function.
+- **Methods:** **`emptyPianoRoll({ stepCount?, notes? })`** → **`{ kind: 'coffee.pattern.pianoRoll', stepCount, notes: [{ step, row, length? }, …] }`**; **`emptyDrum({ stepCount?, padIds? })`** → **`{ kind: 'coffee.pattern.drum', lanes: { [padId]: (0|1)[] }, … }`**; **`clone(p)`**; **`isPianoRoll(p)`** / **`isDrum(p)`**.
+- **Purpose:** serializable **step patterns** for sequencers—**not** wallpaper generators, **not** **`toDataURL`**, **not** CSS **`background-image`**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST21-PATTERN.html`**.
+
+### COFFEE-COIL (generative coil art)
+
+- **File:** **`COFFEE-COIL/coffee-coil.js`** (or package root **`coffee-*.js`** per **`load-all.js`**). **`coffee.coil`** + JSON presets under **`COFFEE-COIL/presets/`** — see **COFFEE-COIL/README**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST23-FLOW.html`** (UI title **Coil**; filename **`FLOW`** is legacy).
+
+### COFFEE-SHADOW (GPU shadow presets)
+
+- **`coffee.shadow`** — **COFFEE-SHADOW/coffee-shadow.js** + JSON under **`presets/`**. Not the same as **COFFEE-SHADE** or **`coffee.shade`**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST24-SHADOWN.html`**.
+
+### COFFEE-SHADE (ramp editor)
+
+- **`coffee.shade`** — **COFFEE-SHADE/README** and **`coffee-shade.js`**. Distinct from **`coffee.shadow`** (**COFFEE-SHADOW**).
+- **Demo:** **`COFFEE-CDN/TESTING/TEST25-SHADE.html`**.
+
+### COFFEE-PIX (micro pixel editor)
+
+- **`coffee.pix`** — **COFFEE-PIX/README**; small canvas editor surface, not a CSS pattern tile API.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST26-PIX.html`**.
+
+### COFFEE-BRAND / ASCII splash
+
+- **COFFEE-BRAND** exports (e.g. **`coffee-os-ascii`**) plus **COFFEE-UI** **`coffee.heading`** for page chrome.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST27-ASCII.html`**.
+
+### COFFEE-SHELL (virtual terminal + VFS)
+
+- **File:** **`COFFEE-SHELL/coffee-shell.js`**. Included in **`load-all.js`**. **Not** the same as **`coffee.appShell`** (layout chrome in **COFFEE-UI**).
+- **API:** **`coffee.shell.createSession(opts)`** (sync: **`localStorage`** / **`control`**) or **`coffee.shell.createSessionAsync(opts)`** (IndexedDB via **`coffee.drive`**). Options: **`outputEl`**, **`inputEl`**, **`pathDisplayEl`**, **`scrollEl`**, **`persistence`**, **`driveId`**, **`vfsRecordId`**, **`customCommands`**, … — see **`COFFEE-SHELL/README.md`**.
+- **Session object:** **`{ mount, unmount, handleCommand, print, clearOutput, ctx, getBanner }`**. Call **`session.mount()`** after creation so the input listener is wired. Run commands with **`session.handleCommand('banner')`**, **`session.handleCommand('reset')`**, etc.—there is **no** **`session.execute`** or **`session.reset`**.
+- **`customCommands[name]`** signature: **`function (ctx, args, raw)`** — use **`ctx.print(...)`** for output.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST28-SHELL.html`**.
+
+### COFFEE-GPU (WebGPU 3D)
+
+- **File:** **`COFFEE-GPU/coffee-gpu.js`**. Included in **`load-all.js`**. There is **no** separate **`COFFEE-SHADER`** package in the tree for this stack—**`coffee.gpu`** is the GPU entry point here.
+- **API:** **`coffee.gpu({ canvas?, container, shapes, camera, background, width, height, custom })`**. **`shapes`:** **`{ type: 'box' \| 'sphere', position, scale, rotation, color, radius?, rotationSpeed? }`** — see **`coffee-gpu.js`**. **`camera`:** **`{ position, lookAt, up }`**. **`background`:** CSS color string or **`[r,g,b,a]`** 0–1.
+- **Return value:** **wrapper** element (**`data-coffee="gpu"`**); **`wrapper.gpu`** exposes **`device`**, **`queue`**, **`canvas`**, etc., plus **`start()`** and **`stop()`** after async init. Rendering runs on an **internal** **`requestAnimationFrame`** loop—**do not** expect **`inst.render(...)`**.
+- **Requirements:** **WebGPU** (**Chrome/Edge** with flag or **Safari Technology Preview**, etc.). If unsupported, an error **`<div>`** is shown instead of a scene.
+- **Not included:** passing **GLSL** fragment shaders, **2D** shader thumbnails as in Three.js shadertoy clones—use **raw WebGL/WebGPU** elsewhere if you need that.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST22-SHADER.html`**.
 
 ### COFFEE-SCENE3D (3D)
 

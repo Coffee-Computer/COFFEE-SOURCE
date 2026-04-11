@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shell // OS Virtual Terminal</title>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background: #050505; color: #bc986a;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            display: flex; overflow: hidden;
+        }
+
+        #sidebar {
+            width: 240px; background: #0c0c0c; border-right: 1px solid #1a1a1a;
+            display: flex; flex-direction: column; padding: 20px; gap: 20px;
+        }
+
+        #main-shell {
+            flex: 1; display: flex; flex-direction: column; position: relative;
+        }
+
+        #shell-output {
+            flex: 1; padding: 20px; overflow-y: auto; line-height: 1.4; font-size: 13px;
+            scroll-behavior: smooth;
+        }
+
+        .input-line {
+            background: #000; border-top: 1px solid #1a1a1a;
+            padding: 15px 20px; display: flex; align-items: center;
+        }
+
+        #path-display { color: #4c9aff; font-weight: bold; margin-right: 12px; white-space: nowrap; }
+
+        #shell-input {
+            flex: 1; background: transparent; border: none; color: #eee;
+            font-family: inherit; font-size: 14px; outline: none;
+        }
+
+        .output-line { margin-bottom: 4px; }
+        .warn-text { color: #ff5f56; }
+        .info-text { color: #4c9aff; }
+        .muted-text { color: #444; }
+        .banner-text { color: #bc986a; line-height: 1; font-size: 10px; }
+
+        .nav-item { color: #555; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; }
+        .nav-item:hover { color: #bc986a; }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-BRAND/coffee-os-ascii.js"></script>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <div style="font-weight: bold; font-size: 14px; margin-bottom: 10px;">COFFEE OS</div>
+        <div class="nav-item">Explorer</div>
+        <div class="nav-item">Processes</div>
+        <div class="nav-item">Network</div>
+        <div style="margin-top: auto;" class="nav-item" id="reset-vfs">Reset VFS</div>
+    </aside>
+
+    <main id="main-shell">
+        <div id="shell-output"></div>
+        <div class="input-line">
+            <span id="path-display">~</span>
+            <input type="text" id="shell-input" autofocus spellcheck="false" autocomplete="off">
+        </div>
+    </main>
+
+    <script>
+        (function () {
+            var started = false;
+
+            function boot() {
+                if (started) return;
+                started = true;
+
+                if (!window.coffee || !coffee.shell || typeof coffee.shell.createSessionAsync !== 'function') {
+                    console.error('coffee.shell.createSessionAsync missing');
+                    return;
+                }
+
+                if (coffee.injectTheme) {
+                    coffee.injectTheme('dark');
+                }
+
+                /*
+                 * coffee-shell.js returns: { mount, unmount, handleCommand, print, clearOutput, ctx, getBanner }
+                 * — no .execute or .reset. Use handleCommand('banner'), handleCommand('reset').
+                 * customCommands[cmd](ctx, args, raw) — not (args) alone.
+                 */
+                coffee.shell.createSessionAsync({
+                    outputEl: document.getElementById('shell-output'),
+                    inputEl: document.getElementById('shell-input'),
+                    pathDisplayEl: document.getElementById('path-display'),
+                    scrollEl: document.getElementById('shell-output'),
+                    persistence: 'drive',
+                    driveId: 'coffee-shell',
+                    vfsRecordId: 'vfs',
+                    userHost: 'coffee@os',
+                    customCommands: {
+                        ui: function (ctx, args) {
+                            if (args[0] === 'theme') {
+                                var t = args[1] || 'dark';
+                                if (coffee.injectTheme) {
+                                    coffee.injectTheme(t);
+                                }
+                                ctx.print('Theme switched to ' + t, 'info-text');
+                                return;
+                            }
+                            ctx.print('Usage: ui theme [light|dark]', 'warn-text');
+                        }
+                    }
+                }).then(function (session) {
+                    session.mount();
+
+                    document.getElementById('reset-vfs').onclick = function () {
+                        if (confirm('Format Virtual Drive? All files will be lost.')) {
+                            session.handleCommand('reset');
+                        }
+                    };
+
+                    session.handleCommand('banner');
+
+                    console.log('Coffee Shell session:', session);
+                }).catch(function (err) {
+                    console.error(err);
+                });
+            }
+
+            window.addEventListener('coffee:cdn:ready', boot);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') {
+                p.then(boot).catch(boot);
+            }
+        })();
+    </script>
+</body>
+</html>

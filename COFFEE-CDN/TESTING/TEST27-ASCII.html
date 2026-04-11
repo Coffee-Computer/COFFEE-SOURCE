@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee OS // Splash</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0a0a0a;
+            color: #bc986a;
+            font-family: 'Fira Code', 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #splash-container {
+            text-align: center;
+            animation: flicker 0.15s infinite secondary;
+            max-width: 90vw;
+        }
+
+        /* The ASCII Banner */
+        pre {
+            font-size: 10px;
+            line-height: 1.2;
+            margin-bottom: 30px;
+            color: #bc986a;
+            text-shadow: 0 0 10px rgba(188, 152, 106, 0.5);
+            animation: slideUp 1s ease-out;
+        }
+
+        /* Coffee UI Heading overrides/styling */
+        .coffee-heading {
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            opacity: 0.8;
+        }
+
+        .status-line {
+            font-size: 12px;
+            color: #444;
+            margin-top: 20px;
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 15px;
+            background: #bc986a;
+            margin-left: 5px;
+            animation: blink 1s step-end infinite;
+        }
+
+        @keyframes blink { 
+            from, to { opacity: 1; } 
+            50% { opacity: 0; } 
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.98; }
+        }
+    </style>
+
+    <!-- 1. Load BRAND tokens first (sets window.COFFEE_OS_ASCII_BANNER) -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-BRAND/coffee-os-ascii.js"></script>
+
+    <!-- 2. Load the Coffee Source browser stack -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="splash-container">
+        <!-- ASCII injected here -->
+        <pre id="ascii-target"></pre>
+        
+        <!-- Heading injected here -->
+        <div id="heading-target"></div>
+
+        <div class="status-line">
+            SYSTEM READY // KERNEL LOADED <span class="cursor"></span>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const asciiTarget = document.getElementById('ascii-target');
+            const headingTarget = document.getElementById('heading-target');
+
+            // 1. Dogfooding: Access the ASCII Banner from COFFEE-BRAND
+            // This global was set by coffee-os-ascii.js
+            if (window.COFFEE_OS_ASCII_BANNER) {
+                asciiTarget.innerText = window.COFFEE_OS_ASCII_BANNER;
+            } else {
+                asciiTarget.innerText = "[ COFFEE OS ]"; // Fallback
+            }
+
+            // 2. Dogfooding: Create Brand Heading via COFFEE-UI
+            // API: coffee.heading(text, levelOrOptions)
+            const splashHeading = coffee.heading("Source v1.0.4", {
+                level: 2,
+                style: 'letter-spacing: 8px; font-weight: 300;'
+            });
+            headingTarget.appendChild(splashHeading);
+
+            // 3. Optional: Add interactive boot button using COFFEE-UI
+            const bootBtn = coffee.button('INITIALIZE SHELL', () => {
+                if (coffee.toast) coffee.toast("Accessing VM2 Shell...");
+                splashHeading.style.color = "#4c9aff";
+            });
+            bootBtn.style.marginTop = "30px";
+            bootBtn.style.border = "1px solid #bc986a";
+            bootBtn.style.background = "transparent";
+            bootBtn.style.color = "#bc986a";
+            
+            document.getElementById('splash-container').appendChild(bootBtn);
+
+            // Apply global theme
+            coffee.injectTheme('dark');
+            
+            console.log("Coffee Brand Splash Ready.");
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Pix // Micro Editor</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        #sidebar { 
+            width: 300px; background: #111; border-right: 1px solid #222; 
+            padding: 20px; display: flex; flex-direction: column; gap: 20px; z-index: 10;
+        }
+
+        #viewport { 
+            flex: 1; position: relative; display: flex; align-items: center; justify-content: center; 
+            padding: 40px; background-image: radial-gradient(#222 1px, transparent 1px); background-size: 20px 20px;
+        }
+
+        canvas { max-width: 100%; max-height: 100%; box-shadow: 0 20px 50px rgba(0,0,0,0.5); background: #000; }
+
+        .control-group { background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; }
+        .control-group label { display: block; font-size: 10px; color: #bc986a; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
+        
+        input[type="range"] { width: 100%; margin-bottom: 5px; cursor: pointer; }
+        .val { font-family: monospace; font-size: 10px; color: #666; text-align: right; margin-bottom: 10px; }
+
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        
+        #drop-zone {
+            border: 2px dashed #333; padding: 20px; text-align: center; color: #666; font-size: 12px;
+            cursor: pointer; transition: border 0.2s;
+        }
+        #drop-zone:hover { border-color: #bc986a; color: #bc986a; }
+    </style>
+
+    <!-- Load Coffee Source stack via CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div style="font-weight: bold; color: #bc986a; letter-spacing: 2px;">COFFEE // PIX</div>
+        
+        <div id="drop-zone">Click or Drop Image</div>
+        <input type="file" id="file-input" style="display: none;" accept="image/*">
+
+        <div class="control-group">
+            <label>Adjustments</label>
+            <div id="adjustment-sliders"></div>
+        </div>
+
+        <div class="control-group">
+            <label>Presets</label>
+            <div id="preset-buttons" class="preset-grid"></div>
+        </div>
+
+        <div id="actions" style="display: flex; gap: 10px;"></div>
+    </div>
+
+    <div id="viewport">
+        <canvas id="pixCanvas"></canvas>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const canvas = document.getElementById('pixCanvas');
+            const dropZone = document.getElementById('drop-zone');
+            const fileInput = document.getElementById('file-input');
+            const sliderRoot = document.getElementById('adjustment-sliders');
+            const presetRoot = document.getElementById('preset-buttons');
+            const actionRoot = document.getElementById('actions');
+
+            // 1. Initialize Pix Engine (Headless)
+            // API: coffee.pix({ canvas })
+            const pix = coffee.pix({ canvas });
+
+            // 2. Logic: Handle Image Loading
+            function loadImage(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        pix.load(img);
+                        pix.render();
+                        if (coffee.toast) coffee.toast("Image loaded");
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+
+            dropZone.onclick = () => fileInput.click();
+            fileInput.onchange = (e) => e.target.files[0] && loadImage(e.target.files[0]);
+
+            // 3. UI: Sliders (COFFEE-UI)
+            const controls = [
+                { id: 'brightness', label: 'Brightness' },
+                { id: 'contrast', label: 'Contrast' },
+                { id: 'saturation', label: 'Saturation' }
+            ];
+
+            const state = { brightness: 0, contrast: 0, saturation: 0 };
+
+            controls.forEach(c => {
+                const container = document.createElement('div');
+                const label = document.createElement('div');
+                label.style.fontSize = '11px';
+                label.innerText = c.label;
+
+                const input = document.createElement('input');
+                input.type = 'range'; input.min = -100; input.max = 100; input.value = 0;
+                
+                const valDisp = document.createElement('div');
+                valDisp.className = 'val'; valDisp.innerText = '0';
+
+                input.oninput = (e) => {
+                    const val = parseInt(e.target.value);
+                    valDisp.innerText = val;
+                    state[c.id] = val;
+                    
+                    // API: pix.adjust({ brightness, contrast, saturation })
+                    pix.adjust(state);
+                    pix.render();
+                };
+
+                container.append(label, input, valDisp);
+                sliderRoot.appendChild(container);
+            });
+
+            // 4. UI: Presets
+            const presets = ['grayscale', 'sepia', 'invert', 'vintage'];
+            presets.forEach(p => {
+                presetRoot.appendChild(coffee.button(p, () => {
+                    if (!pix.hasImage) return;
+                    pix.preset(p);
+                    pix.render();
+                }));
+            });
+
+            // 5. Actions
+            actionRoot.appendChild(coffee.button('Reset', () => {
+                pix.reset();
+                pix.render();
+                // Reset sliders visually
+                sliderRoot.querySelectorAll('input').forEach(i => i.value = 0);
+                sliderRoot.querySelectorAll('.val').forEach(v => v.innerText = '0');
+                state.brightness = 0; state.contrast = 0; state.saturation = 0;
+            }));
+
+            actionRoot.appendChild(coffee.button('Save', () => {
+                const link = document.createElement('a');
+                link.download = 'coffee-edit.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            }));
+
+            // Initial Theme
+            coffee.injectTheme('dark');
+            console.log("Pix Micro Editor online. Engine: COFFEE-PIX");
+        });
+    </script>
+</body>
+</html>

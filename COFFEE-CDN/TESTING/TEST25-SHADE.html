@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Shade // Ramp Editor</title>
+    <style>
+        body { margin: 0; background: #050505; color: #eee; font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        #controls-pane { 
+            width: 320px; background: #0c0c0c; border-right: 1px solid #222; 
+            padding: 20px; display: flex; flex-direction: column; gap: 20px; z-index: 10;
+            overflow-y: auto;
+        }
+
+        #viewport { flex: 1; position: relative; background: #000; }
+        #gpuCanvas { width: 100%; height: 100%; display: block; }
+
+        .slider-group { background: #151515; padding: 15px; border-radius: 8px; border: 1px solid #222; }
+        .slider-group label { display: block; font-size: 10px; color: #bc986a; text-transform: uppercase; margin-bottom: 10px; letter-spacing: 1px; }
+        .slider-group input { width: 100%; margin-bottom: 5px; cursor: pointer; }
+        .val-display { font-family: monospace; font-size: 10px; color: #666; text-align: right; }
+
+        h2 { margin: 0 0 5px 0; font-size: 16px; color: #bc986a; }
+        p { margin: 0 0 15px 0; font-size: 11px; color: #555; line-height: 1.4; }
+    </style>
+
+    <!-- Load Coffee Source stack via CDN -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="controls-pane">
+        <h2>SHADE // RAMP</h2>
+        <p>Direct uniform mapping to the <code>liquid</code> WGSL shader via WebGPU.</p>
+        
+        <div id="sliders-root"></div>
+
+        <div style="margin-top: auto; display: flex; gap: 10px;">
+            <div id="reset-btn-root" style="flex: 1;"></div>
+            <div id="copy-btn-root" style="flex: 1;"></div>
+        </div>
+    </div>
+
+    <div id="viewport">
+        <canvas id="gpuCanvas"></canvas>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', async function () {
+            const slidersRoot = document.getElementById('sliders-root');
+            
+            // 1. Initial Flat Config (backward compat format)
+            const config = {
+                density: 8,
+                color_shift: 2,
+                zoom: 1.2,
+                speed: 1,
+                brightness: 1,
+                complexity: 5
+            };
+
+            // 2. Initialize Headless Engine (COFFEE-SHADE)
+            let shade = null;
+            try {
+                // API: coffee.shade({ canvas, config })
+                shade = coffee.shade({
+                    canvas: '#gpuCanvas',
+                    config: config
+                });
+
+                await shade.start();
+                console.log("WebGPU Shade Engine Started");
+            } catch (e) {
+                console.error("Shade Init Failed:", e);
+                document.getElementById('viewport').innerHTML = 
+                    `<div style="padding:40px; color:#ff4d4d;">WebGPU not supported in this browser.</div>`;
+            }
+
+            // 3. UI Construction (COFFEE-UI)
+            function createRampSlider(key, min, max, step) {
+                const group = document.createElement('div');
+                group.className = 'slider-group';
+                group.style.marginBottom = '10px';
+
+                const label = document.createElement('label');
+                label.innerText = key.replace('_', ' ');
+
+                const val = document.createElement('div');
+                val.className = 'val-display';
+                val.innerText = config[key];
+
+                const input = document.createElement('input');
+                input.type = 'range';
+                input.min = min; input.max = max; input.step = step;
+                input.value = config[key];
+
+                input.oninput = (e) => {
+                    const n = parseFloat(e.target.value);
+                    config[key] = n;
+                    val.innerText = n;
+                    
+                    // Direct Engine Update
+                    if (shade) shade.update(config);
+                };
+
+                group.append(label, input, val);
+                slidersRoot.appendChild(group);
+            }
+
+            // Build the ramps
+            createRampSlider('density', 1, 20, 0.1);
+            createRampSlider('color_shift', 0, 10, 0.1);
+            createRampSlider('zoom', 0.1, 5, 0.1);
+            createRampSlider('speed', 0, 4, 0.1);
+            createRampSlider('complexity', 1, 10, 1);
+
+            // 4. Action Buttons
+            document.getElementById('reset-btn-root').appendChild(
+                coffee.button('Reset', () => {
+                    window.location.reload();
+                })
+            );
+
+            document.getElementById('copy-btn-root').appendChild(
+                coffee.button('Export JSON', () => {
+                    const str = JSON.stringify(config, null, 2);
+                    console.log(str);
+                    if (coffee.toast) coffee.toast("Config copied to console");
+                })
+            );
+
+            // Handle Resize
+            window.addEventListener('resize', () => {
+                if (shade && shade.resize) shade.resize();
+            });
+
+            coffee.injectTheme('dark');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee GPU gallery (WebGPU 3D)</title>
+    <style>
+        body { margin: 0; background: #050505; color: #eee; font-family: sans-serif; padding: 20px; }
+
+        #grid-root {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .shader-card {
+            background: #111;
+            border: 1px solid #222;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s;
+        }
+
+        .shader-card:hover { transform: translateY(-5px); border-color: #bc986a; }
+
+        .canvas-container {
+            width: 100%;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            position: relative;
+        }
+
+        .canvas-container [data-coffee="gpu"] { width: 100%; height: 100%; }
+
+        .card-meta { padding: 15px; border-top: 1px solid #222; }
+        .card-title { font-weight: bold; font-size: 14px; color: #bc986a; margin-bottom: 5px; }
+        .card-desc { font-size: 11px; color: #666; line-height: 1.4; }
+    </style>
+
+    <script
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <header style="max-width: 1200px; margin: 0 auto 30px auto; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <h2 style="margin: 0; letter-spacing: 2px; color: #bc986a;">GPU // GALLERY</h2>
+            <p style="font-size: 12px; color: #555; margin: 5px 0 0 0;">
+                <strong>COFFEE-GPU</strong> = <strong>WebGPU</strong> 3D (<code>box</code> / <code>sphere</code>), not <code>coffee.gpu(canvas, glsl)</code>.
+            </p>
+        </div>
+        <div id="toolbar"></div>
+    </header>
+
+    <div id="grid-root"></div>
+
+    <script>
+        (function () {
+            var started = false;
+
+            function start() {
+                if (started) return;
+                if (!window.coffee || typeof coffee.gpu !== 'function') {
+                    console.error('coffee.gpu not ready');
+                    return;
+                }
+                started = true;
+
+                var grid = document.getElementById('grid-root');
+                var toolbar = document.getElementById('toolbar');
+
+                /*
+                 * Real API — COFFEE-GPU/coffee-gpu.js:
+                 *   coffee.gpu({ canvas?, shapes, camera, background, container, width, height, custom })
+                 * Returns a wrapper; animation uses internal rAF. Use wrapper.gpu.stop() / .start() after init.
+                 */
+                var scenes = [
+                    {
+                        title: 'Amber sphere',
+                        desc: 'Icosphere, slow Y spin.',
+                        shapes: [{ type: 'sphere', radius: 1.3, position: [0, 0, 0], color: '#bc986a', rotationSpeed: [0, 0.6, 0] }],
+                        background: [0.05, 0.05, 0.05, 1]
+                    },
+                    {
+                        title: 'Blue box',
+                        desc: 'Cube with faster tumble.',
+                        shapes: [{ type: 'box', scale: [1.4, 1.4, 1.4], position: [0, 0, 0], color: '#4c9aff', rotationSpeed: [0.4, 0.9, 0.2] }],
+                        background: [0.02, 0.04, 0.08, 1]
+                    },
+                    {
+                        title: 'Green sphere',
+                        desc: 'Smaller radius, Z-heavy spin.',
+                        shapes: [{ type: 'sphere', radius: 1, position: [0, 0, 0], color: '#27c93f', rotationSpeed: [0.3, 0.2, 0.8] }],
+                        background: [0.03, 0.06, 0.03, 1]
+                    },
+                    {
+                        title: 'Warm box',
+                        desc: 'Low light background.',
+                        shapes: [{ type: 'box', scale: [1.2, 1.6, 1], position: [0, 0, 0], color: '#ffab40', rotationSpeed: [0, 0.35, 0] }],
+                        background: [0.08, 0.05, 0.02, 1]
+                    }
+                ];
+
+                var wrappers = [];
+                var paused = false;
+
+                scenes.forEach(function (scene) {
+                    var card = document.createElement('div');
+                    card.className = 'shader-card';
+
+                    var canvasContainer = document.createElement('div');
+                    canvasContainer.className = 'canvas-container';
+
+                    var meta = document.createElement('div');
+                    meta.className = 'card-meta';
+                    meta.innerHTML =
+                        '<div class="card-title">' + scene.title + '</div>' +
+                        '<div class="card-desc">' + scene.desc + '</div>';
+
+                    card.appendChild(canvasContainer);
+                    card.appendChild(meta);
+                    grid.appendChild(card);
+
+                    var w = coffee.gpu({
+                        container: canvasContainer,
+                        width: 640,
+                        height: 360,
+                        shapes: scene.shapes,
+                        camera: { position: [0, 0, 6], lookAt: [0, 0, 0] },
+                        background: scene.background
+                    });
+                    wrappers.push(w);
+                });
+
+                if (typeof coffee.injectTheme === 'function') {
+                    coffee.injectTheme('dark');
+                }
+
+                toolbar.appendChild(coffee.button('Pause / resume all', function () {
+                    paused = !paused;
+                    wrappers.forEach(function (wrap) {
+                        var g = wrap.gpu;
+                        if (!g || typeof g.stop !== 'function') return;
+                        if (paused) g.stop();
+                        else if (typeof g.start === 'function') g.start();
+                    });
+                    if (coffee.toast) {
+                        coffee.toast(paused ? 'Paused' : 'Running', 'info');
+                    }
+                }));
+
+                console.log('TEST22: coffee.gpu — WebGPU 3D scenes; use .gpu.stop() / .gpu.start(), not .render()');
+            }
+
+            window.addEventListener('coffee:cdn:ready', start);
+            var p = window.COFFEE_LOAD_ALL_PROMISE;
+            if (p && typeof p.then === 'function') {
+                p.then(start).catch(start);
+            }
+        })();
+    </script>
+</body>
+</html>

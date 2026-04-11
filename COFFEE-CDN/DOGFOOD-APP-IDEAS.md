@@ -2,7 +2,7 @@
 
 Small projects to **exercise real modules** and **`load-all.js` / jsDelivr cherry-picks** (see [`README.md`](./README.md), [`AI-CDN-SYSTEM-INSTRUCTION.md`](./AI-CDN-SYSTEM-INSTRUCTION.md)). Pick one row, ship a single HTML or tiny folder, and file gaps you hit.
 
-**Coverage in `COFFEE-CDN/TESTING/`:** rows **1–14** have a primary dogfood HTML (links in the table). Rows **15–30** are still **backlog**—no dedicated `TEST*.html` in that folder yet. Unrelated demos also exist (e.g. [`TEST2-CALENDAR.html`](./TESTING/TEST2-CALENDAR.html), [`TEST3-TODO.html`](./TESTING/TEST3-TODO.html), [`TEST-CALDENDAR-STYLIZED.html`](./TESTING/TEST-CALDENDAR-STYLIZED.html)) that are not mapped to this 30-row list.
+**Coverage in `COFFEE-CDN/TESTING/`:** use the **Dogfood test** column below—rows with a **TEST* link** are covered; others are **backlog** (additional ad-hoc `TEST*.html` files may exist outside this table). Unrelated demos also exist (e.g. [`TEST2-CALENDAR.html`](./TESTING/TEST2-CALENDAR.html), [`TEST3-TODO.html`](./TESTING/TEST3-TODO.html), [`TEST-CALDENDAR-STYLIZED.html`](./TESTING/TEST-CALDENDAR-STYLIZED.html)) that are not mapped to this 30-row list.
 
 | # | App idea | Modules to lean on | Dogfood test (done) | Notes |
 |---|----------|-------------------|---------------------|--------|
@@ -20,15 +20,15 @@ Small projects to **exercise real modules** and **`load-all.js` / jsDelivr cherr
 | 12 | **2D scene toy** — shapes + `custom` draw | COFFEE-UI, COFFEE-SCENE2D | [TEST17](TESTING/TEST17-SCENE2D.html) | **`coffee.scene2d({ shapes, custom, … })`** — **not** sprite/pan-zoom APIs; see **COFFEE-SCENE2D/coffee-scene2d.js**. |
 | 13 | **3D gallery** — declarative shapes, orbit | COFFEE-UI, COFFEE-SCENE3D + Three.js | [TEST4](TESTING/TEST4-3D.html), [TEST18](TESTING/TEST18-SCENE3D.html) | **`coffee.scene3d({ shapes, … })`** + **`THREE`** (and **OrbitControls** if orbit). **TEST4** = cherry-pick; **TEST18** = **`load-all.js`**. |
 | 14 | **Canvas draw pad** — save PNG | COFFEE-UI, COFFEE-DRAW, COFFEE-FILE | [TEST19](TESTING/TEST19-DRAW.html) | **`coffee.draw({ brush, width, height, … })`**, append wrapper; **`coffee.file.save(blob, { suggestedName, … })`**. **`load-all.js`** must load **scene2d before draw**; **TEST19** preloads **`coffee-scene2d.js`** so **jsDelivr `@main`** works even if the remote **`load-all`** order is stale. |
-| 15 | **SVG icon composer** | COFFEE-UI, COFFEE-SVG | — | **`coffee.svg`** API — see **COFFEE-SVG/README** + **SVG-POC1**. |
-| 16 | **Pattern / tile generator** | COFFEE-UI, COFFEE-PATTERN | — | **`coffee.pattern`** — see **COFFEE-PATTERN/coffee-pattern.js** header. |
-| 17 | **Shader thumbnail grid** | COFFEE-UI, COFFEE-SHADER or COFFEE-GPU | — | **`coffee.shader`** / **`coffee.gpu`** — read package **README** + **DEMO** HTML. |
-| 18 | **Procedural “coil” art** | COFFEE-UI, COFFEE-COIL | — | **`coffee.coil`** + presets — **COFFEE-COIL/README**. |
-| 19 | **Shadow / preset visualizer** | COFFEE-UI, COFFEE-SHADOW | — | **`coffee.shadow`** — **COFFEE-SHADOW/coffee-shadow.js** + `presets/`. |
-| 20 | **Shade ramp editor** | COFFEE-UI, COFFEE-SHADE | — | **`coffee.shade`** — **COFFEE-SHADE/README**. |
-| 21 | **Pixel editor (micro)** | COFFEE-UI, COFFEE-PIX | — | **`coffee.pix`** — **COFFEE-PIX/README** + **PIX-POC1**. |
-| 22 | **ASCII / brand splash** | COFFEE-UI, COFFEE-BRAND | — | **`coffee-os-ascii`** (or **COFFEE-BRAND** exports) **+** **`coffee.heading`**. |
-| 23 | **Shell layout demo** | COFFEE-UI, COFFEE-SHELL | — | **`coffee.shell`** / **`coffee.appShell`** — **COFFEE-SHELL** + **COFFEE-UI/ARCH**. |
+| 15 | **SVG icon composer** | COFFEE-UI, COFFEE-SVG | [TEST20](TESTING/TEST20-SVG.html) | **`coffee.svg({ svg, width, height, onSelect })`** returns **`setTool`**, **`updateSelected`**, **`export`**, … — **not** `coffee.svg('circle', attrs)`. See **COFFEE-SVG/coffee-svg.js**. |
+| 16 | **Sequencer pattern lab** (piano + drum JSON) | COFFEE-UI, COFFEE-PATTERN | [TEST21](TESTING/TEST21-PATTERN.html) | **`coffee.pattern`** is an **object** (`emptyPianoRoll`, `emptyDrum`, `clone`, …)—**not** `coffee.pattern(opts)` for CSS/PNG tiles. **COFFEE-PATTERN/coffee-pattern.js**. |
+| 17 | **WebGPU 3D thumbnail grid** | COFFEE-UI, COFFEE-GPU | [TEST22](TESTING/TEST22-SHADER.html) | **`coffee.gpu({ container, shapes, camera, … })`** — **not** `coffee.gpu(canvas, glsl)` or **`inst.render()`**. Requires **WebGPU**. No **`COFFEE-SHADER`** package here; see **COFFEE-GPU/coffee-gpu.js**. |
+| 18 | **Procedural “coil” art** | COFFEE-UI, COFFEE-COIL | [TEST23](TESTING/TEST23-FLOW.html) | **`coffee.coil`** + presets — **COFFEE-COIL/README**. (File name **`FLOW`** is historical; page title is **Coil**.) |
+| 19 | **Shadow / preset visualizer** | COFFEE-UI, COFFEE-SHADOW | [TEST24](TESTING/TEST24-SHADOWN.html) | **`coffee.shadow`** — **COFFEE-SHADOW/coffee-shadow.js** + `presets/`. |
+| 20 | **Shade ramp editor** | COFFEE-UI, COFFEE-SHADE | [TEST25](TESTING/TEST25-SHADE.html) | **`coffee.shade`** — **COFFEE-SHADE/README**. |
+| 21 | **Pixel editor (micro)** | COFFEE-UI, COFFEE-PIX | [TEST26](TESTING/TEST26-PIX.html) | **`coffee.pix`** — **COFFEE-PIX/README** + **PIX-POC1**. |
+| 22 | **ASCII / brand splash** | COFFEE-UI, COFFEE-BRAND | [TEST27](TESTING/TEST27-ASCII.html) | **`coffee-os-ascii`** (or **COFFEE-BRAND** exports) **+** **`coffee.heading`**. |
+| 23 | **Virtual terminal + VFS** (shell) | COFFEE-UI, COFFEE-SHELL, COFFEE-DRIVE | [TEST28](TESTING/TEST28-SHELL.html) | **`coffee.shell.createSessionAsync`** → **`session.mount()`**, **`session.handleCommand(...)`** — **not** **`session.execute`**. Layout chrome is **`coffee.appShell`** (**COFFEE-UI**), different from **`coffee.shell`**. |
 | 24 | **Screen / capture helper UI** | COFFEE-UI, COFFEE-SCREEN | — | **`coffee.screen`** — pair **COFFEE-CONTROL** if camera needed. |
 | 25 | **Chat stub** — local transcripts only | COFFEE-UI, COFFEE-CHAT | — | **`coffee.chat`** — **COFFEE-CHAT** README; later **CONNECT / TRANSPORT / NOSTR / MASTO**. |
 | 26 | **Peer “room” ping** | COFFEE-UI, COFFEE-PEER | — | **`coffee.peer`** — **COFFEE-PEER/README**. |
@@ -98,31 +98,36 @@ Use this section to avoid **wrong API stories** (e.g. `coffee.filter` for text, 
 - **`coffee.file.save(blob, { suggestedName, types })`** — see **COFFEE-FILE/coffee-file.js**.
 
 ### 15 — SVG
-- **`coffee.svg`** — **COFFEE-SVG/README**.
+- **`coffee.svg({ svg: HTMLElement, width, height, onSelect })`** — interactive artboard; **`setTool('select'|'rect'|'circle'|'text')`**, **`updateSelected(prop, val)`**, **`export()`**, **`getSVG()`** — **COFFEE-SVG/coffee-svg.js**. **Not** a tag factory like `coffee.svg('rect', { … })`.
 
-### 16 — Pattern
-- **`coffee.pattern`** — **COFFEE-PATTERN/coffee-pattern.js**.
+### 16 — Pattern (sequencer)
+- **`coffee.pattern.emptyPianoRoll`**, **`emptyDrum`**, **`clone`**, **`isPianoRoll`**, **`isDrum`** — **COFFEE-PATTERN/coffee-pattern.js**. **Not** a visual tile API or **`coffee.pattern()`** function.
 
-### 17 — Shader / GPU
-- **`coffee.shader`** / **`coffee.gpu`** — read **COFFEE-SHADER**, **COFFEE-GPU** demos.
+### 17 — GPU (WebGPU 3D)
+- **`coffee.gpu({ shapes, camera, container, … })`** — **`wrapper.gpu.start`**, **`stop`** — **COFFEE-GPU/coffee-gpu.js**. **Not** GLSL **`coffee.gpu(canvas, code)`** or **`render(uniforms)`**.
 
 ### 18 — Coil
 - **`coffee.coil`** — **COFFEE-COIL/README**, presets under **COFFEE-COIL/presets/**.
+- Dogfood: **[TEST23](TESTING/TEST23-FLOW.html)** (filename **FLOW**, page **Coil**).
 
 ### 19 — Shadow
 - **`coffee.shadow`** — **COFFEE-SHADOW/coffee-shadow.js**, JSON presets.
+- Dogfood: **[TEST24](TESTING/TEST24-SHADOWN.html)**.
 
 ### 20 — Shade
 - **`coffee.shade`** — **COFFEE-SHADE/README**.
+- Dogfood: **[TEST25](TESTING/TEST25-SHADE.html)**.
 
 ### 21 — Pix
 - **`coffee.pix`** — **COFFEE-PIX/README**.
+- Dogfood: **[TEST26](TESTING/TEST26-PIX.html)**.
 
 ### 22 — Brand / ASCII
 - **COFFEE-BRAND** exports (e.g. **`coffee-os-ascii`**) + **COFFEE-UI** headings.
+- Dogfood: **[TEST27](TESTING/TEST27-ASCII.html)**.
 
-### 23 — Shell
-- **`coffee.shell`** / **`coffee.appShell`** — **COFFEE-SHELL**, **COFFEE-UI**.
+### 23 — Shell (terminal)
+- **`coffee.shell.createSession` / `createSessionAsync`** — **`mount`**, **`handleCommand`**, **`ctx`**, **`getBanner`** — **COFFEE-SHELL/coffee-shell.js**. **`coffee.appShell`** = app chrome (**COFFEE-UI**), not the VFS terminal.
 
 ### 24 — Screen
 - **`coffee.screen`** — **COFFEE-SCREEN**; **COFFEE-CONTROL** for camera if needed.
@@ -149,7 +154,7 @@ Use this section to avoid **wrong API stories** (e.g. `coffee.filter` for text, 
 
 ## CDN strategy (quick)
 
-- **Default dogfood:** `load-all.js` + `coffee:cdn:ready` / `COFFEE_LOAD_ALL_PROMISE` so every `coffee-*` root in the chain is available—**TEST pages cover rows 1–14**; rows **15–30** still need new HTML when you pick them up.
+- **Default dogfood:** `load-all.js` + `coffee:cdn:ready` / `COFFEE_LOAD_ALL_PROMISE` so every `coffee-*` root in the chain is available—fill gaps in the **Dogfood test** column when you ship a new idea row.
 - **Slim pages:** Three.js + `coffee-ui.js` + `coffee-scene3d.js` (gh) for 3D only; or `import-map.js` + `import()` for **true ESM** like `COFFEE-CASH/cash-core.js`, `COFFEE-POSIX/coffee-posix.js` (see `load-all.js` `ESM_SPECS`).
 - **Extra deps:** **`marked`** (markdown), **Viz.js** (Graphviz), **Monaco loader** (editor) — load **before** the Coffee script that depends on them (or before `load-all` for marked).
 - **Dogfood outcome:** Each app should produce a short **“gaps” note** (missing API, wrong load order, doc typo)—feed into `COMMUNITY-STACK-GAPS*.md` if it’s structural.
