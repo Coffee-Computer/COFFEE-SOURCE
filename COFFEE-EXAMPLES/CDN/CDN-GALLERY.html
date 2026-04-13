@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee CDN Gallery</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    body { font-family: Inter, system-ui, sans-serif; }
+    #gallery-shell { min-height: 100vh; display: flex; flex-direction: column; }
+    #gallery-main { flex: 1; padding: var(--coffee-space-lg, 24px); max-width: 1200px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+    .gallery-intro { margin-bottom: var(--coffee-space-lg, 24px); max-width: 52rem; }
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--coffee-space-md, 16px);
+    }
+    .gallery-tile {
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+    }
+    .gallery-tile:hover { transform: translateY(-2px); }
+    .gallery-tile:focus-visible { outline: 2px solid var(--coffee-accent); outline-offset: 3px; }
+    .preview-wrap {
+      position: relative;
+      width: 100%;
+      height: 200px;
+      border-radius: var(--coffee-radius-sm, 8px);
+      overflow: hidden;
+      background: #0a0a0a;
+      border: 1px solid var(--coffee-panel, #2d2d2d);
+    }
+    .preview-wrap iframe {
+      width: 200%;
+      height: 200%;
+      border: 0;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      pointer-events: none;
+    }
+    .tile-meta { margin-top: var(--coffee-space-sm, 8px); }
+    .fullscreen-root {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      flex-direction: column;
+      background: #080808;
+    }
+    .fullscreen-root[data-open="1"] { display: flex; }
+    .fullscreen-bar {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--coffee-bg-elev, #252525);
+      border-bottom: 1px solid var(--coffee-panel, #2d2d2d);
+    }
+    .fullscreen-bar h2 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--coffee-text-primary, #eee); }
+    .fullscreen-frame {
+      flex: 1;
+      min-height: 0;
+      border: 0;
+      background: #000;
+    }
+    .load-err { color: #f87171; padding: 16px; }
+  </style>
+  <script
+    src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+    data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/"></script>
+</head>
+<body>
+  <div id="gallery-shell"></div>
+  <div id="fullscreen-root" class="fullscreen-root" data-open="0" aria-hidden="true">
+    <div class="fullscreen-bar">
+      <h2 id="fs-title">Preview</h2>
+      <div id="fs-actions"></div>
+    </div>
+    <iframe id="fs-frame" class="fullscreen-frame" title="Fullscreen example"></iframe>
+  </div>
+
+  <script>
+(function () {
+  var started = false;
+
+  /**
+   * jsDelivr (and some raw CDNs) serve *.html as Content-Type: text/plain with nosniff,
+   * so iframes show raw source. Use same-origin URLs from the repo root instead (Live Server on COFFEE-SOURCE).
+   * Optional data.base: absolute https URL ending in / only if you control MIME (not jsDelivr for HTML).
+   */
+  function fullUrl(item, data) {
+    var p = String(item.path || '').replace(/^\//, '');
+    if (/^https?:\/\//i.test(p)) return p;
+    var base = data && data.base;
+    if (typeof base === 'string' && /^https?:\/\//i.test(base)) {
+      var b = base.endsWith('/') ? base : base + '/';
+      return b + p;
+    }
+    if (typeof window.location.origin === 'string' && window.location.origin !== 'null') {
+      return new URL(p, window.location.origin + '/').href;
+    }
+    return new URL(p, window.location.href).href;
+  }
+
+  function openFullscreen(title, url) {
+    var root = document.getElementById('fullscreen-root');
+    var frame = document.getElementById('fs-frame');
+    var h = document.getElementById('fs-title');
+    h.textContent = title;
+    frame.src = url;
+    root.setAttribute('data-open', '1');
+    root.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeFullscreen() {
+    var root = document.getElementById('fullscreen-root');
+    var frame = document.getElementById('fs-frame');
+    frame.removeAttribute('src');
+    root.setAttribute('data-open', '0');
+    root.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function build(data) {
+    var shell = document.getElementById('gallery-shell');
+    shell.innerHTML = '';
+
+    var header = document.createElement('header');
+    header.style.cssText = 'flex-shrink:0;height:56px;padding:var(--coffee-space-md);background:var(--coffee-bg-elev);border-bottom:1px solid var(--coffee-panel);display:flex;align-items:center;justify-content:space-between;';
+    var backBtn = coffee.button('← Examples hub', function () {
+      window.location.href = '../EXAMPLES-DASH.html';
+    });
+    header.appendChild(coffee.heading(data.title || 'CDN Gallery', 1, { style: 'margin:0;font-size:1.25rem;' }));
+    header.appendChild(backBtn);
+
+    var main = document.createElement('main');
+    main.id = 'gallery-main';
+
+    var intro = document.createElement('div');
+    intro.className = 'gallery-intro';
+    intro.appendChild(coffee.para(data.subtitle || '', { style: 'color:var(--coffee-text-muted);margin:0 0 8px 0;' }));
+    main.appendChild(intro);
+
+    var grid = document.createElement('div');
+    grid.className = 'gallery-grid';
+
+    (data.items || []).forEach(function (item) {
+      var url = fullUrl(item, data);
+      var tile = document.createElement('div');
+      tile.className = 'gallery-tile';
+      tile.tabIndex = 0;
+      tile.setAttribute('role', 'button');
+
+      var preview = document.createElement('div');
+      preview.className = 'preview-wrap';
+      var iframe = document.createElement('iframe');
+      iframe.setAttribute('loading', 'lazy');
+      iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+      iframe.title = 'Preview: ' + item.title;
+      iframe.src = url;
+
+      preview.appendChild(iframe);
+
+      var cardBody = coffee.stack(
+        [
+          preview,
+          coffee.heading(item.title, 3, { style: 'margin:12px 0 4px 0;font-size:0.95rem;' }),
+          coffee.para(item.description || '', { style: 'margin:0;font-size:13px;color:var(--coffee-text-muted);' })
+        ],
+        { gap: '0', width: '100%' }
+      );
+
+      tile.appendChild(coffee.card([cardBody], {
+        style: {
+          height: '100%',
+          margin: 0,
+          borderColor: 'rgba(188, 152, 106, 0.25)',
+          boxSizing: 'border-box'
+        }
+      }));
+
+      function activate() {
+        openFullscreen(item.title, url);
+      }
+      tile.addEventListener('click', activate);
+      tile.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          activate();
+        }
+      });
+
+      grid.appendChild(tile);
+    });
+
+    main.appendChild(grid);
+    shell.appendChild(header);
+    shell.appendChild(main);
+    shell.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;background:var(--coffee-bg-surface);color:var(--coffee-text-primary);';
+
+    var fsRoot = document.getElementById('fullscreen-root');
+    var fsActions = document.getElementById('fs-actions');
+    fsActions.innerHTML = '';
+    fsActions.appendChild(coffee.button('Close', closeFullscreen));
+    fsActions.appendChild(coffee.button('Open in new tab', function () {
+      var f = document.getElementById('fs-frame');
+      if (f.src) window.open(f.src, '_blank', 'noopener,noreferrer');
+    }));
+
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape' && fsRoot.getAttribute('data-open') === '1') {
+        closeFullscreen();
+      }
+    });
+  }
+
+  function showError(msg) {
+    var shell = document.getElementById('gallery-shell');
+    shell.innerHTML = '<p class="load-err">' + msg + '</p>';
+  }
+
+  function init() {
+    if (started) return;
+    started = true;
+    coffee.injectTheme('dark');
+
+    fetch('cdn-gallery.json', { cache: 'no-cache' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('Could not load cdn-gallery.json (HTTP ' + r.status + '). Serve this folder over HTTP so fetch works.');
+        return r.json();
+      })
+      .then(build)
+      .catch(function (e) {
+        console.error(e);
+        showError(String(e.message || e));
+      });
+  }
+
+  window.addEventListener('coffee:cdn:ready', init);
+  var p = window.COFFEE_LOAD_ALL_PROMISE;
+  if (p && typeof p.then === 'function') p.then(init).catch(init);
+})();
+  </script>
+</body>
+</html>

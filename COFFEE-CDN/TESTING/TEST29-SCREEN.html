@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Screen // Viewport Helper</title>
+    <style>
+        body { 
+            margin: 0; background: #0a0a0a; color: #eee; 
+            font-family: 'Inter', system-ui, sans-serif; 
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+        }
+
+        /* Responsive Container */
+        #app-wrapper { flex: 1; display: flex; flex-direction: column; padding: 20px; transition: all 0.3s ease; }
+        
+        /* Workstation (Large) Layout */
+        .profile-workstation { background: #050505; }
+        .profile-workstation #dashboard { grid-template-columns: 1fr 1fr; }
+
+        /* Twin (Small) Layout */
+        .profile-twin { background: #0f0f0f; }
+        .profile-twin #dashboard { grid-template-columns: 1fr; }
+
+        #dashboard { display: grid; gap: 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
+
+        .stat-card { 
+            background: #151515; border: 1px solid #222; border-radius: 12px; padding: 25px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        .stat-label { font-size: 10px; color: #bc986a; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 24px; font-weight: bold; font-family: monospace; }
+        
+        .pwa-tag { 
+            display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;
+            background: #222; color: #666; width: fit-content;
+        }
+        .is-standalone .pwa-tag { background: #27c93f; color: #000; }
+
+        #capture-preview { 
+            margin-top: 20px; border: 2px solid #333; border-radius: 8px; 
+            background: #000; display: flex; align-items: center; justify-content: center;
+            min-height: 200px; overflow: hidden;
+        }
+        canvas, img { max-width: 100%; height: auto; }
+    </style>
+
+    <!-- 1. Load the Coffee Source stack -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+
+    <!-- 2. Load COFFEE-SCREEN after stack to ensure coffee object is populated -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-SCREEN/coffee-screen.js"></script>
+</head>
+<body class="loading">
+
+    <div id="app-wrapper">
+        <header style="margin-bottom: 40px; display: flex; justify-content: space-between; align-items: flex-end;">
+            <div>
+                <h2 style="margin: 0; color: #bc986a;">SCREEN // HELPER</h2>
+                <div id="splash-msg" style="font-size: 12px; color: #555;">Initializing Viewport...</div>
+            </div>
+            <div id="pwa-status" class="pwa-tag">BROWSER MODE</div>
+        </header>
+
+        <div id="dashboard">
+            <!-- Screen Stats -->
+            <div class="stat-card">
+                <span class="stat-label">System Profile</span>
+                <span id="profile-val" class="stat-value">---</span>
+                <div id="dim-val" style="font-size: 12px; color: #666;">Resolution: 0 x 0</div>
+            </div>
+
+            <!-- Capture Controller -->
+            <div class="stat-card">
+                <span class="stat-label">Capture Lab</span>
+                <div id="capture-actions" style="display: flex; gap: 10px; margin-top: 10px;"></div>
+                <div id="capture-preview">
+                    <span style="color: #333; font-size: 12px;">No Snapshot Captured</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const wrapper = document.getElementById('app-wrapper');
+            const profileVal = document.getElementById('profile-val');
+            const dimVal = document.getElementById('dim-val');
+            const splashMsg = document.getElementById('splash-msg');
+            const captureActions = document.getElementById('capture-actions');
+            const preview = document.getElementById('capture-preview');
+
+            // 1. Initial Sync
+            function syncScreen() {
+                // API: coffee.screen.snapshot()
+                const shot = coffee.screen.snapshot();
+                const hubProfile = coffee.screen.hubProfile(); // 'twin' | 'workstation'
+
+                // Update UI Layout
+                wrapper.className = `profile-${hubProfile}`;
+                if (shot.standalone) document.body.classList.add('is-standalone');
+                
+                // Update Values
+                profileVal.innerText = hubProfile.toUpperCase();
+                dimVal.innerText = `Viewport: ${shot.innerWidth} x ${shot.innerHeight} @ ${shot.devicePixelRatio}x`;
+                splashMsg.innerText = coffee.screen.splashMessage().toUpperCase();
+                document.getElementById('pwa-status').innerText = shot.standalone ? 'PWA STANDALONE' : 'BROWSER MODE';
+            }
+
+            // 2. React to Screen Changes (Resize / Orientation)
+            // API: coffee.screen.onChange(callback)
+            coffee.screen.onChange((next) => {
+                syncScreen();
+                if (coffee.toast) coffee.toast(`Screen: ${next.profile} profile`);
+            });
+
+            // 3. Capture Logic (Dogfooding Capture Patterns)
+            captureActions.appendChild(coffee.button('Viewport Snapshot', () => {
+                // Simulating a "Capture" of the current viewport state
+                const data = coffee.screen.snapshot();
+                preview.innerHTML = `<div style="padding: 20px; font-family: monospace; font-size: 11px; color: #27c93f;">
+                    ${JSON.stringify(data, null, 2)}
+                </div>`;
+                if (coffee.toast) coffee.toast("JSON Snapshot recorded");
+            }));
+
+            captureActions.appendChild(coffee.button('Copy Profile', () => {
+                const profileStr = JSON.stringify(coffee.screen.snapshot());
+                navigator.clipboard.writeText(profileStr);
+                if (coffee.toast) coffee.toast("Profile copied to clipboard");
+            }));
+
+            // 4. Start
+            coffee.injectTheme('dark');
+            syncScreen();
+            
+            console.log("Coffee Screen Monitor active. Breakpoint:", coffee.screen.DEFAULT_BREAKPOINT);
+        });
+    </script>
+</body>
+</html>

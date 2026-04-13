@@ -60,8 +60,9 @@ Gate app logic on the promise and/or this event so **`window.coffee`** (from COF
 | **`coffee.pattern(opts)`** / **`coffee.pattern.toDataURL`** — visual **CSS** or **PNG** tiles | **`coffee.pattern`** is an **object** (**COFFEE-PATTERN**), **not** a function. Use **`coffee.pattern.emptyPianoRoll({ stepCount, notes })`**, **`emptyDrum({ stepCount, padIds })`**, **`clone(p)`**, **`isPianoRoll`**, **`isDrum`** — **sequencer** JSON for piano + drum machines (**no** audio engine here). See **`TEST21-PATTERN.html`**. |
 | **`coffee.gpu(canvas, fragmentShaderString)`** / **`inst.render({ u_time })`** | **`coffee.gpu({ canvas?, container, shapes, camera, background, width, height, custom })`** (**COFFEE-GPU**) — **WebGPU** 3D (**`box`** / **`sphere`** meshes), **WGSL** pipeline built-in—**not** user GLSL fullscreen passes. Returns a **wrapper**; **`wrapper.gpu.stop()`** / **`wrapper.gpu.start()`** control the internal loop—**no** **`render(uniforms)`**. Requires **`navigator.gpu`**. See **`TEST22-SHADER.html`** (filename says “shader”; demo is **GPU** scenes). |
 | **`session.execute('banner')`**, **`session.reset()`** (Coffee Shell) | **`coffee.shell.createSession` / `createSessionAsync`** returns **`{ mount, handleCommand, print, … }`** — use **`session.handleCommand('banner')`**, **`session.handleCommand('reset')`**, and **`session.mount()`** first. **`customCommands`** handlers are **`(ctx, args, raw)`**. See **`TEST28-SHELL.html`**. |
+| **`fetch('distro-config.json')` from `COFFEE-CDN/TESTING/`** and see a fallback | Canonical manifest in-repo is **`COFFEE-DISTRO/distro-config.json`**. From **`TEST35-DISTRO.html`** use **`../../COFFEE-DISTRO/distro-config.json`**, or place **`distro-config.json`** beside **`distro.html`** per **COFFEE-DISTRO/README**. |
 
-Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle); **`COFFEE-CDN/TESTING/TEST15-GRAPHEXPLORE.html`** (**`coffee.graph`** bar/line + JSON); **`COFFEE-CDN/TESTING/TEST16-GRAPHVIZ.html`** (Graphviz via **Viz.js**, not **`coffee.dot`**); **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`** (**`coffee.scene2d`**); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`coffee.scene3d`** + **`load-all.js`**); **`COFFEE-CDN/TESTING/TEST19-DRAW.html`** (**`coffee.draw`**); **`COFFEE-CDN/TESTING/TEST20-SVG.html`** (**`coffee.svg`** engine); **`COFFEE-CDN/TESTING/TEST21-PATTERN.html`** (**`coffee.pattern`** sequencer data); **`COFFEE-CDN/TESTING/TEST22-SHADER.html`** (**`coffee.gpu`** WebGPU 3D); **`COFFEE-CDN/TESTING/TEST23-FLOW.html`** (**`coffee.coil`** — filename **FLOW**); **`COFFEE-CDN/TESTING/TEST24-SHADOWN.html`** (**`coffee.shadow`**); **`COFFEE-CDN/TESTING/TEST25-SHADE.html`** (**`coffee.shade`**); **`COFFEE-CDN/TESTING/TEST26-PIX.html`** (**`coffee.pix`**); **`COFFEE-CDN/TESTING/TEST27-ASCII.html`** (ASCII splash + **`coffee.heading`**); **`COFFEE-CDN/TESTING/TEST28-SHELL.html`** (**`coffee.shell`**).
+Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wikiSearch`); **`COFFEE-CDN/TESTING/TEST7-MARKDOWN.html`** (markdown); **`COFFEE-CDN/TESTING/TEST9-TASKBOARD.html`** (**`coffee.drive`**); **`COFFEE-CDN/TESTING/TEST10-HABITTRACKER.html`** (habits + drive); **`COFFEE-CDN/TESTING/TEST12-MODAL.html`** (`coffee.modal` + theme toggle); **`COFFEE-CDN/TESTING/TEST15-GRAPHEXPLORE.html`** (**`coffee.graph`** bar/line + JSON); **`COFFEE-CDN/TESTING/TEST16-GRAPHVIZ.html`** (Graphviz via **Viz.js**, not **`coffee.dot`**); **`COFFEE-CDN/TESTING/TEST17-SCENE2D.html`** (**`coffee.scene2d`**); **`COFFEE-CDN/TESTING/TEST18-SCENE3D.html`** (**`coffee.scene3d`** + **`load-all.js`**); **`COFFEE-CDN/TESTING/TEST19-DRAW.html`** (**`coffee.draw`**); **`COFFEE-CDN/TESTING/TEST20-SVG.html`** (**`coffee.svg`** engine); **`COFFEE-CDN/TESTING/TEST21-PATTERN.html`** (**`coffee.pattern`** sequencer data); **`COFFEE-CDN/TESTING/TEST22-SHADER.html`** (**`coffee.gpu`** WebGPU 3D); **`COFFEE-CDN/TESTING/TEST23-FLOW.html`** (**`coffee.coil`** — filename **FLOW**); **`COFFEE-CDN/TESTING/TEST24-SHADOWN.html`** (**`coffee.shadow`**); **`COFFEE-CDN/TESTING/TEST25-SHADE.html`** (**`coffee.shade`**); **`COFFEE-CDN/TESTING/TEST26-PIX.html`** (**`coffee.pix`**); **`COFFEE-CDN/TESTING/TEST27-ASCII.html`** (ASCII splash + **`coffee.heading`**); **`COFFEE-CDN/TESTING/TEST28-SHELL.html`** (**`coffee.shell`**); **`COFFEE-CDN/TESTING/TEST29-SCREEN.html`** (**`coffee.screen`**); **`COFFEE-CDN/TESTING/TEST30-CHAT.html`** (**`coffee.chat`**); **`COFFEE-CDN/TESTING/TEST31-PEER.html`** (**`coffee.peer`**); **`COFFEE-CDN/TESTING/TEST32-AI.html`** (**COFFEE-AI** config UX); **`COFFEE-CDN/TESTING/TEST33-RUSTY.html`** (**`coffee.rusty`**); **`COFFEE-CDN/TESTING/TEST34-GIT.html`** (**`coffee.git`**); **`COFFEE-CDN/TESTING/TEST35-DISTRO.html`** (**distro passport** + **`distro-config.json`** fetch).
 
 ### COFFEE-MARKDOWN
 
@@ -166,6 +167,42 @@ Working demos: **`COFFEE-CDN/TESTING/TEST6-COMMANDSEARCH.html`** (actions + `wik
 - **Session object:** **`{ mount, unmount, handleCommand, print, clearOutput, ctx, getBanner }`**. Call **`session.mount()`** after creation so the input listener is wired. Run commands with **`session.handleCommand('banner')`**, **`session.handleCommand('reset')`**, etc.—there is **no** **`session.execute`** or **`session.reset`**.
 - **`customCommands[name]`** signature: **`function (ctx, args, raw)`** — use **`ctx.print(...)`** for output.
 - **Demo:** **`COFFEE-CDN/TESTING/TEST28-SHELL.html`**.
+
+### COFFEE-SCREEN (viewport / capture helpers)
+
+- **`coffee.screen`** — **COFFEE-SCREEN**; pair with **COFFEE-CONTROL** when the app needs camera or device input. See package README.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST29-SCREEN.html`**.
+
+### COFFEE-CHAT (local chat stub)
+
+- **`coffee.chat`** — **COFFEE-CHAT** README; transcripts and UI patterns, not a hosted transport by itself.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST30-CHAT.html`**.
+
+### COFFEE-PEER (room / signaling helpers)
+
+- **`coffee.peer`** — **COFFEE-PEER/README**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST31-PEER.html`**.
+
+### COFFEE-AI (prompt + key config UX)
+
+- **`coffee.aiConfig`** (**`mount`**, **`saveForm`**, **`get`**, **`getModel`**, **`getProvider`**, …) and **`coffee.ai.complete`** — **COFFEE-AI/README**, **COFFEE-AI/coffee-ai-config.js**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST32-AI.html`**.
+
+### COFFEE-RUSTY (WASM shell / demos)
+
+- **`coffee.rusty`** — **COFFEE-RUSTY/coffee-rusty.js** + **RUSTY-DEMO** in package.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST33-RUSTY.html`**.
+
+### COFFEE-GIT (read-only / mock status)
+
+- **`coffee.git`** — **COFFEE-GIT/coffee-git.js**; typical dogfood uses mock data until wired to a real repo surface.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST34-GIT.html`**.
+
+### COFFEE-DISTRO (passport + manifest)
+
+- **Passport UI** verifies core **bricks** on **`window.coffee`** (**`que`**, **`wire`**, **`control`**, **`drive`**) and **`fetch`es JSON** for copy + maintainer link — **COFFEE-DISTRO/README**, **`COFFEE-DISTRO/distro-config.json`**.
+- **`TEST35-DISTRO.html`** (under **`TESTING/`**) tries **`../../COFFEE-DISTRO/distro-config.json`**, then same-directory **`distro-config.json`** so the canonical file in the repo is found without duplicating JSON under **`TESTING/`**.
+- **Demo:** **`COFFEE-CDN/TESTING/TEST35-DISTRO.html`**.
 
 ### COFFEE-GPU (WebGPU 3D)
 

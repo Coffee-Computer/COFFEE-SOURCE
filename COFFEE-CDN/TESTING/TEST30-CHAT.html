@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Chat Lab</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        #sidebar { 
+            width: 280px; background: #111; border-right: 1px solid #222; 
+            display: flex; flex-direction: column; padding: 20px; gap: 20px;
+        }
+
+        #chat-main { flex: 1; display: flex; flex-direction: column; background: #050505; }
+
+        #messages { 
+            flex: 1; padding: 20px; overflow-y: auto; 
+            display: flex; flex-direction: column; gap: 10px;
+            scroll-behavior: smooth;
+        }
+
+        #input-area { padding: 20px; background: #0c0c0c; border-top: 1px solid #222; }
+
+        /* Custom scrollbar for terminal feel */
+        #messages::-webkit-scrollbar { width: 6px; }
+        #messages::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+        .peer-item { 
+            padding: 10px; border-radius: 6px; background: #1a1a1a; cursor: pointer; 
+            font-size: 13px; border: 1px solid transparent; transition: 0.2s;
+        }
+        .peer-item:hover { border-color: #bc986a; }
+        .peer-item.active { background: #bc986a; color: #000; font-weight: bold; }
+
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .status-online { background: #27c93f; box-shadow: 0 0 5px #27c93f; }
+        .status-offline { background: #ff5f56; }
+    </style>
+
+    <!-- Load Order strictly as per Implementation Guide -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CONTROL/coffee-control.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-UI/coffee-ui.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CONNECT/coffee-connect.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CHAT/coffee-chat.js"></script>
+</head>
+<body>
+
+    <aside id="sidebar">
+        <div style="font-weight: bold; color: #bc986a; letter-spacing: 2px;">COFFEE // CHAT</div>
+        
+        <div id="connection-status">
+            <span class="status-dot status-offline"></span>
+            <span style="font-size: 11px; text-transform: uppercase; color: #666;">Local Mode</span>
+        </div>
+
+        <div id="room-controls">
+            <label style="font-size: 10px; color: #444; text-transform: uppercase;">Room Key</label>
+            <input type="text" id="room-id" value="lobby" style="width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 8px; margin-top: 5px; border-radius: 4px;">
+            <div id="connect-btn-root" style="margin-top: 10px;"></div>
+        </div>
+
+        <div id="peer-list-root">
+            <label style="font-size: 10px; color: #444; text-transform: uppercase; margin-bottom: 10px; display: block;">Active Peers</label>
+            <div id="peers" style="display: flex; flex-direction: column; gap: 8px;">
+                <div class="peer-item active">Local Transcript</div>
+            </div>
+        </div>
+    </aside>
+
+    <main id="chat-main">
+        <div id="messages"></div>
+        <div id="input-area"></div>
+    </main>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', async function () {
+            // Wait for Coffee UI and Chat to be ready (load-all.js pattern or DOMContentLoaded)
+            const msgContainer = document.getElementById('messages');
+            const inputContainer = document.getElementById('input-area');
+            const connectBtnRoot = document.getElementById('connect-btn-root');
+            const statusDot = document.querySelector('.status-dot');
+            const statusText = document.querySelector('#connection-status span:last-child');
+
+            let chat = null;
+            let conn = null;
+
+            // 1. UI: Add Message using coffee.chatBubble
+            function addMsg(text, outgoing = false, sender = 'User') {
+                const bubble = coffee.chatBubble(text, outgoing);
+                
+                // Optional: Add timestamp/sender label for local transcripts
+                const label = document.createElement('div');
+                label.style.fontSize = '9px';
+                label.style.color = '#444';
+                label.style.marginBottom = '2px';
+                label.style.textAlign = outgoing ? 'right' : 'left';
+                label.innerText = `${sender} • ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+                
+                const wrapper = document.createElement('div');
+                wrapper.append(label, bubble);
+                msgContainer.appendChild(wrapper);
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+
+                // Persist to Local Transcript (Dogfooding local storage pattern)
+                const history = JSON.parse(localStorage.getItem('coffee_chat_history') || '[]');
+                history.push({ text, outgoing, sender, ts: Date.now() });
+                localStorage.setItem('coffee_chat_history', JSON.stringify(history.slice(-50)));
+            }
+
+            // 2. UI: Setup Input via coffee.chatInput
+            const chatInput = coffee.chatInput({
+                placeholder: "Type a message...",
+                onSend: (text) => {
+                    if (!text.trim()) return;
+
+                    if (chat) {
+                        // Network Mode: Send Broadcast
+                        chat.sendBroadcast(text);
+                        addMsg(text, true, 'You');
+                    } else {
+                        // Local Mode: Just echo to transcript
+                        addMsg(text, true, 'Local');
+                        
+                        // Fake reply for demo
+                        setTimeout(() => addMsg("Network disconnected. Connect to a room to chat with peers.", false, "System"), 800);
+                    }
+                }
+            });
+            inputContainer.appendChild(chatInput.el);
+
+            // 3. Logic: Connect to Room (P2P Mode)
+            const connectBtn = coffee.button('Connect P2P', async () => {
+                const roomName = document.getElementById('room-id').value;
+                if (!roomName) return;
+
+                connectBtn.disabled = true;
+                statusText.innerText = "Connecting...";
+
+                try {
+                    // API: coffee.connect({ method, room, ... })
+                    // Uses 0.peerjs.com as per critical bug fix #2
+                    conn = coffee.connect({
+                        method: 'peer',
+                        room: roomName,
+                        onPeerJoin: (pid) => {
+                            if (coffee.toast) coffee.toast(`Peer Joined: ${pid}`);
+                            console.log("Peer Joined:", pid);
+                        },
+                        onMessage: (pid, data) => {
+                            // Extract text from object as per Message Format section
+                            const text = (typeof data === 'object' && data.text) ? data.text : String(data);
+                            addMsg(text, false, pid);
+                        }
+                    });
+
+                    // Wrap in coffee.chat as per Guide
+                    chat = coffee.chat({ conn });
+
+                    statusDot.className = "status-dot status-online";
+                    statusText.innerText = `Connected: ${roomName}`;
+                    addMsg(`System: Connected to P2P room "${roomName}"`, false, "System");
+                } catch (e) {
+                    statusDot.className = "status-dot status-offline";
+                    statusText.innerText = "Error: See Console";
+                    console.error(e);
+                }
+            });
+            connectBtnRoot.appendChild(connectBtn);
+
+            // 4. Load History (Local Transcript)
+            const history = JSON.parse(localStorage.getItem('coffee_chat_history') || '[]');
+            if (history.length === 0) {
+                addMsg("Welcome to Coffee Chat. Type below to save to local transcript.", false, "System");
+            } else {
+                history.forEach(m => {
+                    const bubble = coffee.chatBubble(m.text, m.outgoing);
+                    const wrap = document.createElement('div');
+                    wrap.append(bubble);
+                    msgContainer.appendChild(wrap);
+                });
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+            }
+
+            coffee.injectTheme('dark');
+        });
+    </script>
+</body>
+</html>

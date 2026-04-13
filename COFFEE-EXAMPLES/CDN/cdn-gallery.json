@@ -1,0 +1,78 @@
+{
+  "title": "Coffee CDN Gallery",
+  "subtitle": "Previews load TEST pages from this repo (serve the monorepo root so paths like COFFEE-CDN/TESTING/… resolve). jsDelivr is not used here: it serves .html as text/plain, so iframes would show source instead of rendering.",
+  "items": [
+    {
+      "id": "test27-ascii",
+      "title": "ASCII / brand splash",
+      "description": "COFFEE-BRAND banner + heading",
+      "path": "COFFEE-CDN/TESTING/TEST27-ASCII.html"
+    },
+    {
+      "id": "test25-shade",
+      "title": "Shade ramp editor",
+      "description": "coffee.shade GPU ramps",
+      "path": "COFFEE-CDN/TESTING/TEST25-SHADE.html"
+    },
+    {
+      "id": "test24-shadow",
+      "title": "Shadow presets",
+      "description": "coffee.shadow visualizer",
+      "path": "COFFEE-CDN/TESTING/TEST24-SHADOWN.html"
+    },
+    {
+      "id": "test26-pix",
+      "title": "Pix micro editor",
+      "description": "coffee.pix pixel canvas",
+      "path": "COFFEE-CDN/TESTING/TEST26-PIX.html"
+    },
+    {
+      "id": "test23-coil",
+      "title": "Coil generative art",
+      "description": "coffee.coil + presets",
+      "path": "COFFEE-CDN/TESTING/TEST23-FLOW.html"
+    },
+    {
+      "id": "test22-gpu",
+      "title": "WebGPU scenes",
+      "description": "coffee.gpu thumbnails",
+      "path": "COFFEE-CDN/TESTING/TEST22-SHADER.html"
+    },
+    {
+      "id": "test18-scene3d",
+      "title": "Scene3D + Three",
+      "description": "coffee.scene3d orbit gallery",
+      "path": "COFFEE-CDN/TESTING/TEST18-SCENE3D.html"
+    },
+    {
+      "id": "test17-scene2d",
+      "title": "Scene2D canvas",
+      "description": "coffee.scene2d shapes",
+      "path": "COFFEE-CDN/TESTING/TEST17-SCENE2D.html"
+    },
+    {
+      "id": "test19-draw",
+      "title": "Draw pad",
+      "description": "coffee.draw + file save",
+      "path": "COFFEE-CDN/TESTING/TEST19-DRAW.html"
+    },
+    {
+      "id": "test20-svg",
+      "title": "SVG artboard",
+      "description": "coffee.svg interactive editor",
+      "path": "COFFEE-CDN/TESTING/TEST20-SVG.html"
+    },
+    {
+      "id": "test28-shell",
+      "title": "Shell + VFS",
+      "description": "coffee.shell terminal",
+      "path": "COFFEE-CDN/TESTING/TEST28-SHELL.html"
+    },
+    {
+      "id": "test35-distro",
+      "title": "Distro passport",
+      "description": "COFFEE-DISTRO manifest + bricks",
+      "path": "COFFEE-CDN/TESTING/TEST35-DISTRO.html"
+    }
+  ]
+}

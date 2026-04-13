@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Distro // Passport</title>
+    <style>
+        :root {
+            --passport-bg: #111111;
+            --passport-card: #1a1a1a;
+            --coffee-gold: #bc986a;
+            --text-muted: #666;
+        }
+
+        body {
+            margin: 0; background: var(--passport-bg); color: #eee;
+            font-family: 'Inter', system-ui, sans-serif;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px;
+        }
+
+        #passport-card {
+            background: var(--passport-card);
+            border: 1px solid #333;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #passport-card::before {
+            content: "COFFEE SOURCE";
+            position: absolute; top: -10px; right: -10px;
+            font-size: 60px; font-weight: 900; color: rgba(255,255,255,0.03);
+            pointer-events: none; transform: rotate(-5deg);
+        }
+
+        .version-tag {
+            font-family: monospace; font-size: 12px; color: var(--coffee-gold);
+            background: rgba(188, 152, 106, 0.1); padding: 4px 10px;
+            border-radius: 20px; border: 1px solid rgba(188, 152, 106, 0.2);
+        }
+
+        .brick-grid {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 10px; margin: 25px 0; text-align: center;
+        }
+
+        .brick {
+            padding: 10px; border-radius: 8px; border: 1px solid #222;
+            font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+            color: #444; transition: 0.3s;
+        }
+        .brick.verified { border-color: var(--coffee-gold); color: var(--coffee-gold); background: rgba(188, 152, 106, 0.05); }
+
+        .section-label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; margin-top: 25px; display: block; }
+        .content-text { font-size: 15px; line-height: 1.6; color: #ccc; margin: 0; }
+        
+        ul { padding-left: 18px; margin: 10px 0; color: #ccc; font-size: 14px; }
+        li { margin-bottom: 8px; }
+
+        .passport-footer {
+            margin-top: 40px; padding-top: 20px; border-top: 1px solid #222;
+            font-size: 11px; color: #444; text-align: center; line-height: 1.5;
+        }
+        
+        a { color: var(--coffee-gold); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+
+    <!-- Load the Coffee Source browser stack -->
+    <script 
+        src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+        data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/">
+    </script>
+</head>
+<body>
+
+    <div id="passport-card">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+            <div id="heading-root"></div>
+            <span id="version-val" class="version-tag">---</span>
+        </div>
+
+        <div id="bricks" class="brick-grid">
+            <div class="brick" id="brick-que">Que</div>
+            <div class="brick" id="brick-wire">Wire</div>
+            <div class="brick" id="brick-control">Control</div>
+            <div class="brick" id="brick-drive">Drive</div>
+        </div>
+
+        <span class="section-label">Purpose</span>
+        <p id="purpose-val" class="content-text">Loading distro manifest...</p>
+
+        <span class="section-label">Target Audience</span>
+        <ul id="who-val"></ul>
+
+        <span class="section-label">Maintainer</span>
+        <div id="maintainer-root"></div>
+
+        <div class="passport-footer">
+            Verified Coffee Distro Page. <br>
+            <em>The rule: If a visitor doesn't see this page, the site is not built on the core.</em>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', async function () {
+            // 1. Verification: Check for "Bricks"
+            const bricks = {
+                que: !!coffee.que,
+                wire: !!coffee.wire,
+                control: !!coffee.control,
+                drive: !!coffee.drive
+            };
+
+            Object.keys(bricks).forEach(id => {
+                if (bricks[id]) document.getElementById(`brick-${id}`).classList.add('verified');
+            });
+
+            // 2. Fetch Distro Manifest
+            let config = {
+                distro: "Coffee Source Distro",
+                version: "v0.0.0-dev",
+                maintainerGithub: "Coffee-Computer",
+                purpose: "Fallback: This distro is built on the original Coffee Community base + wiring.",
+                whoItsFor: ["Developers", "Community Members"]
+            };
+
+            // Repo canonical config lives at COFFEE-DISTRO/distro-config.json (not next to this file).
+            // Same-dir `distro-config.json` still works if you copy this HTML like COFFEE-DISTRO/README.
+            var distroConfigUrls = [
+                '../../COFFEE-DISTRO/distro-config.json',
+                'distro-config.json'
+            ];
+            try {
+                var loaded = false;
+                for (var i = 0; i < distroConfigUrls.length && !loaded; i++) {
+                    var response = await fetch(distroConfigUrls[i], { cache: 'no-cache' });
+                    if (response.ok) {
+                        var json = await response.json();
+                        config = Object.assign({}, config, json);
+                        loaded = true;
+                    }
+                }
+                if (!loaded) {
+                    console.warn('No distro-config.json found at repo path or beside this page. Using internal fallback.');
+                }
+            } catch (e) {
+                console.warn('Distro config fetch failed. Using internal fallback.', e);
+            }
+
+            // 3. Render using COFFEE-UI Builders
+            const headingRoot = document.getElementById('heading-root');
+            headingRoot.appendChild(coffee.heading(config.distro, { level: 2, style: 'margin:0; color:#eee;' }));
+
+            document.getElementById('version-val').innerText = config.version;
+            document.getElementById('purpose-val').innerText = config.purpose;
+
+            const whoList = document.getElementById('who-val');
+            const whoItems = Array.isArray(config.whoItsFor) ? config.whoItsFor : [config.whoItsFor];
+            whoItems.forEach(item => {
+                const li = document.createElement('li');
+                li.innerText = item;
+                whoList.appendChild(li);
+            });
+
+            const maintainerRoot = document.getElementById('maintainer-root');
+            const githubUrl = config.maintainerGithub.startsWith('http') 
+                ? config.maintainerGithub 
+                : `https://github.com/${config.maintainerGithub.replace('@', '')}`;
+            
+            const mBtn = coffee.button(config.maintainerDisplayName || `@${config.maintainerGithub.replace('@', '')}`, () => {
+                window.open(githubUrl, '_blank');
+            });
+            mBtn.style.padding = "5px 12px";
+            maintainerRoot.appendChild(mBtn);
+
+            // Set page identity
+            document.title = `${config.distro} // Passport`;
+            coffee.injectTheme('dark');
+        });
+    </script>
+</body>
+</html>

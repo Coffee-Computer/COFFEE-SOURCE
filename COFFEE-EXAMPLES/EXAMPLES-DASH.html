@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Coffee Examples</title>
+  <style>
+    html, body { margin: 0; min-height: 100%; }
+    #dash-root { min-height: 100vh; display: flex; flex-direction: column; box-sizing: border-box; }
+    #dash-main {
+      flex: 1;
+      padding: var(--coffee-space-lg, 24px);
+      max-width: 960px;
+      margin: 0 auto;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .dash-lede { max-width: 42rem; margin-bottom: var(--coffee-space-xl, 40px); }
+    .dash-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: var(--coffee-space-md, 16px);
+    }
+    .dash-card-wrap.featured .coffee-card-el {
+      border-color: rgba(188, 152, 106, 0.45) !important;
+      box-shadow: 0 0 0 1px rgba(188, 152, 106, 0.15), var(--coffee-shadow-soft) !important;
+    }
+    .dash-card-actions { margin-top: var(--coffee-space-md, 16px); display: flex; flex-wrap: wrap; gap: 8px; }
+    .badge {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--coffee-accent, #4c9aff);
+      margin-bottom: 6px;
+    }
+  </style>
+  <script
+    src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"
+    data-coffee-cdn="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/"></script>
+</head>
+<body>
+  <div id="dash-root"></div>
+  <script>
+(function () {
+  var started = false;
+
+  var CARDS = [
+    {
+      id: 'cdn-gallery',
+      badge: 'Dogfood · jsDelivr',
+      title: 'Coffee CDN Gallery',
+      description: 'Twelve live pages from COFFEE-CDN/TESTING in draggable tiles: preview iframes, then fullscreen or open in a new tab. Data: CDN/cdn-gallery.json.',
+      href: 'CDN/CDN-GALLERY.html',
+      featured: true
+    },
+    {
+      id: 'dogfood-md',
+      badge: 'Reference',
+      title: 'Dogfood app ideas',
+      description: 'The 30-row table mapping modules to TEST*.html demos (GitHub).',
+      href: 'https://github.com/Coffee-Computer/COFFEE-SOURCE/blob/main/COFFEE-CDN/DOGFOOD-APP-IDEAS.md',
+      external: true
+    },
+    {
+      id: 'ai-cdn',
+      badge: 'Reference',
+      title: 'CDN system instruction',
+      description: 'load-all, confused APIs, and working demo links for AIs and humans.',
+      href: 'https://github.com/Coffee-Computer/COFFEE-SOURCE/blob/main/COFFEE-CDN/AI-CDN-SYSTEM-INSTRUCTION.md',
+      external: true
+    },
+    {
+      id: 'placeholder',
+      badge: 'Soon',
+      title: 'More example apps',
+      description: 'Wire COFFEE-EXAMPLES to more internal demos and community apps here.',
+      href: '#',
+      disabled: true
+    }
+  ];
+
+  function init() {
+    if (started) return;
+    started = true;
+    coffee.injectTheme('dark');
+
+    var root = document.getElementById('dash-root');
+
+    var header = document.createElement('header');
+    header.style.cssText =
+      'flex-shrink:0;min-height:56px;padding:var(--coffee-space-md);background:var(--coffee-bg-elev);border-bottom:1px solid var(--coffee-panel);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;';
+
+    var titleBlock = coffee.stack(
+      [
+        coffee.heading('Coffee Examples', 1, { style: 'margin:0;font-size:1.35rem;' }),
+        coffee.para('Internal hub for the Coffee stack — vanilla JS + coffee.* builders from load-all.', {
+          style: 'margin:0;font-size:13px;color:var(--coffee-text-muted);max-width:36rem;'
+        })
+      ],
+      { gap: '4px' }
+    );
+
+    header.appendChild(titleBlock);
+    header.appendChild(coffee.link('COFFEE-SOURCE on GitHub', 'https://github.com/Coffee-Computer/COFFEE-SOURCE', {}));
+
+    var main = document.createElement('main');
+    main.id = 'dash-main';
+
+    var lede = document.createElement('div');
+    lede.className = 'dash-lede';
+    lede.appendChild(
+      coffee.para(
+        'Start with the CDN gallery to skim dogfood pages full-screen. Run Live Server (or similar) from the COFFEE-SOURCE repo root so previews resolve to COFFEE-CDN/TESTING/*.html with a real text/html response — not the jsDelivr text/plain quirk.',
+        { style: 'margin:0;color:var(--coffee-text-muted);line-height:1.55;' }
+      )
+    );
+    main.appendChild(lede);
+
+    var grid = document.createElement('div');
+    grid.className = 'dash-grid';
+
+    CARDS.forEach(function (c) {
+      var wrap = document.createElement('div');
+      wrap.className = 'dash-card-wrap' + (c.featured ? ' featured' : '');
+
+      var bits = [];
+      if (c.badge) {
+        var b = document.createElement('div');
+        b.className = 'badge';
+        b.textContent = c.badge;
+        bits.push(b);
+      }
+      bits.push(coffee.heading(c.title, 2, { style: 'margin:0 0 8px 0;font-size:1.05rem;' }));
+      bits.push(
+        coffee.para(c.description, {
+          style: 'margin:0;font-size:13px;color:var(--coffee-text-muted);line-height:1.5;'
+        })
+      );
+
+      var actions = document.createElement('div');
+      actions.className = 'dash-card-actions';
+
+      if (c.disabled) {
+        actions.appendChild(coffee.button('Coming soon', function () {}, { style: { opacity: '0.5', cursor: 'default' } }));
+      } else if (c.external) {
+        actions.appendChild(
+          coffee.button('Open', function () {
+            window.open(c.href, '_blank', 'noopener,noreferrer');
+          })
+        );
+      } else {
+        actions.appendChild(
+          coffee.button(c.id === 'cdn-gallery' ? 'Open gallery' : 'Open', function () {
+            window.location.href = c.href;
+          })
+        );
+      }
+
+      bits.push(actions);
+
+      var card = coffee.card(bits, { style: { margin: 0, height: '100%' } });
+      card.classList.add('coffee-card-el');
+      wrap.appendChild(card);
+      grid.appendChild(wrap);
+    });
+
+    main.appendChild(grid);
+
+    var footer = document.createElement('footer');
+    footer.style.cssText =
+      'flex-shrink:0;padding:var(--coffee-space-sm) var(--coffee-space-md);border-top:1px solid var(--coffee-panel);background:var(--coffee-bg-elev);font-size:12px;color:var(--coffee-text-muted);text-align:center;';
+    footer.textContent = 'COFFEE-EXAMPLES · load-all.js + coffee.card / coffee.button';
+
+    root.appendChild(header);
+    root.appendChild(main);
+    root.appendChild(footer);
+
+    root.style.cssText =
+      'min-height:100vh;display:flex;flex-direction:column;background:var(--coffee-bg-surface);color:var(--coffee-text-primary);';
+  }
+
+  window.addEventListener('coffee:cdn:ready', init);
+  var p = window.COFFEE_LOAD_ALL_PROMISE;
+  if (p && typeof p.then === 'function') p.then(init).catch(init);
+})();
+  </script>
+</body>
+</html>

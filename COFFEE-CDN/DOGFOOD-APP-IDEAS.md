@@ -2,7 +2,7 @@
 
 Small projects to **exercise real modules** and **`load-all.js` / jsDelivr cherry-picks** (see [`README.md`](./README.md), [`AI-CDN-SYSTEM-INSTRUCTION.md`](./AI-CDN-SYSTEM-INSTRUCTION.md)). Pick one row, ship a single HTML or tiny folder, and file gaps you hit.
 
-**Coverage in `COFFEE-CDN/TESTING/`:** use the **Dogfood test** column below—rows with a **TEST* link** are covered; others are **backlog** (additional ad-hoc `TEST*.html` files may exist outside this table). Unrelated demos also exist (e.g. [`TEST2-CALENDAR.html`](./TESTING/TEST2-CALENDAR.html), [`TEST3-TODO.html`](./TESTING/TEST3-TODO.html), [`TEST-CALDENDAR-STYLIZED.html`](./TESTING/TEST-CALDENDAR-STYLIZED.html)) that are not mapped to this 30-row list.
+**Coverage in `COFFEE-CDN/TESTING/`:** the **Dogfood test** column lists a primary **`TEST*.html`** per row **1–30** (see **TEST29**–**TEST35** for rows **24–30**). Extra ad-hoc `TEST*.html` files (e.g. calendars) may exist outside this table. Unrelated demos also exist (e.g. [`TEST2-CALENDAR.html`](./TESTING/TEST2-CALENDAR.html), [`TEST3-TODO.html`](./TESTING/TEST3-TODO.html), [`TEST-CALDENDAR-STYLIZED.html`](./TESTING/TEST-CALDENDAR-STYLIZED.html)) that are not mapped to this 30-row list.
 
 | # | App idea | Modules to lean on | Dogfood test (done) | Notes |
 |---|----------|-------------------|---------------------|--------|
@@ -29,13 +29,13 @@ Small projects to **exercise real modules** and **`load-all.js` / jsDelivr cherr
 | 21 | **Pixel editor (micro)** | COFFEE-UI, COFFEE-PIX | [TEST26](TESTING/TEST26-PIX.html) | **`coffee.pix`** — **COFFEE-PIX/README** + **PIX-POC1**. |
 | 22 | **ASCII / brand splash** | COFFEE-UI, COFFEE-BRAND | [TEST27](TESTING/TEST27-ASCII.html) | **`coffee-os-ascii`** (or **COFFEE-BRAND** exports) **+** **`coffee.heading`**. |
 | 23 | **Virtual terminal + VFS** (shell) | COFFEE-UI, COFFEE-SHELL, COFFEE-DRIVE | [TEST28](TESTING/TEST28-SHELL.html) | **`coffee.shell.createSessionAsync`** → **`session.mount()`**, **`session.handleCommand(...)`** — **not** **`session.execute`**. Layout chrome is **`coffee.appShell`** (**COFFEE-UI**), different from **`coffee.shell`**. |
-| 24 | **Screen / capture helper UI** | COFFEE-UI, COFFEE-SCREEN | — | **`coffee.screen`** — pair **COFFEE-CONTROL** if camera needed. |
-| 25 | **Chat stub** — local transcripts only | COFFEE-UI, COFFEE-CHAT | — | **`coffee.chat`** — **COFFEE-CHAT** README; later **CONNECT / TRANSPORT / NOSTR / MASTO**. |
-| 26 | **Peer “room” ping** | COFFEE-UI, COFFEE-PEER | — | **`coffee.peer`** — **COFFEE-PEER/README**. |
-| 27 | **AI prompt + key config** (no server) | COFFEE-UI, COFFEE-AI | — | **`coffee.aiConfig`** / **`coffee-ai-config`** patterns — **COFFEE-AI/README**. |
-| 28 | **Rusty / WASM demo shell** | COFFEE-UI, COFFEE-RUSTY | — | **`coffee.rusty`** — **COFFEE-RUSTY/coffee-rusty.js** + **RUSTY-DEMO**. |
-| 29 | **Git status viewer** (read-only mock) | COFFEE-UI, COFFEE-GIT | — | **`coffee.git`** — **COFFEE-GIT/coffee-git.js**; mock data until real repo. |
-| 30 | **Distro passport viewer** | COFFEE-UI, COFFEE-DISTRO | — | **COFFEE-DISTRO** — manifest + page patterns; align with **`cc-keypassideation`** / server distro. |
+| 24 | **Screen / capture helper UI** | COFFEE-UI, COFFEE-SCREEN | [TEST29](TESTING/TEST29-SCREEN.html) | **`coffee.screen`** — pair **COFFEE-CONTROL** if camera needed. |
+| 25 | **Chat stub** — local transcripts only | COFFEE-UI, COFFEE-CHAT | [TEST30](TESTING/TEST30-CHAT.html) | **`coffee.chat`** — **COFFEE-CHAT** README; later **CONNECT / TRANSPORT / NOSTR / MASTO**. |
+| 26 | **Peer “room” ping** | COFFEE-UI, COFFEE-PEER | [TEST31](TESTING/TEST31-PEER.html) | **`coffee.peer`** — **COFFEE-PEER/README**. |
+| 27 | **AI prompt + key config** (no server) | COFFEE-UI, COFFEE-AI | [TEST32](TESTING/TEST32-AI.html) | **`coffee.aiConfig`** / **`coffee-ai-config`** patterns — **COFFEE-AI/README**. |
+| 28 | **Rusty / WASM demo shell** | COFFEE-UI, COFFEE-RUSTY | [TEST33](TESTING/TEST33-RUSTY.html) | **`coffee.rusty`** — **COFFEE-RUSTY/coffee-rusty.js** + **RUSTY-DEMO**. |
+| 29 | **Git status viewer** (read-only mock) | COFFEE-UI, COFFEE-GIT | [TEST34](TESTING/TEST34-GIT.html) | **`coffee.git`** — **COFFEE-GIT/coffee-git.js**; mock data until real repo. |
+| 30 | **Distro passport viewer** | COFFEE-UI, COFFEE-DISTRO | [TEST35](TESTING/TEST35-DISTRO.html) | **COFFEE-DISTRO** — **`../../COFFEE-DISTRO/distro-config.json`** then same-dir **`distro-config.json`**; align with **`cc-keypassideation`** / server distro. |
 
 ---
 
@@ -128,27 +128,35 @@ Use this section to avoid **wrong API stories** (e.g. `coffee.filter` for text, 
 
 ### 23 — Shell (terminal)
 - **`coffee.shell.createSession` / `createSessionAsync`** — **`mount`**, **`handleCommand`**, **`ctx`**, **`getBanner`** — **COFFEE-SHELL/coffee-shell.js**. **`coffee.appShell`** = app chrome (**COFFEE-UI**), not the VFS terminal.
+- Dogfood: **[TEST28](TESTING/TEST28-SHELL.html)**.
 
 ### 24 — Screen
 - **`coffee.screen`** — **COFFEE-SCREEN**; **COFFEE-CONTROL** for camera if needed.
+- Dogfood: **[TEST29](TESTING/TEST29-SCREEN.html)**.
 
 ### 25 — Chat
 - **`coffee.chat`** — **COFFEE-CHAT** implementation docs.
+- Dogfood: **[TEST30](TESTING/TEST30-CHAT.html)**.
 
 ### 26 — Peer
 - **`coffee.peer`** — **COFFEE-PEER/README**.
+- Dogfood: **[TEST31](TESTING/TEST31-PEER.html)**.
 
 ### 27 — AI
 - **`coffee.ai`**, **`coffee-ai-config`** — **COFFEE-AI/README**, **coffee-ai-config.js**.
+- Dogfood: **[TEST32](TESTING/TEST32-AI.html)**.
 
 ### 28 — Rusty
 - **`coffee.rusty`** — **COFFEE-RUSTY/coffee-rusty.js** + demos.
+- Dogfood: **[TEST33](TESTING/TEST33-RUSTY.html)**.
 
 ### 29 — Git
 - **`coffee.git`** — **COFFEE-GIT/coffee-git.js**.
+- Dogfood: **[TEST34](TESTING/TEST34-GIT.html)**.
 
 ### 30 — Distro
 - **COFFEE-DISTRO** — manifest + HTML patterns; cross-link **cc-keypassideation** / server.
+- Dogfood: **[TEST35](TESTING/TEST35-DISTRO.html)** (`distro-config` fetch paths above).
 
 ---
 

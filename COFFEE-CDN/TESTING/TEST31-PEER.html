@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee Peer // Ping Lab</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Fira Code', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        #ping-console {
+            width: 400px; background: #111; border: 1px solid #333; border-radius: 12px;
+            padding: 25px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        .id-badge {
+            background: #1a1a1a; border: 1px solid #222; padding: 15px; border-radius: 8px;
+            text-align: center; margin-bottom: 20px;
+        }
+
+        .id-label { font-size: 10px; color: #bc986a; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
+        .id-value { font-size: 18px; color: #fff; font-weight: bold; }
+
+        .ping-input-group { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; background: #000; border: 1px solid #333; color: #27c93f; padding: 10px; border-radius: 4px; outline: none; }
+        input:focus { border-color: #bc986a; }
+
+        #log {
+            height: 150px; background: #050505; border: 1px solid #222; border-radius: 6px;
+            padding: 10px; font-size: 11px; overflow-y: auto; color: #666;
+        }
+        .log-entry { margin-bottom: 4px; border-bottom: 1px solid #111; padding-bottom: 2px; }
+        .log-in { color: #4c9aff; }
+        .log-out { color: #ffab40; }
+    </style>
+
+    <!-- Load Order: Control -> PeerJS -> Peer -> UI -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CONTROL/coffee-control.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-PEER/coffee-peer.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-UI/coffee-ui.js"></script>
+</head>
+<body>
+
+    <div id="ping-console">
+        <div class="id-badge">
+            <div class="id-label">My Peer ID</div>
+            <div id="my-id" class="id-value">Initializing...</div>
+        </div>
+
+        <div class="id-label">Target Peer ID</div>
+        <div class="ping-input-group">
+            <input type="text" id="target-id" placeholder="Enter remote ID..." autocomplete="off">
+            <div id="ping-btn-root"></div>
+        </div>
+
+        <div class="id-label">Activity Log</div>
+        <div id="log"></div>
+    </div>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', function () {
+            const myIdDisplay = document.getElementById('my-id');
+            const targetInput = document.getElementById('target-id');
+            const pingBtnRoot = document.getElementById('ping-btn-root');
+            const logEl = document.getElementById('log');
+
+            let peerHandle = null;
+
+            function log(msg, type = '') {
+                const entry = document.createElement('div');
+                entry.className = `log-entry ${type}`;
+                entry.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
+                logEl.prepend(entry);
+            }
+
+            // 1. Open Local Peer Handle
+            // API: coffee.peer.open(opts)
+            peerHandle = coffee.peer.open({
+                // Let PeerJS assign a random ID, or use generateId
+                onOpen: (id) => {
+                    myIdDisplay.innerText = id;
+                    log(`Peer active as ${id}`);
+                },
+                onError: (err) => {
+                    log(`Error: ${err.type}`, 'log-out');
+                    if (coffee.toast) coffee.toast(`Peer Error: ${err.type}`, { type: 'error' });
+                },
+                onIncoming: (conn, handle) => {
+                    // API: handle.bind(conn, handlers)
+                    // Bind incoming data channels
+                    handle.bind(conn, {
+                        onOpen: () => log(`Incoming connection from ${conn.peer}`, 'log-in'),
+                        onData: (data) => {
+                            log(`Ping from ${conn.peer}: ${JSON.stringify(data)}`, 'log-in');
+                            if (coffee.toast) coffee.toast(`Ping from ${conn.peer}`);
+                            // Auto-close after receiving ping
+                            conn.close();
+                        }
+                    });
+                }
+            });
+
+            // 2. Outbound Ping Logic
+            const pingBtn = coffee.button('Ping', () => {
+                const remoteId = targetInput.value.trim();
+                if (!remoteId) return;
+
+                log(`Attempting ping to ${remoteId}...`, 'log-out');
+
+                // API: handle.connect(remoteId, handlers)
+                const outbound = peerHandle.connect(remoteId, {
+                    onOpen: () => {
+                        log(`Channel open to ${remoteId}`, 'log-out');
+                        outbound.send({ type: 'ping', ts: Date.now() });
+                        log(`Sent pulse to ${remoteId}`, 'log-out');
+                        
+                        // Brief delay then close
+                        setTimeout(() => outbound.close(), 500);
+                    },
+                    onError: (err) => {
+                        log(`Ping to ${remoteId} failed`, 'log-out');
+                    }
+                });
+            });
+            pingBtnRoot.appendChild(pingBtn);
+
+            // Initial UI Theme
+            if (coffee.injectTheme) coffee.injectTheme('dark');
+        });
+    </script>
+</body>
+</html>

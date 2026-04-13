@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coffee AI // Lab</title>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Inter', sans-serif; display: flex; height: 100vh; overflow: hidden; }
+        
+        #settings-pane { 
+            width: 320px; background: #111; border-right: 1px solid #222; 
+            display: flex; flex-direction: column; padding: 20px; gap: 20px; overflow-y: auto;
+        }
+
+        #chat-pane { flex: 1; display: flex; flex-direction: column; background: #050505; }
+
+        /* Styling for coffee.aiConfig.mount elements */
+        .settings-card { background: #1a1a1a; padding: 15px; border-radius: 8px; border: 1px solid #333; margin-bottom: 15px; }
+        .settings-label { display: block; font-size: 10px; color: #bc986a; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 1px; }
+        .settings-input { width: 100%; background: #000; border: 1px solid #333; color: #fff; padding: 8px; border-radius: 4px; box-sizing: border-box; margin-bottom: 5px; font-family: monospace; }
+        .settings-hint { font-size: 10px; color: #555; line-height: 1.4; }
+
+        #output { flex: 1; padding: 30px; overflow-y: auto; line-height: 1.6; font-size: 15px; white-space: pre-wrap; }
+        #input-area { padding: 20px; background: #0c0c0c; border-top: 1px solid #222; display: flex; flex-direction: column; gap: 10px; }
+        
+        textarea { 
+            width: 100%; height: 80px; background: #000; border: 1px solid #333; color: #fff; 
+            padding: 12px; border-radius: 6px; resize: none; outline: none; font-family: inherit;
+        }
+        textarea:focus { border-color: #bc986a; }
+
+        .loading-text { color: #bc986a; font-style: italic; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+    </style>
+
+    <!-- Load the prerequisite stack -->
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-REQUEST/coffee-request.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CONTROL/coffee-control.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-AI/coffee-ai.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-AI/coffee-ai-config.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-UI/coffee-ui.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/Coffee-Computer/COFFEE-SOURCE@main/COFFEE-CDN/load-all.js"></script>
+</head>
+<body>
+
+    <aside id="settings-pane">
+        <div style="font-weight: bold; color: #bc986a; letter-spacing: 2px; margin-bottom: 10px;">AI // CONFIG</div>
+        
+        <!-- Mount point for coffee.aiConfig UI -->
+        <div id="config-mount"></div>
+
+        <div id="config-actions"></div>
+    </aside>
+
+    <main id="chat-pane">
+        <div id="output">Click 'Save Config' after entering keys, then type a prompt below.</div>
+        
+        <div id="input-area">
+            <textarea id="prompt" placeholder="Ask anything... (Cmd+Enter to send)"></textarea>
+            <div id="btn-root" style="display: flex; justify-content: flex-end;"></div>
+        </div>
+    </main>
+
+    <script>
+        window.addEventListener('coffee:cdn:ready', function () {
+            const output = document.getElementById('output');
+            const promptInput = document.getElementById('prompt');
+            const mount = document.getElementById('config-mount');
+            const btnRoot = document.getElementById('btn-root');
+            const actionRoot = document.getElementById('config-actions');
+
+            // 1. Dogfooding: Mount the shared AI Configuration UI
+            // This renders inputs for GitHub, OpenAI, and Gemini keys
+            coffee.aiConfig.mount(mount, {
+                cardClass: 'settings-card',
+                labelClass: 'settings-label',
+                inputClass: 'settings-input',
+                hintClass: 'settings-hint',
+                includeProviderModel: true // Appends Provider and Model selectors
+            });
+
+            // 2. Add Save Button using COFFEE-UI
+            actionRoot.appendChild(coffee.button('Save Config', () => {
+                coffee.aiConfig.saveForm(mount);
+                if (coffee.toast) coffee.toast("AI Configuration Saved", { type: 'success' });
+            }));
+
+            // 3. Execution Logic
+            async function runPrompt() {
+                const text = promptInput.value.trim();
+                if (!text) return;
+
+                const provider = coffee.aiConfig.getProvider();
+                const apiKey = coffee.aiConfig.get(provider);
+                const model = coffee.aiConfig.getModel(provider);
+
+                if (!apiKey && provider !== 'ollama') {
+                    if (coffee.toast) coffee.toast(`Missing ${provider} key`, { type: 'error' });
+                    return;
+                }
+
+                output.innerHTML = `<span class="loading-text">Coffee AI is thinking (${provider})...</span>`;
+                promptInput.value = '';
+
+                try {
+                    // API: coffee.ai.complete(options)
+                    const response = await coffee.ai.complete({
+                        provider,
+                        apiKey,
+                        model,
+                        messages: [{ role: 'user', content: text }],
+                        system: 'You are a helpful assistant running inside the Coffee Source framework.',
+                        temperature: 0.7
+                    });
+
+                    const result = response.choices[0].message.content;
+                    output.innerText = result;
+                    
+                    // Optional: Persist transcript to Drive/Local
+                    if (coffee.save) coffee.save('last_ai_response', result);
+                    
+                } catch (e) {
+                    output.innerHTML = `<span style="color: #ff5f56;">Error: ${e.message}</span>`;
+                    console.error(e);
+                }
+            }
+
+            // UI Triggers
+            btnRoot.appendChild(coffee.button('Send Prompt', runPrompt));
+
+            promptInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    runPrompt();
+                }
+            });
+
+            coffee.injectTheme('dark');
+        });
+    </script>
+</body>
+</html>

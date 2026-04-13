@@ -140,6 +140,13 @@
       "icon": "✦",
       "title": "KATI",
       "src": "../FLAGSHIP/KATI/KATI-CHAT-ALPHA.html"
+    },
+    {
+      "id": "coffee-examples",
+      "label": "EXAMPLES.EXE",
+      "icon": "☕",
+      "title": "Coffee Examples",
+      "src": "../../COFFEE-EXAMPLES/EXAMPLES-DASH.html"
     }
   ]
 }

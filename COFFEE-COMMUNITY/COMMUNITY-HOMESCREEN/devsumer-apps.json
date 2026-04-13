@@ -18,5 +18,6 @@
   { "id": "yay-3d", "name": "YAY-3D", "icon": "🧊", "color": "#ff3e00", "url": "../FLAGSHIP/YAY-3D/YAY-ALPHA.html", "desktop": true },
   { "id": "ghost-network", "name": "Ghost", "icon": "👻", "color": "#8b5cf6", "url": "../FLAGSHIP/GHOST-NETWORK/GHOST-NETWORK-ALPHA.html", "desktop": true },
   { "id": "kati-chat-mobile", "name": "KATI Mobile", "icon": "✦", "color": "#d8b4fe", "url": "../FLAGSHIP/KATI/KATI-CHAT-MOBILE.html" },
-  { "id": "helix", "name": "Helix", "icon": "🧬", "color": "#22d3ee", "url": "../FLAGSHIP/HELIX/HELIX-ALPHA.html", "desktop": true }
+  { "id": "helix", "name": "Helix", "icon": "🧬", "color": "#22d3ee", "url": "../FLAGSHIP/HELIX/HELIX-ALPHA.html", "desktop": true },
+  { "id": "coffee-examples", "name": "Examples", "icon": "☕", "color": "#bc986a", "url": "../../COFFEE-EXAMPLES/EXAMPLES-DASH.html", "desktop": true }
 ]
