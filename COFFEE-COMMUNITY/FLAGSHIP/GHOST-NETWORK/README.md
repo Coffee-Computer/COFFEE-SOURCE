@@ -14,9 +14,9 @@
 
 Layout / chat chrome still uses **`GHOST-NETWORK-ALPHA.css`** (`.gh-*`); controls use Coffee theme tokens (`--coffee-accent`, etc.).
 
-**Narrow layout (≤720px shell width):** relay rail hidden; **hamburger** opens a **slide-out drawer** (channels, join, relay). Uses **container queries** on `.gh-app` so **narrow iframes** (e.g. `ANTI-SOCIAL-SWITCHER.html`) get the same behavior as a phone, not only `viewport` width. Tap backdrop, **×**, **Escape**, or pick a channel to close. Widen shell or desktop viewport closes the drawer.
+**Narrow layout (≤720px shell width):** relay rail hidden; **hamburger** opens a **slide-out drawer** (channels, join, relay). Uses **`container-type: inline-size`** on `.gh-app` (named **`ghost-app`**) so **narrow iframes** (e.g. `ANTI-SOCIAL-SWITCHER.html`) match phone behavior, not only `viewport` width; `@media (max-width: 720px)` duplicates rules when container queries are unavailable. In narrow mode the **main header wraps**: **Copy room link** moves to a **full-width row** under the title so it does not overlap or float. Tap backdrop, **×**, **Escape**, or pick a channel to close. Widen shell or desktop viewport closes the drawer.
 
-**Query flags:** `?compact=1` or `?embed=1` hides the long hint line and tightens message/composer padding (used by the Anti-Social switcher’s Ghost tab).
+**Query flags:** `?compact=1` or `?embed=1` hides the long hint line and tightens message/composer padding (used by the Anti-Social switcher’s Ghost tab). The same query adds **`gh-compact` in `<head>`** so layout runs on first paint; an **inlined `<style id="gh-embed-layout-critical">`** keeps **`#gh-root` → `.gh-chat-area` → `#gh-messages`** as a **flex column with `min-height: 0`** so the message list isn’t height-zero inside the parent iframe (narrow layout uses **`display: flex` on `.gh-app`** instead of a single-cell grid with three children).
 
 **Viewport:** `viewport-fit=cover` for safe-area on notched devices.
 

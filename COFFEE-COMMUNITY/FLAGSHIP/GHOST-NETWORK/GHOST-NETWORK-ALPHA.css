@@ -46,7 +46,8 @@ body {
   background: var(--gh-bg-darker);
   color: #e2e2e4;
   /* Narrow iframes (e.g. Anti-Social switcher) use drawer layout — not just viewport width */
-  container: ghost-app / inline-size;
+  container-type: inline-size;
+  container-name: ghost-app;
 }
 
 .gh-relay-rail {
@@ -109,7 +110,8 @@ body {
 }
 
 .gh-chat-header {
-  height: 48px;
+  min-height: 48px;
+  box-sizing: border-box;
   padding: 0 16px;
   display: flex;
   align-items: center;
@@ -154,6 +156,9 @@ body {
 /* Main chat header: hamburger + title + actions */
 .gh-main-header {
   gap: 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-width: 0;
 }
 
 .gh-menu-btn {
@@ -348,6 +353,8 @@ body {
   flex-direction: column;
   position: relative;
   min-width: 0;
+  min-height: 0;
+  flex: 1;
 }
 
 .gh-header-actions {
@@ -355,11 +362,22 @@ body {
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.gh-header-actions button[data-coffee="button"] {
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .gh-message-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -401,7 +419,8 @@ body {
 }
 
 .gh-input-container {
-  padding: 0 20px 20px;
+  padding: 0 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  flex-shrink: 0;
 }
 
 .gh-msg-compose-inner {
@@ -427,7 +446,7 @@ body {
   line-height: 1.4;
 }
 
-/* Embed / switcher: tighter chrome */
+/* Embed / switcher: tighter chrome + same flex stack as narrow (iframe height) */
 .gh-compact .gh-hint {
   display: none;
 }
@@ -444,15 +463,46 @@ body {
   padding-top: max(0px, env(safe-area-inset-top, 0px));
 }
 
+/* ?compact=1 &embed=1 — flex column so chat isn’t height:0 inside parent iframe */
+html.gh-compact #gh-root.gh-app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+}
+
+html.gh-compact #gh-root .gh-relay-rail {
+  display: none !important;
+}
+
+html.gh-compact #gh-root .gh-chat-area {
+  flex: 1 1 0%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+html.gh-compact #gh-root .gh-message-list {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
 /*
  * Mobile / narrow layout: container query = correct inside iframes.
  * Media query = fallback when container queries unsupported.
  */
 @container ghost-app (max-width: 720px) {
+  /*
+   * Flex column (not 1×1 grid with 3 children) so .gh-chat-area can shrink and
+   * .gh-message-list gets a real scroll region inside iframes (Anti-Social embed).
+   */
   .gh-app {
-    grid-template-columns: 1fr;
-    grid-template-rows: 1fr;
-    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
   }
 
   .gh-relay-rail {
@@ -505,8 +555,11 @@ body {
   }
 
   .gh-chat-area {
-    grid-column: 1;
+    flex: 1 1 0%;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
+    overflow: hidden;
   }
 
   body.gh-drawer-open {
@@ -515,15 +568,60 @@ body {
 
   .gh-main-header {
     padding-top: max(4px, env(safe-area-inset-top, 0px));
+    flex-wrap: wrap;
+    align-items: center;
+    align-content: flex-start;
+    row-gap: 8px;
+    padding-bottom: 10px;
+    min-height: auto;
+  }
+
+  .gh-header-title-row {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  /* Full-width actions row — stops “Copy room link” from floating / clipping in narrow shells */
+  .gh-header-actions {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+    order: 3;
+  }
+
+  .gh-header-actions button[data-coffee="button"] {
+    flex: 1;
+    min-height: 44px;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  .gh-hint {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .gh-message-list {
+    padding: 12px 14px;
+  }
+
+  .gh-input-container {
+    padding-left: 14px;
+    padding-right: 14px;
   }
 }
 
 @supports not (container-type: inline-size) {
   @media (max-width: 720px) {
     .gh-app {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr;
-      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      min-height: 0;
+      max-height: 100%;
     }
 
     .gh-relay-rail {
@@ -575,12 +673,61 @@ body {
     }
 
     .gh-chat-area {
-      grid-column: 1;
+      flex: 1 1 0%;
       min-height: 0;
+      min-width: 0;
+      width: 100%;
+      overflow: hidden;
     }
 
     body.gh-drawer-open {
       overflow: hidden;
+    }
+
+    .gh-main-header {
+      flex-wrap: wrap;
+      align-items: center;
+      align-content: flex-start;
+      row-gap: 8px;
+      padding-bottom: 10px;
+      min-height: auto;
+      padding-top: max(4px, env(safe-area-inset-top, 0px));
+    }
+
+    .gh-header-title-row {
+      flex: 1 1 0;
+      min-width: 0;
+    }
+
+    .gh-header-actions {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      margin-left: 0;
+      justify-content: stretch;
+      order: 3;
+    }
+
+    .gh-header-actions button[data-coffee="button"] {
+      flex: 1;
+      min-height: 44px;
+      white-space: normal;
+      overflow: visible;
+      text-overflow: unset;
+    }
+
+    .gh-hint {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    .gh-message-list {
+      padding: 12px 14px;
+    }
+
+    .gh-input-container {
+      padding-left: 14px;
+      padding-right: 14px;
     }
   }
 }

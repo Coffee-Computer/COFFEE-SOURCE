@@ -12,7 +12,93 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <script>
+    (function () {
+      try {
+        var q = new URLSearchParams(window.location.search);
+        if (q.get('compact') === '1' || q.get('embed') === '1') {
+          document.documentElement.classList.add('gh-compact');
+        }
+      } catch (_) {}
+    })();
+  </script>
   <link rel="stylesheet" href="GHOST-NETWORK-ALPHA.css">
+  <!-- Inlined so iframe embed (Anti-Social switcher) gets height chain even if the sheet is slow blocked -->
+  <style id="gh-embed-layout-critical">
+    html.gh-compact,
+    html.gh-compact body {
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    html.gh-compact #gh-root.gh-app {
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      max-height: 100% !important;
+      box-sizing: border-box;
+    }
+    html.gh-compact #gh-root .gh-relay-rail {
+      display: none !important;
+    }
+    /* Sidebar out of flex flow so it doesn’t eat column height before the external sheet loads */
+    html.gh-compact #gh-root .gh-sidebar {
+      position: fixed !important;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: min(300px, 88vw);
+      max-width: 320px;
+      z-index: 21;
+      transform: translateX(-102%);
+      transition: transform 0.22s ease;
+      box-sizing: border-box;
+    }
+    html.gh-compact #gh-root .gh-sidebar.gh-open {
+      transform: translateX(0);
+      box-shadow: 12px 0 40px rgba(0, 0, 0, 0.45);
+    }
+    html.gh-compact .gh-drawer-backdrop {
+      display: block;
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: rgba(0, 0, 0, 0.52);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease;
+    }
+    html.gh-compact .gh-drawer-backdrop.gh-open {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    html.gh-compact #gh-root .gh-menu-btn {
+      display: inline-flex !important;
+    }
+    html.gh-compact #gh-root .gh-drawer-close {
+      display: inline-flex !important;
+    }
+    html.gh-compact #gh-root .gh-chat-area {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      min-width: 0 !important;
+      width: 100% !important;
+      overflow: hidden !important;
+      display: flex !important;
+      flex-direction: column !important;
+    }
+    html.gh-compact #gh-messages.gh-message-list {
+      flex: 1 1 0% !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+    }
+    html.gh-compact #gh-msg-compose.gh-input-container {
+      flex-shrink: 0 !important;
+    }
+  </style>
   <script src="../../../COFFEE-CONTROL/TEST/coffee-control.js"></script>
   <script src="../../../COFFEE-UI/coffee-ui.js"></script>
   <script src="../../../COFFEE-TOAST/coffee-toast.js"></script>
@@ -100,6 +186,7 @@
       document.documentElement.classList.add('gh-compact');
     }
   } catch (_) {}
+  /* gh-compact may already be set from <head> script */
 
   var nt = window.NostrTools || {};
 
