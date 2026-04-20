@@ -11,14 +11,15 @@
     "buttonLabel": "OPEN",
     "url": "https://github.com/Coffee-Computer/COFFEE-SOURCE"
   },
+
   {
-    "id": "store",
-    "tag": "Community",
-    "tagTone": "blue",
-    "title": "Store",
-    "description": "Browse and install Coffee apps — community storefront.",
-    "footer": "α · apps/store",
+    "id": "coffee-examples",
+    "tag": "Developer",
+    "tagTone": "yellow",
+    "title": "Coffee Examples",
+    "description": "Examples hub — CDN gallery of dogfood pages and links to stack docs (same entry as Devsumer).",
+    "footer": "COFFEE-EXAMPLES · EXAMPLES-DASH",
     "buttonLabel": "OPEN",
-    "url": "../apps/store.html"
+    "url": "../../COFFEE-EXAMPLES/EXAMPLES-DASH.html"
   }
 ]
